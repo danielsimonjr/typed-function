@@ -1,0 +1,89 @@
+{
+  "sprint": 4,
+  "title": "AssemblyScript WASM Core",
+  "week": "Week 5-6",
+  "effort": "30-35 hours",
+  "status": "pending",
+  "tasks": [
+    {
+      "id": 1,
+      "category": "WASM Memory",
+      "description": "Set Up AssemblyScript Memory - Configure shared memory layout with TYPE_REGISTRY_OFFSET, SIGNATURE_TABLE_OFFSET, CONVERSION_TABLE_OFFSET, DISPATCH_CACHE_OFFSET",
+      "status": "pending",
+      "estimatedHours": 3,
+      "files": ["src/wasm/assembly/memory.ts"]
+    },
+    {
+      "id": 2,
+      "category": "WASM Core",
+      "description": "Implement Type ID Registry in WASM - Store type IDs and bit masks with registerType(), getTypeMask(), typeMatches() functions",
+      "status": "pending",
+      "estimatedHours": 3,
+      "files": ["src/wasm/assembly/type-registry.ts"]
+    },
+    {
+      "id": 3,
+      "category": "WASM Core",
+      "description": "Implement Signature Table - Store signature metadata with addSignature(), getParamCount(), getParamMask(), getFnIndex() for WASM dispatch",
+      "status": "pending",
+      "estimatedHours": 3,
+      "files": ["src/wasm/assembly/signature-table.ts"]
+    },
+    {
+      "id": 4,
+      "category": "WASM Dispatch",
+      "description": "Implement WASM Dispatch Loop - Core hot-path dispatchFind() with bit-mask matching, optimized dispatchFind2() for 2-param signatures",
+      "status": "pending",
+      "estimatedHours": 4,
+      "files": ["src/wasm/assembly/dispatch.ts"]
+    },
+    {
+      "id": 5,
+      "category": "WASM Performance",
+      "description": "Implement Dispatch Cache - LRU cache with FNV-1a hash, cacheLookup() and cacheStore() for repeated argument patterns",
+      "status": "pending",
+      "estimatedHours": 3,
+      "files": ["src/wasm/assembly/cache.ts"]
+    },
+    {
+      "id": 6,
+      "category": "JS-WASM Bridge",
+      "description": "Create JS-WASM Bridge - TypeScript bindings for WASM functions with initWasm(), wasmDispatchFind(), wasmAddSignature()",
+      "status": "pending",
+      "estimatedHours": 4,
+      "files": ["src/wasm/bindings.ts"]
+    },
+    {
+      "id": 7,
+      "category": "WASM Loading",
+      "description": "Create WASM Loader - Handle sync/async loading with isWasmAvailable(), ensureWasm(), ensureWasmSync() and graceful fallback",
+      "status": "pending",
+      "estimatedHours": 3,
+      "files": ["src/wasm/loader.ts"]
+    },
+    {
+      "id": 8,
+      "category": "Fallback",
+      "description": "Implement Pure-JS Fallback - Mirror WASM dispatch interface in pure JS with fallbackAddSignature(), fallbackDispatchFind()",
+      "status": "pending",
+      "estimatedHours": 2,
+      "files": ["src/wasm/fallback.ts"]
+    },
+    {
+      "id": 9,
+      "category": "Type System",
+      "description": "Implement Type Mask Assignment - Map JS type checks to bit masks with getTypeBit(), getTypeMaskForValue(), getParamMask()",
+      "status": "pending",
+      "estimatedHours": 3,
+      "files": ["src/wasm/type-masks.ts"]
+    },
+    {
+      "id": 10,
+      "category": "Integration",
+      "description": "Integrate WASM with Dispatcher - Wire WASM dispatch into hybrid dispatcher with automatic fallback to JS for conversions",
+      "status": "pending",
+      "estimatedHours": 4,
+      "files": ["src/dispatch/dispatcher.ts"]
+    }
+  ]
+}

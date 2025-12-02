@@ -1,0 +1,73 @@
+{
+  "sprint": 3,
+  "title": "Dispatcher & Fast Path",
+  "week": "Week 3-4",
+  "effort": "20-25 hours",
+  "status": "pending",
+  "tasks": [
+    {
+      "id": 1,
+      "category": "Dispatch Engine",
+      "description": "Create Fast-Path Dispatcher - Implement 6-signature optimized dispatch with pre-compiled tests, cached lengths, and direct function references",
+      "status": "pending",
+      "estimatedHours": 4,
+      "files": ["src/dispatch/fast-path.ts"]
+    },
+    {
+      "id": 2,
+      "category": "Dispatch Engine",
+      "description": "Create Generic Dispatcher - Implement fallback loop dispatcher for signatures beyond fast-path, with onMismatch handler integration",
+      "status": "pending",
+      "estimatedHours": 2,
+      "files": ["src/dispatch/generic-path.ts"]
+    },
+    {
+      "id": 3,
+      "category": "Reference Resolution",
+      "description": "Create Reference Resolver - Port resolveReferences() for typed.referTo() and typed.referToSelf() with circular reference detection",
+      "status": "pending",
+      "estimatedHours": 3,
+      "files": ["src/core/reference-resolver.ts"]
+    },
+    {
+      "id": 4,
+      "category": "Core Builder",
+      "description": "Create Main Typed Function Builder - Port createTypedFunction() with signature parsing, conflict detection, sorting, compilation, and dispatcher creation",
+      "status": "pending",
+      "estimatedHours": 4,
+      "files": ["src/dispatch/dispatcher.ts"]
+    },
+    {
+      "id": 5,
+      "category": "Factory",
+      "description": "Create Factory Function - Implement create() that produces isolated typed universes with independent type registries and conversion managers",
+      "status": "pending",
+      "estimatedHours": 3,
+      "files": ["src/factory.ts"]
+    },
+    {
+      "id": 6,
+      "category": "Public API",
+      "description": "Implement typed.find() & typed.findSignature() - Port signature lookup functions with exact match and any/rest param handling",
+      "status": "pending",
+      "estimatedHours": 2,
+      "files": ["src/typed.ts"]
+    },
+    {
+      "id": 7,
+      "category": "Public API",
+      "description": "Implement typed.resolve() - Port runtime signature resolution that returns matching signature for given arguments",
+      "status": "pending",
+      "estimatedHours": 1,
+      "files": ["src/typed.ts"]
+    },
+    {
+      "id": 8,
+      "category": "Public API",
+      "description": "Implement typed.convert() - Port value conversion function with type test and conversion chain execution",
+      "status": "pending",
+      "estimatedHours": 1,
+      "files": ["src/typed.ts"]
+    }
+  ]
+}
