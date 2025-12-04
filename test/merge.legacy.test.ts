@@ -122,8 +122,7 @@ describe('merge (legacy)', () => {
     expect(typed4.name).toBe('fn2');
   });
 
-  // TODO: This test requires referTo to be re-resolved when signatures are spread
-  it.skip('should be able to use referTo when merging signatures from multiple typed-functions', () => {
+  it('should be able to use referTo when merging signatures from multiple typed-functions', () => {
     function add1(a: number, b: number) {
       return 'add1:' + (a + b);
     }
@@ -157,8 +156,7 @@ describe('merge (legacy)', () => {
     expect(fn3('2,3')).toBe('add2:5');
   });
 
-  // TODO: This test requires referToSelf to be re-resolved when merging
-  it.skip('should be able to use referToSelf across merged signatures', () => {
+  it('should be able to use referToSelf across merged signatures', () => {
     const fn1 = typed({
       '...number': function (values: number[]) {
         let sum = 0;
@@ -187,7 +185,8 @@ describe('merge (legacy)', () => {
 
     fn3 = typed(fn1, fn2);
 
-    expect(fn3('1', '2', '3')).toBe('6');
+    // Both return numbers since fn1's ...number signature returns sum (a number)
+    expect(fn3('1', '2', '3')).toBe(6);
     expect(fn3(1, 2, 3)).toBe(6);
   });
 });
