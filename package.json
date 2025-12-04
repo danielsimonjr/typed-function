@@ -64,6 +64,7 @@
     "@types/node": "^24.10.1",
     "@typescript-eslint/eslint-plugin": "^8.48.1",
     "@typescript-eslint/parser": "^8.48.1",
+    "@vitest/coverage-v8": "^4.0.15",
     "assemblyscript": "^0.28.9",
     "benchmark": "2.1.4",
     "c8": "10.1.3",
