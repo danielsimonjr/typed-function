@@ -2,13 +2,13 @@
   "sprint": 7,
   "name": "Code Quality & Cleanup",
   "description": "Cleanup legacy code, improve test coverage, and add quality gates",
-  "status": "in_progress",
+  "status": "completed",
   "tasks": [
     {
       "id": "7.1",
       "name": "Package.json Cleanup",
       "description": "Remove legacy Babel scripts and unused dependencies",
-      "status": "pending",
+      "status": "completed",
       "subtasks": [
         "Remove legacy npm scripts (test:legacy, build:legacy, lint:legacy, etc.)",
         "Remove Babel dependencies (@babel/cli, @babel/preset-env)",
@@ -20,7 +20,7 @@
       "id": "7.2",
       "name": "Coverage Thresholds",
       "description": "Add coverage thresholds to prevent regression",
-      "status": "pending",
+      "status": "completed",
       "subtasks": [
         "Configure vitest coverage thresholds",
         "Set minimum 70% for statements, branches, functions, lines"
@@ -30,44 +30,87 @@
       "id": "7.3",
       "name": "Fast-Path Coverage",
       "description": "Improve test coverage for fast-path.ts (currently 30%)",
-      "status": "pending",
+      "status": "completed",
       "subtasks": [
         "Test createFastPathDispatcher with various signature counts",
         "Test slot assignment and inactive slot handling",
         "Test createDispatcher function",
         "Test edge cases (empty signatures, overflow)"
-      ]
+      ],
+      "result": {
+        "tests_added": 24,
+        "file": "test/fast-path.test.ts",
+        "coverage_before": "30%",
+        "coverage_after": "100%"
+      }
     },
     {
       "id": "7.4",
       "name": "Generic-Path Coverage",
       "description": "Improve test coverage for generic-path.ts (currently 42%)",
-      "status": "pending",
+      "status": "completed",
       "subtasks": [
         "Test createGenericDispatcher function",
         "Test argument matching logic",
         "Test fallback to onMismatch handler"
-      ]
+      ],
+      "result": {
+        "tests_added": 17,
+        "file": "test/generic-path.test.ts",
+        "coverage_before": "42%",
+        "coverage_after": "100%"
+      }
     },
     {
       "id": "7.5",
       "name": "Utility Helpers Coverage",
       "description": "Improve test coverage for utility helpers",
-      "status": "pending",
+      "status": "completed",
       "subtasks": [
         "Test array-helpers.ts functions",
         "Test object-helpers.ts functions"
-      ]
+      ],
+      "result": {
+        "tests_added": 47,
+        "file": "test/utils.test.ts",
+        "array_helpers_coverage_before": "46%",
+        "array_helpers_coverage_after": "100%",
+        "object_helpers_coverage_before": "9.5%",
+        "object_helpers_coverage_after": "100%"
+      }
     },
     {
       "id": "7.6",
       "name": "Documentation Update",
       "description": "Update CHANGELOG with Sprint 7 changes",
-      "status": "pending",
+      "status": "completed",
       "subtasks": [
         "Document cleanup changes",
         "Document coverage improvements",
         "Update version notes"
+      ]
+    },
+    {
+      "id": "7.7",
+      "name": "Fix referTo/referToSelf Merge Bug",
+      "description": "Fix referTo/referToSelf callbacks not re-resolving when merging typed functions",
+      "status": "completed",
+      "result": {
+        "file_modified": "src/factory.ts",
+        "function_added": "extractSignaturesWithReferences()",
+        "tests_enabled": 2
+      }
+    },
+    {
+      "id": "7.8",
+      "name": "Architecture Documentation Update",
+      "description": "Update architecture documentation for v5.0 TypeScript rewrite",
+      "status": "completed",
+      "files_updated": [
+        "docs/architecture/ARCHITECTURE.md",
+        "docs/architecture/COMPONENTS.md",
+        "docs/architecture/DATAFLOW.md",
+        "docs/architecture/OVERVIEW.md"
       ]
     }
   ],
@@ -78,11 +121,16 @@
       "functions": 70.35,
       "lines": 75.01
     },
-    "target_coverage": {
-      "statements": 80,
-      "branches": 75,
-      "functions": 80,
-      "lines": 80
+    "final_coverage": {
+      "statements": 89,
+      "branches": 82,
+      "functions": 87,
+      "lines": 89
+    },
+    "tests": {
+      "before": 464,
+      "after": 552,
+      "added": 88
     }
   }
 }
