@@ -20,7 +20,7 @@ import { parseSignature, expandParam, stringifyParams, splitParams } from '../co
 import { compareSignatures, conflicting } from '../core/signature-comparator.js';
 import { compileArgsPreprocessing } from '../core/signature-compiler.js';
 import { resolveReferences, validateDeprecatedThis } from '../core/reference-resolver.js';
-import { compileSignatureTests, createFastPathDispatcher, createFastPathSlot, createInactiveSlot, isFastPathEligible } from './fast-path.js';
+import { compileSignatureTests, createFastPathDispatcher, createInactiveSlot } from './fast-path.js';
 import { createGenericDispatcher } from './generic-path.js';
 
 /**
@@ -156,6 +156,10 @@ export function createTypedFunction(
   // The dispatch logic will be set up via closure after reference resolution
   let genericDispatch: ((args: IArguments, context: unknown) => unknown) | null = null;
   let fastPathReady = false;
+
+  // Fast-path slot variables - intentionally use `let` for closure pattern
+  // These are assigned once after theTypedFn is defined, then used via closure
+  /* eslint-disable prefer-const */
   let slot0Test0: (x: unknown) => boolean;
   let slot0Test1: (x: unknown) => boolean;
   let slot0Len: number;
@@ -180,6 +184,7 @@ export function createTypedFunction(
   let slot5Test1: (x: unknown) => boolean;
   let slot5Len: number;
   let slot5Fn: SignatureFunction;
+  /* eslint-enable prefer-const */
 
   function theTypedFn(this: unknown, arg0?: unknown, arg1?: unknown): unknown {
     const argc = arguments.length;

@@ -3,6 +3,7 @@
 [![Version](https://img.shields.io/npm/v/typed-function.svg)](https://www.npmjs.com/package/typed-function)
 [![Downloads](https://img.shields.io/npm/dm/typed-function.svg)](https://www.npmjs.com/package/typed-function)
 [![Build Status](https://github.com/josdejong/typed-function/workflows/Node.js%20CI/badge.svg)](https://github.com/josdejong/typed-function/actions)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/)
 
 Move type checking logic and type conversions outside of your function in a
 flexible, organized way. Automatically throw informative errors in case of
@@ -13,13 +14,15 @@ wrong input arguments.
 
 typed-function has the following features:
 
-- Runtime type-checking of input arguments.
-- Automatic type conversion of arguments.
-- Compose typed functions with multiple signatures.
-- Supports union types, any type, and variable arguments.
-- Detailed error messaging.
+- **Runtime type-checking** of input arguments
+- **Automatic type conversion** of arguments
+- **Compose typed functions** with multiple signatures
+- **Union types, any type, and variable arguments**
+- **Detailed error messaging**
+- **Full TypeScript support** with comprehensive type definitions (v5.0+)
+- **High performance** with optimized fast-path dispatch (v5.0+)
 
-Supported environments: node.js, Chrome, Firefox, Safari, Opera, IE11+.
+Supported environments: Node.js 18+, Chrome 80+, Firefox 74+, Safari 14+, Edge 80+.
 
 
 ## Why?
@@ -137,6 +140,48 @@ try {
   //           Expected: number or boolean, actual: string, index: 1.
 }
 ```
+
+## TypeScript Usage
+
+v5.0+ includes comprehensive TypeScript definitions:
+
+```typescript
+import typed, { TypedFunction, TypeDef, ConversionDef } from 'typed-function';
+
+// Create typed functions with type annotations
+const multiply: TypedFunction = typed({
+  'number, number': (a: number, b: number): number => a * b,
+});
+
+// Define custom types with full typing
+const positiveType: TypeDef = {
+  name: 'positive',
+  test: (x: unknown): x is number => typeof x === 'number' && x > 0,
+};
+
+typed.addType(positiveType);
+
+// Add conversions with type safety
+const stringToNumber: ConversionDef = {
+  from: 'string',
+  to: 'number',
+  convert: (s: string): number => parseFloat(s),
+};
+
+typed.addConversion(stringToNumber);
+
+// Use the typed function
+console.log(multiply(3, 4)); // 12
+```
+
+### Exported Types
+
+- `TypedFunction` - A typed function with signatures
+- `TypedInstance` - The typed-function instance (returned by `typed.create()`)
+- `TypeDef` - Type definition object
+- `ConversionDef` - Conversion definition object
+- `Signature` - Signature object returned by `resolve()` and `findSignature()`
+- `SignatureFunction` - Function implementation type
 
 
 ## Types
@@ -546,23 +591,27 @@ console.log(sqrt('9')); // output: 3
 
 ## Roadmap
 
-### Version 4
+### Version 5 (Current)
+
+Version 5 is a complete TypeScript rewrite with:
+
+- **Full TypeScript support** with comprehensive type definitions
+- **Performance improvements** via optimized fast-path dispatch
+- **Modular architecture** for better maintainability
+- **WASM-ready foundation** with type mask system
+
+See [MIGRATION_GUIDE.md](./docs/MIGRATION_GUIDE.md) for upgrade instructions.
+
+### Future
 
 - Extend function signatures:
   - Optional arguments like `'[number], array'` or like `number=, array`
   - Nullable arguments like `'?Object'`
-- Allow conversions to fail (for example string to number is not always
-  possible). Call this `fallible` or `optional`?
-
-### Version 5
-
-- Extend function signatures:
   - Constants like `'"linear" | "cubic"'`, `'0..10'`, etc.
   - Object definitions like `'{name: string, age: number}'`
-  - Object definitions like `'Object.<string, Person>'`
   - Array definitions like `'Array.<Person>'`
-- Improve performance of both generating a typed function as well as
-  the performance and memory footprint of a typed function.
+- Allow conversions to fail (fallible conversions)
+- WebAssembly acceleration for high-throughput dispatch
 
 
 ## Test
@@ -571,12 +620,36 @@ To test the library, run:
 
     npm test
 
+To run tests in watch mode:
+
+    npm run test:watch
+
+To run tests with coverage:
+
+    npm run test:coverage
+
+
+## Build
+
+To build all output formats (ESM, CJS, UMD, IIFE):
+
+    npm run build
+
+Build outputs:
+- `build/typed-function.mjs` - ES Module
+- `build/typed-function.cjs` - CommonJS
+- `build/typed-function.js` - UMD (browser)
+- `build/typed-function.min.js` - Minified IIFE
+- `build/index.d.ts` - TypeScript declarations
+
 
 ## Code style and linting
 
-The library is using the [standardjs](https://standardjs.com/) coding style.
+To check TypeScript types:
 
-To test the code style, run:
+    npm run typecheck
+
+To lint the code:
 
     npm run lint
 
@@ -587,7 +660,7 @@ To automatically fix most of the styling issues, run:
 
 ## Publish
 
-1. Describe the changes in `HISTORY.md`
+1. Describe the changes in `CHANGELOG.md`
 2. Increase the version number in `package.json`
 3. Test and build:
     ```
@@ -595,11 +668,16 @@ To automatically fix most of the styling issues, run:
     npm run build-and-test
     ```
 4. Verify whether the generated output works correctly by opening
-   `./test/browserEsmBuild.html` in your browser. 
+   `./test/browserEsmBuild.html` in your browser.
 5. Commit the changes
 6. Merge `develop` into `master`, and push `master`
 7. Create a git tag, and push this
-8. publish the library:
+8. Publish the library:
     ```
     npm publish
     ```
+
+
+## License
+
+MIT

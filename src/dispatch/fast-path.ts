@@ -170,11 +170,9 @@ export function createDispatcher(
   name: string,
   signatures: Signature[],
   genericDispatch: (args: IArguments, context: unknown) => unknown,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _onMismatch: MismatchHandler
 ): SignatureFunction {
-  // Suppress unused parameter warning
-  void _onMismatch;
-
   const fp = createFastPathDispatcher(signatures);
 
   // Extract slot data for closure optimization

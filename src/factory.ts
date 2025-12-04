@@ -20,7 +20,7 @@ import type {
 } from './core/types.js';
 import { NOT_TYPED_FUNCTION } from './core/types.js';
 
-import { BUILTIN_TYPES, createTypeRegistry } from './core/type-registry.js';
+import { createTypeRegistry } from './core/type-registry.js';
 import { createConversionManager } from './core/conversion-manager.js';
 import { createError } from './core/error-factory.js';
 import { parseSignature, stringifyParams } from './core/signature-parser.js';

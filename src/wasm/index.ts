@@ -5,6 +5,11 @@
  * It automatically falls back to pure JS when WASM is not available.
  */
 
+// Internal imports needed for unified interface
+import type { SignatureFunction } from '../core/types.js';
+import { isWasmAvailable, wasmAddSignature, wasmDispatchFind } from './bindings.js';
+import { fallbackAddSignature, fallbackDispatchFind } from './fallback.js';
+
 // Re-export types and bindings
 export type { WasmExports, WasmDispatchState } from './bindings.js';
 
@@ -71,10 +76,6 @@ export {
   registerCustomType,
   maskToTypeNames,
 } from './type-masks.js';
-
-import type { SignatureFunction } from '../core/types.js';
-import { isWasmAvailable, wasmAddSignature, wasmDispatchFind } from './bindings.js';
-import { fallbackAddSignature, fallbackDispatchFind } from './fallback.js';
 
 /**
  * Add a signature to dispatch (auto-selects WASM or fallback)

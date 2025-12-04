@@ -2,7 +2,6 @@ import typescript from '@rollup/plugin-typescript';
 import resolve from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
 import terser from '@rollup/plugin-terser';
-import type { RollupOptions } from 'rollup';
 
 const banner = `/**
  * typed-function v5.0.0
@@ -13,7 +12,8 @@ const banner = `/**
  * @license MIT
  */`;
 
-const config: RollupOptions[] = [
+/** @type {import('rollup').RollupOptions[]} */
+const config = [
   // ESM build
   {
     input: 'src/index.ts',
@@ -42,12 +42,13 @@ const config: RollupOptions[] = [
       format: 'cjs',
       sourcemap: true,
       banner,
-      exports: 'default',
+      exports: 'named',
     },
     plugins: [
       typescript({
         tsconfig: './tsconfig.build.json',
         declaration: false,
+        declarationMap: false,
       }),
       resolve(),
       commonjs(),
@@ -68,6 +69,7 @@ const config: RollupOptions[] = [
       typescript({
         tsconfig: './tsconfig.build.json',
         declaration: false,
+        declarationMap: false,
       }),
       resolve(),
       commonjs(),
@@ -88,6 +90,7 @@ const config: RollupOptions[] = [
       typescript({
         tsconfig: './tsconfig.build.json',
         declaration: false,
+        declarationMap: false,
       }),
       resolve(),
       commonjs(),
