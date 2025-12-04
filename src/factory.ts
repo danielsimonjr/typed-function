@@ -31,6 +31,49 @@ import { initial, last } from './utils/array-helpers.js';
 import { isPlainObject } from './utils/object-helpers.js';
 
 /**
+ * Type for a function that may have preserved referTo/referToSelf info
+ */
+type FunctionWithReference = SignatureFunction & {
+  referTo?: ReferTo['referTo'];
+  referToSelf?: ReferToSelf['referToSelf'];
+};
+
+/**
+ * Extract signatures from a typed function, restoring referTo/referToSelf markers
+ * so they can be re-resolved in the context of a new typed function.
+ *
+ * @param signatures - The signatures object from a typed function
+ * @returns Object with referTo/referToSelf markers restored
+ */
+function extractSignaturesWithReferences(
+  signatures: Record<string, SignatureFunction>
+): Record<string, SignatureFunction | ReferTo | ReferToSelf> {
+  const result: Record<string, SignatureFunction | ReferTo | ReferToSelf> = {};
+
+  for (const key in signatures) {
+    if (Object.prototype.hasOwnProperty.call(signatures, key)) {
+      const fn = signatures[key] as FunctionWithReference | undefined;
+      if (fn) {
+        // Check if the function has preserved referTo info
+        if (fn.referTo) {
+          result[key] = makeReferTo(fn.referTo.references, fn.referTo.callback);
+        }
+        // Check if the function has preserved referToSelf info
+        else if (fn.referToSelf) {
+          result[key] = makeReferToSelf(fn.referToSelf.callback);
+        }
+        // Otherwise, use the function directly
+        else {
+          result[key] = fn;
+        }
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
  * Create a new typed-function instance
  *
  * Each instance has its own type registry and conversion manager,
@@ -237,12 +280,12 @@ export function create(): TypedInstance {
           // Case 1: Ordinary function with a string 'signature' property
           theseSignatures[itemWithSig.signature] = item as SignatureFunction;
         } else if (isTypedFunction(item)) {
-          // Case 2: Existing typed function
-          theseSignatures = item.signatures;
+          // Case 2: Existing typed function - extract with preserved references
+          theseSignatures = extractSignaturesWithReferences(item.signatures);
         }
       } else if (isPlainObject(item)) {
-        // Case 3: Plain object with signatures
-        theseSignatures = item as Record<string, SignatureFunction>;
+        // Case 3: Plain object with signatures - extract with preserved references
+        theseSignatures = extractSignaturesWithReferences(item as Record<string, SignatureFunction>);
         if (!named) {
           thisName = getObjectName(item as Record<string, SignatureFunction>, isTypedFunction);
         }
