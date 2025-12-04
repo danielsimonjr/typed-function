@@ -176,6 +176,19 @@ console.log(add('a', 'b')); // 'ab'
 - API documentation
 - README updates
 
+#### Sprint 7: Code Quality & Cleanup
+- Removed legacy Babel scripts and unused dependencies
+- Added coverage thresholds (70% statements, 65% branches)
+- Comprehensive test coverage improvements:
+  - fast-path.ts: 30% → 100%
+  - generic-path.ts: 42% → 100%
+  - array-helpers.ts: 46% → 100%
+  - object-helpers.ts: 9.5% → 100%
+- Overall coverage: 74% → 89% statements
+- Fixed referTo/referToSelf re-resolution when merging typed functions
+- Added sideEffects: false for better tree-shaking
+- 552 tests passing (88 new tests added)
+
 ### Development
 
 ```bash
