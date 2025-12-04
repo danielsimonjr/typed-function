@@ -178,150 +178,117 @@ This optimization targets the most common use cases for better performance.
 
 ## Module Structure
 
-Currently, typed-function is implemented as a monolithic single file (~1,988 lines). The logical organization within `src/typed-function.mjs`:
+Version 5.0 introduces a modular TypeScript architecture (~4,500 lines across 26 modules):
 
 ```
-src/typed-function.mjs
-├── Helper Functions (lines 1-13)
-│   ├── ok()           - Returns true
-│   ├── notOk()        - Returns false
-│   └── undef()        - Returns undefined
+src/
+├── index.ts                     # Main entry point, exports default typed instance
+├── factory.ts                   # create() factory function
 │
-├── Constants (line 13)
-│   └── NOT_TYPED_FUNCTION error message
+├── core/                        # Core type system modules
+│   ├── types.ts                 # TypeScript type definitions
+│   ├── type-registry.ts         # Type storage & lookup (TypeRegistry class)
+│   ├── signature-parser.ts      # Signature string parsing & tokenization
+│   ├── signature-compiler.ts    # Test function compilation
+│   ├── signature-comparator.ts  # Signature ordering for dispatch
+│   ├── conversion-manager.ts    # Type conversion handling
+│   ├── reference-resolver.ts    # referTo/referToSelf resolution
+│   └── error-factory.ts         # Error message generation
 │
-├── JSDoc Type Definitions (lines 15-50)
+├── dispatch/                    # Dispatch engine modules
+│   ├── dispatcher.ts            # Main dispatch orchestration
+│   ├── fast-path.ts             # Optimized 6-signature dispatch
+│   └── generic-path.ts          # Fallback loop dispatch
 │
-└── create() Factory (lines 55-1988)
-    │
-    ├── Type System (lines 56-196)
-    │   ├── isPlainObject()
-    │   ├── _types[] (built-in type definitions)
-    │   ├── anyType
-    │   ├── typeMap, typeList, nConversions (state)
-    │   ├── findType()
-    │   ├── addTypes()
-    │   ├── clear()
-    │   └── clearConversions()
-    │
-    ├── Type Discovery (lines 198-223)
-    │   ├── findTypeNames()
-    │   └── isTypedFunction()
-    │
-    ├── Signature Lookup (lines 225-385)
-    │   ├── findSignature()
-    │   ├── find()
-    │   └── convert()
-    │
-    ├── Signature Parsing (lines 387-532)
-    │   ├── stringifyParams()
-    │   ├── parseParam()
-    │   ├── expandParam()
-    │   ├── paramTypeSet()
-    │   ├── parseSignature()
-    │   └── hasRestParam()
-    │
-    ├── Test Compilation (lines 534-626)
-    │   ├── compileTest()
-    │   └── compileTests()
-    │
-    ├── Signature Utilities (lines 628-782)
-    │   ├── getParamAtIndex()
-    │   ├── getTypeSetAtIndex()
-    │   ├── isExactType()
-    │   ├── mergeExpectedParams()
-    │   └── createError()
-    │
-    ├── Signature Comparison (lines 784-993)
-    │   ├── getLowestTypeIndex()
-    │   ├── getLowestConversionIndex()
-    │   ├── compareParams()
-    │   ├── compareSignatures()
-    │   └── availableConversions()
-    │
-    ├── Argument Processing (lines 1040-1149)
-    │   ├── compileArgsPreprocessing()
-    │   └── compileArgConversion()
-    │
-    ├── Signature Splitting (lines 1151-1247)
-    │   ├── splitParams()
-    │   └── conflicting()
-    │
-    ├── Reference Resolution (lines 1249-1373)
-    │   ├── clearResolutions()
-    │   ├── collectResolutions()
-    │   ├── resolveReferences()
-    │   └── validateDeprecatedThis()
-    │
-    ├── Core Function Creation (lines 1375-1574)
-    │   ├── createTypedFunction()
-    │   └── _onMismatch()
-    │
-    ├── Array Utilities (lines 1576-1630)
-    │   ├── initial()
-    │   ├── last()
-    │   ├── slice()
-    │   ├── findInArray()
-    │   └── flatMap()
-    │
-    ├── Reference API (lines 1632-1698)
-    │   ├── referTo()
-    │   ├── makeReferTo()
-    │   ├── referToSelf()
-    │   ├── isReferTo()
-    │   └── isReferToSelf()
-    │
-    ├── Name Handling (lines 1700-1767)
-    │   ├── checkName()
-    │   ├── getObjectName()
-    │   └── mergeSignatures()
-    │
-    └── Public API (lines 1769-1985)
-        ├── typed() main function
-        └── All exported methods
+├── utils/                       # Utility modules
+│   ├── array-helpers.ts         # Array utility functions
+│   └── object-helpers.ts        # Object utility functions
+│
+└── wasm/                        # WebAssembly foundation
+    ├── type-masks.ts            # Bit-mask type system
+    ├── fallback.ts              # Pure-JS WASM-equivalent
+    ├── bindings.ts              # WASM bridge interface
+    ├── loader.ts                # WASM loading utilities
+    ├── index.ts                 # WASM module exports
+    └── assembly/                # AssemblyScript sources
+        ├── index.ts
+        ├── dispatch.ts
+        ├── signature-table.ts
+        ├── type-registry.ts
+        ├── memory.ts
+        └── cache.ts
 ```
+
+### Module Responsibilities
+
+| Module | Responsibility |
+|--------|----------------|
+| `index.ts` | Entry point, creates default typed instance |
+| `factory.ts` | `create()` factory, merges signatures, creates typed functions |
+| `type-registry.ts` | Stores types, type lookup, type ordering |
+| `signature-parser.ts` | Parses signature strings like `"number, string"` |
+| `signature-compiler.ts` | Compiles type tests into optimized functions |
+| `signature-comparator.ts` | Orders signatures for dispatch preference |
+| `conversion-manager.ts` | Manages type conversions |
+| `reference-resolver.ts` | Resolves `referTo()` and `referToSelf()` |
+| `error-factory.ts` | Creates detailed type mismatch errors |
+| `dispatcher.ts` | Orchestrates fast/generic path selection |
+| `fast-path.ts` | Inlined dispatch for first 6 signatures |
+| `generic-path.ts` | Loop-based fallback dispatch |
 
 ## Build System
 
 ### Source to Distribution
 
 ```
-src/typed-function.mjs
+src/**/*.ts (TypeScript)
          │
          ▼
-┌─────────────────────┐
-│   Babel (ESM)       │
-│   babel.config.json │
-└─────────┬───────────┘
-          │
-          ▼
-lib/esm/typed-function.mjs (ES Modules)
-          │
-          ▼
-┌─────────────────────┐
-│   Rollup (UMD)      │
-│   --format umd      │
-└─────────┬───────────┘
-          │
-          ▼
-lib/umd/typed-function.js (UMD Bundle)
+┌─────────────────────────────┐
+│   Rollup + TypeScript       │
+│   rollup.config.js          │
+│   @rollup/plugin-typescript │
+└─────────────┬───────────────┘
+              │
+              ▼
+┌─────────────────────────────────────────────────────────┐
+│                    build/                                │
+├─────────────────────────────────────────────────────────┤
+│  typed-function.mjs      (ES Module)                    │
+│  typed-function.cjs      (CommonJS)                     │
+│  typed-function.js       (UMD browser bundle)           │
+│  typed-function.min.js   (Minified IIFE, ~26KB)         │
+│  index.d.ts              (TypeScript declarations)      │
+└─────────────────────────────────────────────────────────┘
 ```
 
 ### Output Formats
 
 | Format | File | Usage |
 |--------|------|-------|
-| ESM | `lib/esm/typed-function.mjs` | Modern bundlers, ES6+ environments |
-| UMD | `lib/umd/typed-function.js` | Node.js (CommonJS), browsers, AMD |
+| ESM | `build/typed-function.mjs` | Modern bundlers, ES6+ environments |
+| CJS | `build/typed-function.cjs` | Node.js (CommonJS) |
+| UMD | `build/typed-function.js` | Browsers, AMD loaders |
+| IIFE | `build/typed-function.min.js` | Direct browser usage (~26KB) |
+| Types | `build/index.d.ts` | TypeScript declarations |
 
 ### Package.json Entry Points
 
 ```json
 {
   "type": "module",
-  "main": "lib/umd/typed-function.js",    // CommonJS/Node.js
-  "module": "lib/esm/typed-function.mjs", // ES Modules
-  "browser": "lib/umd/typed-function.js"  // Browsers
+  "main": "./build/typed-function.cjs",
+  "module": "./build/typed-function.mjs",
+  "browser": "./build/typed-function.js",
+  "types": "./build/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./build/index.d.ts",
+      "import": "./build/typed-function.mjs",
+      "require": "./build/typed-function.cjs"
+    }
+  },
+  "sideEffects": false
 }
 ```
 
@@ -377,16 +344,25 @@ typed-function is **not thread-safe** in the traditional sense, but JavaScript i
 | Type test | ~10ns | Single type |
 | Conversion | ~50ns | Plus conversion function time |
 
-## Future Architecture (v5.0)
+## Current Architecture (v5.0)
 
-The planned v5.0 architecture introduces:
+Version 5.0 represents a complete rewrite with:
 
-1. **TypeScript rewrite** - Full type safety
-2. **Modular structure** - Split into ~20 modules
-3. **WASM hot paths** - AssemblyScript for dispatch
-4. **Improved caching** - Type test result caching
+1. **TypeScript implementation** - Full type safety with comprehensive type definitions
+2. **Modular structure** - Split into 26 modules across 5 directories
+3. **WASM foundation** - Type masks and bindings ready for WebAssembly acceleration
+4. **Fast-path optimization** - Inlined dispatch for first 6 signatures (~2.5x faster)
+5. **Test coverage** - 89% statement coverage with 552 tests
 
-See [PHASE_1_REFACTORING_PLAN.md](../planning/PHASE_1_REFACTORING_PLAN.md) for details.
+## Future Improvements
+
+Potential enhancements for future versions:
+
+1. **WebAssembly acceleration** - Compile WASM dispatch from AssemblyScript sources
+2. **Type test caching** - Cache test results for repeated type checks
+3. **Optional arguments** - Syntax like `'[number], array'`
+4. **Fallible conversions** - Allow conversions to fail gracefully
+5. **Nullable arguments** - Syntax like `'?Object'`
 
 ## Related Documentation
 

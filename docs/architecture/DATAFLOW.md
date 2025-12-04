@@ -1,6 +1,6 @@
 # typed-function Data Flow
 
-This document describes how data flows through typed-function during both creation and execution of typed functions.
+This document describes how data flows through typed-function v5.0 during both creation and execution of typed functions.
 
 ## Overview
 
@@ -39,7 +39,7 @@ fn with .signature='boolean' ┘             'boolean': fn3
                                          }
 ```
 
-**Code path**: `typed()` function at `src/typed-function.mjs:1794-1835`
+**Code path**: `typed()` function in `src/factory.ts`
 
 ### Step 2: Signature Parsing
 
@@ -70,7 +70,7 @@ Signature String                    Parsed Params
                                      ]
 ```
 
-**Code path**: `parseSignature()` at `src/typed-function.mjs:496-522`
+**Code path**: `parseSignature()` in `src/core/signature-parser.ts`
 
 ### Step 3: Conflict Detection
 
@@ -85,7 +85,7 @@ Existing Signatures          New Signature
 ['any']                      ['number']  ──► OK (different specificity)
 ```
 
-**Code path**: `conflicting()` at `src/typed-function.mjs:1220-1247`
+**Code path**: `conflicting()` in `src/core/signature-comparator.ts`
 
 ### Step 4: Conversion Expansion
 
@@ -107,7 +107,7 @@ hasConversion: false                    { name: 'number', conversion: null },
                                       hasConversion: true
 ```
 
-**Code path**: `expandParam()` at `src/typed-function.mjs:444-472`
+**Code path**: `expandParam()` in `src/core/signature-parser.ts`
 
 ### Step 5: Signature Splitting
 
@@ -123,7 +123,7 @@ Single Signature with Union             Split Signatures
                                          ]
 ```
 
-**Code path**: `splitParams()` at `src/typed-function.mjs:1168-1212`
+**Code path**: `splitParams()` in `src/core/signature-parser.ts`
 
 ### Step 6: Signature Sorting
 
@@ -147,7 +147,7 @@ Unsorted                          Sorted (by preference)
 6. More params (without rest) / fewer params (with rest)
 7. Lower type index at each position
 
-**Code path**: `compareSignatures()` at `src/typed-function.mjs:897-993`
+**Code path**: `compareSignatures()` in `src/core/signature-comparator.ts`
 
 ### Step 7: Reference Resolution
 
@@ -166,7 +166,7 @@ Before Resolution                 After Resolution
 }
 ```
 
-**Code path**: `resolveReferences()` at `src/typed-function.mjs:1309-1349`
+**Code path**: `resolveReferences()` in `src/core/reference-resolver.ts`
 
 ### Step 8: Test Compilation
 
@@ -190,7 +190,7 @@ Many types:                        (x) => {
                                     }
 ```
 
-**Code path**: `compileTest()` at `src/typed-function.mjs:540-565`
+**Code path**: `compileTest()` in `src/core/signature-compiler.ts`
 
 ### Step 9: Implementation Wrapping
 
@@ -208,7 +208,7 @@ fn(a, b)                     ─────►  function(a, b) {
                                     }
 ```
 
-**Code path**: `compileArgsPreprocessing()` at `src/typed-function.mjs:1050-1085`
+**Code path**: `compileArgsPreprocessing()` in `src/core/signature-compiler.ts`
 
 ### Step 10: Dispatcher Creation
 
@@ -226,7 +226,7 @@ Compiled Signatures           ─────►  // Fast path (first 6 signatur
                                     }
 ```
 
-**Code path**: `createTypedFunction()` at `src/typed-function.mjs:1385-1564`
+**Code path**: `createDispatcher()` in `src/dispatch/dispatcher.ts`
 
 ## Execution Flow
 

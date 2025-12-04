@@ -1,44 +1,46 @@
 # typed-function Components
 
-This document provides detailed documentation of the components and modules within typed-function.
+This document provides detailed documentation of the components and modules within typed-function v5.0.
 
 ## Component Overview
 
 ```
 ┌────────────────────────────────────────────────────────────────────┐
-│                        typed-function                               │
+│                        typed-function v5.0                          │
 ├────────────────────────────────────────────────────────────────────┤
 │                                                                     │
 │  ┌──────────────────────┐    ┌──────────────────────┐             │
-│  │    Type Registry     │    │  Conversion Registry │             │
+│  │    Type Registry     │    │  Conversion Manager  │             │
 │  │  ─────────────────   │    │  ──────────────────  │             │
-│  │  • typeMap (Map)     │    │  • stored on types   │             │
-│  │  • typeList (Array)  │    │  • nConversions      │             │
-│  │  • anyType           │    │                      │             │
+│  │  type-registry.ts    │    │  conversion-manager  │             │
+│  │  • TypeRegistry class│    │  .ts                 │             │
+│  │  • findType()        │    │  • addConversion()   │             │
+│  │  • addTypes()        │    │  • convert()         │             │
 │  └──────────┬───────────┘    └──────────┬───────────┘             │
 │             │                           │                          │
 │             ▼                           ▼                          │
 │  ┌──────────────────────────────────────────────────┐             │
-│  │              Signature Processor                  │             │
+│  │              Signature Processing                 │             │
 │  │  ────────────────────────────────────────────    │             │
-│  │  • parseSignature()   • expandParam()            │             │
-│  │  • splitParams()      • compileTests()           │             │
-│  │  • compareSignatures()                           │             │
+│  │  signature-parser.ts    signature-compiler.ts    │             │
+│  │  signature-comparator.ts                         │             │
 │  └──────────────────────────┬───────────────────────┘             │
 │                             │                                      │
 │                             ▼                                      │
 │  ┌──────────────────────────────────────────────────┐             │
 │  │                Dispatch Engine                    │             │
 │  │  ────────────────────────────────────────────    │             │
-│  │  • theTypedFn (fast path)                        │             │
-│  │  • generic (slow path)                           │             │
-│  │  • onMismatch handler                            │             │
+│  │  dispatcher.ts   fast-path.ts   generic-path.ts  │             │
+│  │  • createDispatcher()                            │             │
+│  │  • Fast path (6 signatures)                      │             │
+│  │  • Generic fallback                              │             │
 │  └──────────────────────────┬───────────────────────┘             │
 │                             │                                      │
 │                             ▼                                      │
 │  ┌──────────────────────────────────────────────────┐             │
 │  │               Reference Resolver                  │             │
 │  │  ────────────────────────────────────────────    │             │
+│  │  reference-resolver.ts                           │             │
 │  │  • referTo()       • referToSelf()               │             │
 │  │  • resolveReferences()                           │             │
 │  └──────────────────────────────────────────────────┘             │
@@ -50,31 +52,42 @@ This document provides detailed documentation of the components and modules with
 
 The type registry manages all known types in a typed universe.
 
-### State
+**Location**: `src/core/type-registry.ts`
 
-| Variable | Type | Description |
-|----------|------|-------------|
-| `typeMap` | `Map<string, TypeDef>` | Primary lookup for type definitions |
-| `typeList` | `string[]` | Ordered list of type names |
-| `anyType` | `TypeDef` | Special "any" type that matches everything |
+### TypeRegistry Class
+
+The `TypeRegistry` class encapsulates type storage and lookup:
+
+```typescript
+class TypeRegistry {
+  private typeMap: Map<string, TypeDef>    // Primary lookup
+  private typeList: string[]                // Ordered list
+  private anyType: TypeDef                  // Special "any" type
+
+  findType(name: string): TypeDef
+  addTypes(types: TypeDef[], before?: string): void
+  clear(): void
+  findTypeNames(value: unknown): string[]
+}
+```
 
 ### Built-in Types
 
-```javascript
-const _types = [
-  { name: 'number',    test: x => typeof x === 'number' },
-  { name: 'string',    test: x => typeof x === 'string' },
-  { name: 'boolean',   test: x => typeof x === 'boolean' },
-  { name: 'Function',  test: x => typeof x === 'function' },
-  { name: 'Array',     test: Array.isArray },
-  { name: 'Date',      test: x => x instanceof Date },
-  { name: 'RegExp',    test: x => x instanceof RegExp },
+```typescript
+const BUILT_IN_TYPES: TypeDef[] = [
+  { name: 'number',    test: (x): x is number => typeof x === 'number' },
+  { name: 'string',    test: (x): x is string => typeof x === 'string' },
+  { name: 'boolean',   test: (x): x is boolean => typeof x === 'boolean' },
+  { name: 'Function',  test: (x): x is Function => typeof x === 'function' },
+  { name: 'Array',     test: (x): x is unknown[] => Array.isArray(x) },
+  { name: 'Date',      test: (x): x is Date => x instanceof Date },
+  { name: 'RegExp',    test: (x): x is RegExp => x instanceof RegExp },
   { name: 'Object',    test: isPlainObject },
-  { name: 'null',      test: x => x === null },
-  { name: 'undefined', test: x => x === undefined }
+  { name: 'null',      test: (x): x is null => x === null },
+  { name: 'undefined', test: (x): x is undefined => x === undefined }
 ]
 
-const anyType = { name: 'any', test: ok, isAny: true }
+const ANY_TYPE: TypeDef = { name: 'any', test: () => true, isAny: true }
 ```
 
 ### Functions
@@ -82,9 +95,7 @@ const anyType = { name: 'any', test: ok, isAny: true }
 #### `findType(typeName: string): TypeDef`
 Looks up a type by name. Throws `TypeError` with helpful suggestions if not found.
 
-**Location**: `src/typed-function.mjs:106-122`
-
-```javascript
+```typescript
 findType('number')  // Returns number TypeDef
 findType('Number')  // Throws: 'Unknown type "Number". Did you mean "number"?'
 ```
@@ -92,144 +103,126 @@ findType('Number')  // Throws: 'Unknown type "Number". Did you mean "number"?'
 #### `addTypes(types: TypeDef[], before?: string): void`
 Adds new types to the registry. Types are inserted before the specified type (default: 'any').
 
-**Location**: `src/typed-function.mjs:137-168`
-
-```javascript
-addTypes([{ name: 'Complex', test: isComplex }], 'Object')
+```typescript
+registry.addTypes([{ name: 'Complex', test: isComplex }], 'Object')
 ```
 
 #### `clear(): void`
-Resets the type registry to only contain `any`, then adds default types.
+Resets the type registry to built-in types only.
 
-**Location**: `src/typed-function.mjs:176-185`
-
-#### `clearConversions(): void`
-Removes all registered conversions while keeping types.
-
-**Location**: `src/typed-function.mjs:190-196`
-
-#### `findTypeNames(value: any): string[]`
+#### `findTypeNames(value: unknown): string[]`
 Returns all type names that match a given value.
 
-**Location**: `src/typed-function.mjs:204-213`
-
-```javascript
+```typescript
 findTypeNames(42)      // ['number']
 findTypeNames([1,2])   // ['Array']
 findTypeNames({a: 1})  // ['Object']
 ```
 
-## Conversion Registry
+## Conversion Manager
 
-Conversions enable automatic type coercion. They're stored on the destination type's `conversionsTo` array.
+Conversions enable automatic type coercion. They're managed by the `ConversionManager` class.
 
-### State
+**Location**: `src/core/conversion-manager.ts`
 
-| Variable | Type | Description |
-|----------|------|-------------|
-| `nConversions` | `number` | Counter for conversion priority ordering |
+### ConversionManager Class
+
+```typescript
+class ConversionManager {
+  private registry: TypeRegistry
+  private nConversions: number  // Counter for priority ordering
+
+  addConversion(conversion: ConversionDef, options?: { override?: boolean }): void
+  removeConversion(conversion: ConversionDef): void
+  clearConversions(): void
+  convert(value: unknown, typeName: string): unknown
+  getAvailableConversions(typeNames: string[]): ConversionDef[]
+}
+```
 
 ### Functions
 
-#### `typed.addConversion(conversion: ConversionDef, options?): void`
+#### `addConversion(conversion: ConversionDef, options?): void`
 Registers a new type conversion.
 
-**Location**: `src/typed-function.mjs:1899-1921`
-
-```javascript
-typed.addConversion({
+```typescript
+conversionManager.addConversion({
   from: 'boolean',
   to: 'number',
-  convert: x => x ? 1 : 0
+  convert: (x: boolean) => x ? 1 : 0
 })
 ```
 
 **Options**:
 - `override: boolean` - If true, replaces existing conversion (default: false)
 
-#### `typed.removeConversion(conversion: ConversionDef): void`
+#### `removeConversion(conversion: ConversionDef): void`
 Removes an existing conversion. The convert function must match exactly.
 
-**Location**: `src/typed-function.mjs:1944-1960`
-
-#### `availableConversions(typeNames: string[]): ConversionDef[]`
+#### `getAvailableConversions(typeNames: string[]): ConversionDef[]`
 Finds all conversions that can convert to any of the given types.
 
-**Location**: `src/typed-function.mjs:1003-1038`
-
-#### `convert(value: any, typeName: string): any`
+#### `convert(value: unknown, typeName: string): unknown`
 Converts a value to the specified type using registered conversions.
 
-**Location**: `src/typed-function.mjs:366-385`
-
-```javascript
+```typescript
 // Assuming boolean → number conversion exists
 typed.convert(true, 'number')  // Returns 1
 ```
 
-## Signature Processor
+## Signature Processing
 
-Handles parsing, expansion, and compilation of function signatures.
+Handles parsing, expansion, and compilation of function signatures. Split across three modules.
 
-### Signature Parsing
+### Signature Parser
 
-#### `parseSignature(rawSignature: string): Param[]`
+**Location**: `src/core/signature-parser.ts`
+
+#### `parseSignature(rawSignature: string, registry: TypeRegistry): Param[]`
 Parses a signature string into an array of parameters.
 
-**Location**: `src/typed-function.mjs:496-522`
-
-```javascript
-parseSignature('number, string')
+```typescript
+parseSignature('number, string', registry)
 // Returns: [
 //   { types: [{name: 'number', ...}], name: 'number', restParam: false, ... },
 //   { types: [{name: 'string', ...}], name: 'string', restParam: false, ... }
 // ]
 
-parseSignature('...number')
+parseSignature('...number', registry)
 // Returns: [
 //   { types: [{name: 'number', ...}], name: '...number', restParam: true, ... }
 // ]
 ```
 
-#### `parseParam(param: string): Param`
+#### `parseParam(param: string, registry: TypeRegistry): Param`
 Parses a single parameter string (e.g., "number | string" or "...number").
 
-**Location**: `src/typed-function.mjs:402-436`
-
-#### `stringifyParams(params: Param[], separator?: string): string`
+#### `stringifyParams(params: Param[]): string`
 Converts parsed parameters back to a string representation.
 
-**Location**: `src/typed-function.mjs:393-395`
-
-### Signature Expansion
-
-#### `expandParam(param: Param): Param`
+#### `expandParam(param: Param, conversions: ConversionDef[]): Param`
 Expands a parameter to include types reachable via conversions.
 
-**Location**: `src/typed-function.mjs:444-472`
-
-```javascript
+```typescript
 // If boolean → number conversion exists:
-expandParam({ types: [{name: 'number'}], ... })
+expandParam({ types: [{name: 'number'}], ... }, conversions)
 // Returns: { types: [{name: 'number'}, {name: 'boolean', conversion: ...}], ... }
 ```
 
 #### `splitParams(params: Param[]): Param[][]`
 Splits union types into separate signature permutations.
 
-**Location**: `src/typed-function.mjs:1168-1212`
-
-```javascript
+```typescript
 // 'number | string, boolean' becomes:
 // [['number', 'boolean'], ['string', 'boolean']]
 ```
 
-### Signature Comparison
+### Signature Comparator
+
+**Location**: `src/core/signature-comparator.ts`
 
 #### `compareSignatures(sig1: Signature, sig2: Signature): number`
 Compares two signatures for dispatch ordering. Returns negative if sig1 should come first.
-
-**Location**: `src/typed-function.mjs:897-993`
 
 **Comparison criteria (in order of priority)**:
 1. No `...any` rest parameter preferred
@@ -243,112 +236,119 @@ Compares two signatures for dispatch ordering. Returns negative if sig1 should c
 #### `compareParams(param1: Param, param2: Param): number`
 Compares individual parameters for ordering.
 
-**Location**: `src/typed-function.mjs:830-882`
-
 #### `conflicting(params1: Param[], params2: Param[]): boolean`
 Checks if two signatures would conflict (accept same arguments).
 
-**Location**: `src/typed-function.mjs:1220-1247`
+### Signature Compiler
 
-### Test Compilation
+**Location**: `src/core/signature-compiler.ts`
 
-#### `compileTest(param: Param): (x: any) => boolean`
+#### `compileTest(param: Param): (x: unknown) => boolean`
 Creates an optimized type test for a single parameter.
 
-**Location**: `src/typed-function.mjs:540-565`
-
-```javascript
+```typescript
 // For single type: direct test function
 // For 2 types: (x) => test0(x) || test1(x)
 // For 3+ types: loop-based test
 ```
 
-#### `compileTests(params: Param[]): (args: any[]) => boolean`
+#### `compileTests(params: Param[]): (args: unknown[]) => boolean`
 Creates a test function for a complete signature.
 
-**Location**: `src/typed-function.mjs:572-626`
+#### `compileArgsPreprocessing(params: Param[], fn: Function): Function`
+Wraps a function to handle conversions and rest parameters.
 
 ## Dispatch Engine
 
-The dispatch engine routes function calls to the correct implementation.
+The dispatch engine routes function calls to the correct implementation. Split across three modules.
 
-### Core Dispatcher
+**Location**: `src/dispatch/`
 
-The main typed function (`theTypedFn`) uses a two-tier dispatch strategy:
+### Dispatcher
 
-**Location**: `src/typed-function.mjs:1529-1540`
+**Location**: `src/dispatch/dispatcher.ts`
 
-```javascript
+The main dispatcher orchestrates fast-path and generic-path selection:
+
+```typescript
+function createDispatcher(
+  signatures: Signature[],
+  onMismatch: MismatchHandler
+): TypedFunction
+```
+
+### Fast-Path Dispatcher
+
+**Location**: `src/dispatch/fast-path.ts`
+
+Optimized dispatch for the first 6 signatures with inlined type checks:
+
+```typescript
 function theTypedFn(arg0, arg1) {
   // Fast path: inline checks for first 6 signatures
   if (arguments.length === len0 && test00(arg0) && test01(arg1)) {
     return fn0.apply(this, arguments)
   }
-  // ... 5 more fast checks ...
+  // ... up to 5 more fast checks ...
 
-  // Slow path: generic loop
+  // Fall back to generic path
   return generic.apply(this, arguments)
 }
 ```
 
-### Generic Dispatcher
+Key functions:
+- `isFastPathEligible(signature)` - Check if signature qualifies (≤2 params, no rest)
+- `createFastPathSlot(signature)` - Create inlined test slot
+- `createFastPathDispatcher(slots, generic)` - Build optimized dispatcher
 
-Falls back for complex cases (rest params, many signatures).
+### Generic-Path Dispatcher
 
-**Location**: `src/typed-function.mjs:1515-1525`
+**Location**: `src/dispatch/generic-path.ts`
 
-```javascript
+Loop-based fallback for complex cases (rest params, many signatures):
+
+```typescript
 function generic() {
   for (let i = iStart; i < iEnd; i++) {
     if (tests[i](arguments)) {
       return fns[i].apply(this, arguments)
     }
   }
-  return typed.onMismatch(name, arguments, signatures)
+  return onMismatch(name, arguments, signatures)
 }
 ```
 
-### Argument Preprocessing
-
-#### `compileArgsPreprocessing(params: Param[], fn: Function): Function`
-Wraps a function to handle conversions and rest parameters.
-
-**Location**: `src/typed-function.mjs:1050-1085`
-
-#### `compileArgConversion(param: Param): (arg: any) => any`
-Creates a converter function for a single parameter.
-
-**Location**: `src/typed-function.mjs:1093-1149`
+Key functions:
+- `createGenericDispatcher(signatures, onMismatch)` - Build fallback dispatcher
+- `createSimpleDispatcher(signature)` - Single-signature optimized dispatch
 
 ## Reference Resolver
 
 Handles `typed.referTo()` and `typed.referToSelf()` for cross-referencing signatures.
 
+**Location**: `src/core/reference-resolver.ts`
+
 ### Functions
 
-#### `referTo(...signatures: string[], callback: Function): ReferToObject`
+#### `referTo(...signatures: string[], callback: Function): ReferTo`
 Creates a reference to other signatures within the same typed function.
 
-**Location**: `src/typed-function.mjs:1643-1653`
-
-```javascript
+```typescript
 const fn = typed({
   'number': x => x,
-  'string': typed.referTo('number', numImpl => {
-    return s => numImpl(parseFloat(s))
+  'string': typed.referTo('number', (numImpl) => {
+    return (s: string) => numImpl(parseFloat(s))
   })
 })
 ```
 
-#### `referToSelf(callback: Function): ReferToSelfObject`
+#### `referToSelf(callback: Function): ReferToSelf`
 Creates a self-reference for recursive calls.
 
-**Location**: `src/typed-function.mjs:1665-1671`
-
-```javascript
+```typescript
 const factorial = typed({
-  'number': typed.referToSelf(self => {
-    return n => n <= 1 ? 1 : n * self(n - 1)
+  'number': typed.referToSelf((self) => {
+    return (n: number) => n <= 1 ? 1 : n * self(n - 1)
   })
 })
 ```
@@ -356,18 +356,22 @@ const factorial = typed({
 #### `resolveReferences(functionList, signatureMap, self): Function[]`
 Resolves all referTo/referToSelf objects to actual functions.
 
-**Location**: `src/typed-function.mjs:1309-1349`
+#### `isReferTo(value: unknown): value is ReferTo`
+Type guard to check if a value is a ReferTo marker.
+
+#### `isReferToSelf(value: unknown): value is ReferToSelf`
+Type guard to check if a value is a ReferToSelf marker.
 
 ## Error Factory
 
 Creates detailed error messages for type mismatches.
 
+**Location**: `src/core/error-factory.ts`
+
 ### Functions
 
-#### `createError(name: string, args: any[], signatures: Signature[]): TypeError`
+#### `createError(name: string, args: unknown[], signatures: Signature[]): TypeError`
 Creates a TypeError with detailed mismatch information.
-
-**Location**: `src/typed-function.mjs:693-781`
 
 **Error categories**:
 - `wrongType` - Argument has wrong type at index
@@ -375,19 +379,17 @@ Creates a TypeError with detailed mismatch information.
 - `tooManyArgs` - Too many arguments provided
 - `mismatch` - Generic mismatch (no specific cause)
 
-```javascript
+```typescript
 const err = createError('add', [1, 'x'], signatures)
 // TypeError: Unexpected type of argument in function add
 // (expected: number, actual: string, index: 1)
 // err.data = { category: 'wrongType', fn: 'add', index: 1, ... }
 ```
 
-#### `typed.onMismatch: Function`
+#### `typed.onMismatch: MismatchHandler`
 Configurable handler called when no signature matches.
 
-**Location**: `src/typed-function.mjs:1839`
-
-```javascript
+```typescript
 typed.onMismatch = function(name, args, signatures) {
   // Default: throw createError(name, args, signatures)
   // Can be customized for special handling
@@ -401,7 +403,7 @@ typed.onMismatch = function(name, args, signatures) {
 #### `typed(name?: string, ...sources): TypedFunction`
 Creates a new typed function from signature sources.
 
-**Location**: `src/typed-function.mjs:1794-1835`
+**Location**: `src/factory.ts`
 
 **Parameters**:
 - `name` - Optional function name
@@ -411,10 +413,10 @@ Creates a new typed function from signature sources.
 
 ### Factory Method
 
-#### `typed.create(): typed`
+#### `typed.create(): TypedInstance`
 Creates a new, isolated typed-function instance.
 
-**Location**: `src/typed-function.mjs:1837`
+**Location**: `src/factory.ts`
 
 ### Type Management
 
@@ -462,15 +464,37 @@ Creates a new, isolated typed-function instance.
 
 Internal helper functions used throughout the codebase.
 
-**Location**: `src/typed-function.mjs:1576-1630`
+### Array Helpers
+
+**Location**: `src/utils/array-helpers.ts`
 
 | Function | Description |
 |----------|-------------|
-| `initial(arr)` | Get all but last element |
 | `last(arr)` | Get last element |
+| `initial(arr)` | Get all but last element |
 | `slice(arr, start, end?)` | Slice array-like |
-| `findInArray(arr, test)` | Find first matching element |
 | `flatMap(arr, callback)` | Map and flatten results |
+| `findInArray(arr, test)` | Find first matching element |
+| `hasItem(arr, item)` | Check if item exists |
+| `createArray(length)` | Create array of length |
+| `arraysEqual(a, b)` | Compare arrays for equality |
+
+### Object Helpers
+
+**Location**: `src/utils/object-helpers.ts`
+
+| Function | Description |
+|----------|-------------|
+| `isPlainObject(x)` | Check if plain object |
+| `hasOwnProperty(obj, prop)` | Safe hasOwnProperty check |
+| `getProperty(obj, prop)` | Safe property access |
+| `shallowCopy(obj)` | Create shallow copy |
+| `mapObject(obj, fn)` | Map over object values |
+| `objectSize(obj)` | Count own properties |
+| `isEmptyObject(obj)` | Check if empty object |
+| `mergeObjects(...objs)` | Merge multiple objects |
+| `pick(obj, keys)` | Pick specific keys |
+| `omit(obj, keys)` | Omit specific keys |
 
 ## Related Documentation
 
