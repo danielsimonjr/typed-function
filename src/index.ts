@@ -4,7 +4,6 @@
  * Type checking for JavaScript functions
  *
  * This is the main entry point for the typed-function library.
- * The full implementation will be completed in Sprint 3.
  */
 
 // Re-export core types
@@ -85,6 +84,45 @@ export {
 // Re-export conversion manager
 export { ConversionManager, createConversionManager } from './core/conversion-manager.js';
 
+// Re-export reference resolver
+export {
+  isReferTo,
+  isReferToSelf,
+  makeReferTo,
+  makeReferToSelf,
+  clearResolutions,
+  collectResolutions,
+  resolveReferences,
+  validateDeprecatedThis,
+} from './core/reference-resolver.js';
+
+// Re-export dispatcher components
+export {
+  isFastPathEligible,
+  createFastPathSlot,
+  createInactiveSlot,
+  createFastPathDispatcher,
+  createDispatcher,
+  compileSignatureTests,
+} from './dispatch/fast-path.js';
+export type { FastPathSlot, FastPathDispatcher } from './dispatch/fast-path.js';
+
+export {
+  createGenericDispatcher,
+  createSimpleDispatcher,
+  hasCompiledTests,
+  hasImplementations,
+} from './dispatch/generic-path.js';
+export type { GenericDispatcher as GenericDispatcherFn } from './dispatch/generic-path.js';
+
+export {
+  createTypedFunction,
+  checkName,
+  getObjectName,
+  mergeSignatures,
+} from './dispatch/dispatcher.js';
+export type { CreateTypedFunctionOptions } from './dispatch/dispatcher.js';
+
 // Re-export utility functions
 export { last, initial, slice, flatMap, findInArray, hasItem, createArray, arraysEqual } from './utils/array-helpers.js';
 
@@ -101,8 +139,11 @@ export {
   omit,
 } from './utils/object-helpers.js';
 
-// Placeholder for the main typed function (will be implemented in Sprint 3)
-// For now, export a stub to verify the module structure
+// Re-export factory and create function
+export { create } from './factory.js';
+
+// Import the default typed instance
+import typedInstance from './factory.js';
 
 /**
  * Check if an entity is a typed function created by any instance
@@ -111,19 +152,5 @@ export function isTypedFunction(entity: unknown): boolean {
   return entity !== null && typeof entity === 'function' && '_typedFunctionData' in entity;
 }
 
-/**
- * Placeholder create function - full implementation in Sprint 3
- */
-export function create(): unknown {
-  // This will be fully implemented in Sprint 3
-  throw new Error('typed-function create() not yet implemented - Sprint 3');
-}
-
-// Default export placeholder
-const typed = {
-  create,
-  isTypedFunction,
-  // Additional methods will be added in Sprint 3
-};
-
-export default typed;
+// Default export: the default typed instance
+export default typedInstance;

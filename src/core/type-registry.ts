@@ -64,6 +64,13 @@ export class TypeRegistry {
   }
 
   /**
+   * Alias for size - get the number of registered types
+   */
+  get typeCount(): number {
+    return this.typeList.length;
+  }
+
+  /**
    * Get a copy of the type list
    */
   getTypeList(): string[] {

@@ -101,16 +101,16 @@ export interface Signature {
   params: Param[];
 
   /** The original function provided for this signature */
-  fn: SignatureFunction;
+  fn: SignatureFunction | null;
 
   /** Function to test if arguments match this signature */
-  test: (args: ArrayLike<unknown>) => boolean;
+  test: ((args: ArrayLike<unknown>) => boolean) | null;
 
   /** Function to call that handles conversions and rest params */
-  implementation: SignatureFunction;
+  implementation: SignatureFunction | null;
 
   /** Canonical name of this signature (e.g., 'number,string') */
-  name: string;
+  name?: string;
 }
 
 /**
@@ -335,6 +335,9 @@ export interface TypedInstance {
 
   /** Whether to warn about deprecated this usage */
   warnAgainstDeprecatedThis: boolean;
+
+  /** Internal: find a type by name (for testing) */
+  _findType: (name: string) => TypeDef;
 }
 
 /**
