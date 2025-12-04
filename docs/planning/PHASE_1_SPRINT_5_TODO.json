@@ -3,78 +3,78 @@
   "title": "Testing & Compatibility",
   "week": "Week 7",
   "effort": "18-22 hours",
-  "status": "pending",
+  "status": "completed",
   "tasks": [
     {
       "id": 1,
       "category": "Test Migration",
       "description": "Port Existing Tests to TypeScript - Convert all 14 test files from .mjs to .test.ts, add type annotations, use Vitest assertions while keeping logic identical",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 4,
       "files": [
-        "test/construction.test.ts",
-        "test/any_type.test.ts",
-        "test/compose.test.ts",
-        "test/conversion.test.ts",
-        "test/convert.test.ts",
-        "test/errors.test.ts",
-        "test/find.test.ts",
-        "test/isTypedFunction.test.ts",
-        "test/merge.test.ts",
-        "test/onMismatch.test.ts",
-        "test/resolve.test.ts",
-        "test/rest_params.test.ts",
-        "test/security.test.ts",
-        "test/union_types.test.ts"
+        "test/construction.legacy.test.ts",
+        "test/any_type.legacy.test.ts",
+        "test/compose.legacy.test.ts",
+        "test/conversion.legacy.test.ts",
+        "test/convert.legacy.test.ts",
+        "test/errors.legacy.test.ts",
+        "test/find.legacy.test.ts",
+        "test/isTypedFunction.legacy.test.ts",
+        "test/merge.legacy.test.ts",
+        "test/onMismatch.legacy.test.ts",
+        "test/resolve.legacy.test.ts",
+        "test/rest_params.legacy.test.ts",
+        "test/security.legacy.test.ts",
+        "test/union_types.legacy.test.ts"
       ]
     },
     {
       "id": 2,
       "category": "WASM Testing",
       "description": "Add WASM-Specific Tests - Test WASM dispatch paths, cache hits, fallback behavior, and WASM/JS parity",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 3,
-      "files": ["test/wasm/dispatch.test.ts", "test/wasm/cache.test.ts", "test/wasm/fallback.test.ts"]
+      "files": ["test/wasm.test.ts"]
     },
     {
       "id": 3,
       "category": "Property Testing",
       "description": "Add Property-Based Tests - Use fast-check for signature parsing round-trips, type mask consistency, and edge case discovery",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 3,
-      "files": ["test/property/signature-parsing.test.ts", "test/property/type-masks.test.ts"]
+      "files": ["test/property-based.test.ts"]
     },
     {
       "id": 4,
       "category": "Compatibility",
       "description": "Create Compatibility Test Suite - Test against v4.x behavior for error messages, conversion order, signature resolution priority",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 3,
-      "files": ["test/compat/v4-behavior.test.ts", "test/compat/v4-errors.test.ts"]
+      "files": ["test/compatibility.test.ts"]
     },
     {
       "id": 5,
       "category": "Performance",
       "description": "Add Performance Regression Tests - Benchmark guards in CI for dispatch (1M calls <500ms) and creation (<1ms per function)",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 2,
-      "files": ["test/performance/dispatch.bench.ts", "test/performance/creation.bench.ts"]
+      "files": ["test/performance.test.ts"]
     },
     {
       "id": 6,
       "category": "Type Testing",
       "description": "Add TypeScript Type Tests - Use tsd to ensure types work correctly, test inference, signatures property, and API types",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 2,
-      "files": ["test/types.test-d.ts"]
+      "files": ["test/typescript-types.test.ts"]
     },
     {
       "id": 7,
       "category": "Integration",
       "description": "Integration Tests with math.js Patterns - Test complex number operations, matrix types, and real-world usage patterns",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 3,
-      "files": ["test/integration/mathjs-patterns.test.ts"]
+      "files": ["test/mathjs-patterns.test.ts"]
     }
   ]
 }

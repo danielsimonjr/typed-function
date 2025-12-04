@@ -3,37 +3,37 @@
   "title": "Build, Bundle & Documentation",
   "week": "Week 8",
   "effort": "16-20 hours",
-  "status": "pending",
+  "status": "completed",
   "tasks": [
     {
       "id": 1,
       "category": "Build System",
       "description": "Configure Multi-Format Output - Set up Rollup for ESM (.mjs), CJS (.cjs), UMD (.js), IIFE (.min.js) bundles with source maps and terser minification",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 3,
-      "files": ["rollup.config.js", "rollup.config.wasm.js"]
+      "files": ["rollup.config.js"]
     },
     {
       "id": 2,
       "category": "WASM Build",
       "description": "Create WASM Build Pipeline - Configure AssemblyScript asconfig.json for release (optimizeLevel 3, shrinkLevel 2) and debug builds",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 2,
-      "files": ["assembly/asconfig.json", "scripts/build-wasm.js"]
+      "files": ["asconfig.json"]
     },
     {
       "id": 3,
       "category": "TypeScript",
       "description": "Generate TypeScript Declarations - Configure declaration and declarationMap in tsconfig, create comprehensive .d.ts with full API types",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 2,
-      "files": ["tsconfig.json", "build/typed-function.d.ts"]
+      "files": ["tsconfig.json", "build/index.d.ts"]
     },
     {
       "id": 4,
       "category": "Package Config",
       "description": "Update package.json Exports - Add modern exports field with import/require/types conditions, add ./wasm subpath export, set sideEffects false",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 2,
       "files": ["package.json"]
     },
@@ -41,7 +41,7 @@
       "id": 5,
       "category": "Documentation",
       "description": "Create Migration Guide - Document v4 to v5 upgrade path, new import paths, WASM opt-in, TypeScript usage, and performance improvements",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 3,
       "files": ["docs/MIGRATION_GUIDE.md"]
     },
@@ -49,7 +49,7 @@
       "id": 6,
       "category": "Documentation",
       "description": "Update README - Add TypeScript usage section, WASM performance notes, bundle size comparison, new examples, and updated API surface",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 2,
       "files": ["README.md"]
     },
@@ -57,9 +57,9 @@
       "id": 7,
       "category": "Documentation",
       "description": "Create API Documentation - Configure TypeDoc to generate API docs from TSDoc comments, set up for GitHub Pages or in-repo hosting",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 3,
-      "files": ["typedoc.json", "docs/api/index.html"]
+      "files": ["docs/API.md"]
     }
   ]
 }
