@@ -3,13 +3,13 @@
   "title": "Foundation & TypeScript Scaffolding",
   "week": "Week 1",
   "effort": "20-25 hours",
-  "status": "pending",
+  "status": "completed",
   "tasks": [
     {
       "id": 1,
       "category": "Project Setup",
       "description": "Initialize TypeScript Project - Configure tsconfig.json for strict mode, ES2020 target, multiple outputs (ESM, CJS, UMD)",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 2,
       "files": ["tsconfig.json", "tsconfig.build.json"]
     },
@@ -17,7 +17,7 @@
       "id": 2,
       "category": "Type Definitions",
       "description": "Define Core Type Interfaces - Create src/core/types.ts with TypeDef, Param, Signature, ConversionDef, Type, SignatureFunction, TypedFunction interfaces",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 3,
       "files": ["src/core/types.ts"]
     },
@@ -25,7 +25,7 @@
       "id": 3,
       "category": "Core Module",
       "description": "Create Type Registry Class - Implement src/core/type-registry.ts with Map-based type storage, addTypes(), findType(), getTypeMask(), clear() methods",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 3,
       "files": ["src/core/type-registry.ts"]
     },
@@ -33,15 +33,15 @@
       "id": 4,
       "category": "Build System",
       "description": "Configure ESBuild/Rollup Pipeline - Set up modern build with tree-shaking, source maps, ESM/CJS/UMD/IIFE outputs",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 3,
-      "files": ["rollup.config.js", "package.json"]
+      "files": ["rollup.config.ts", "package.json"]
     },
     {
       "id": 5,
       "category": "WASM Toolchain",
       "description": "Set Up AssemblyScript Toolchain - Install assemblyscript, create assembly directory structure, configure asconfig.json with optimization flags",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 2,
       "files": ["assembly/asconfig.json", "assembly/tsconfig.json", "src/wasm/assembly/index.ts"]
     },
@@ -49,7 +49,7 @@
       "id": 6,
       "category": "Utilities",
       "description": "Create Utility Functions Module - Port initial(), last(), slice(), flatMap() to TypeScript with proper generics",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 1,
       "files": ["src/utils/array-helpers.ts"]
     },
@@ -57,7 +57,7 @@
       "id": 7,
       "category": "Utilities",
       "description": "Port isPlainObject and Type Tests - Create src/utils/object-helpers.ts with isPlainObject and builtinTypeTests array for 10 built-in types",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 2,
       "files": ["src/utils/object-helpers.ts"]
     },
@@ -65,7 +65,7 @@
       "id": 8,
       "category": "Error Handling",
       "description": "Create Error Factory Module - Port createError() to src/core/error-factory.ts with TypedError interface containing category, fn, index, actual, expected data",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 2,
       "files": ["src/core/error-factory.ts"]
     },
@@ -73,7 +73,7 @@
       "id": 9,
       "category": "Testing",
       "description": "Set Up Test Infrastructure - Configure Vitest for TypeScript tests, create test utilities createTestTyped() and assertSignatureMatch()",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 2,
       "files": ["vitest.config.ts", "test/utils/test-helpers.ts"]
     },
@@ -81,7 +81,7 @@
       "id": 10,
       "category": "CI/CD",
       "description": "Create CI/CD Pipeline Update - Update GitHub Actions for TypeScript + WASM build, add tsc --noEmit type check, test matrix for Node 18/20/22",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 2,
       "files": [".github/workflows/ci-test.yaml"]
     }

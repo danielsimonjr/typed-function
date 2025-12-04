@@ -3,13 +3,13 @@
   "title": "Signature Parsing & Compilation",
   "week": "Week 2",
   "effort": "18-22 hours",
-  "status": "pending",
+  "status": "completed",
   "tasks": [
     {
       "id": 1,
       "category": "Signature Parsing",
       "description": "Create Signature Parser - Port parseSignature() and parseParam() to src/core/signature-parser.ts with TypeScript types, handle rest params and union types",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 3,
       "files": ["src/core/signature-parser.ts"]
     },
@@ -17,7 +17,7 @@
       "id": 2,
       "category": "Signature Parsing",
       "description": "Create Param Expander - Port expandParam() for adding conversion types to parameters, integrate with ConversionManager",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 2,
       "files": ["src/core/signature-parser.ts"]
     },
@@ -25,7 +25,7 @@
       "id": 3,
       "category": "Compilation",
       "description": "Create Test Compiler - Port compileTest() and compileTests() with optimizations for 0, 1, 2 params and unrolled loops for 3-4 types",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 3,
       "files": ["src/core/signature-compiler.ts"]
     },
@@ -33,7 +33,7 @@
       "id": 4,
       "category": "Comparison",
       "description": "Create Signature Comparator - Port compareParams() and compareSignatures() with weighted metrics for any, rest, conversion, length preferences",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 3,
       "files": ["src/core/signature-comparator.ts"]
     },
@@ -41,7 +41,7 @@
       "id": 5,
       "category": "Conversions",
       "description": "Create Conversion Manager - Port conversion registration, removal, and availableConversions() lookup with index-based priority",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 3,
       "files": ["src/core/conversion-manager.ts"]
     },
@@ -49,7 +49,7 @@
       "id": 6,
       "category": "Signature Processing",
       "description": "Create splitParams Function - Port union type splitting logic for expanding signatures into individual type variants",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 2,
       "files": ["src/core/signature-parser.ts"]
     },
@@ -57,7 +57,7 @@
       "id": 7,
       "category": "Validation",
       "description": "Create Conflict Detector - Port conflicting() function to detect overlapping signatures with rest param handling",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 2,
       "files": ["src/core/signature-comparator.ts"]
     },
@@ -65,7 +65,7 @@
       "id": 8,
       "category": "Preprocessing",
       "description": "Create Args Preprocessor - Port compileArgsPreprocessing() and compileArgConversion() with optimized switch cases for 0, 1, 2 conversions",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 2,
       "files": ["src/core/signature-compiler.ts"]
     }
