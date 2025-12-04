@@ -1,0 +1,15 @@
+{
+  "extends": "assemblyscript/std/assembly.json",
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["../src/wasm/assembly/**/*.ts"]
+}
