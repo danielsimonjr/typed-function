@@ -112,7 +112,7 @@ export interface WasmDispatchState {
 }
 
 /** Global WASM dispatch state */
-let wasmState: WasmDispatchState = {
+const wasmState: WasmDispatchState = {
   initialized: false,
   exports: null,
   functionTable: [],

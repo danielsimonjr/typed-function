@@ -3,7 +3,7 @@
  */
 
 import { expect } from 'vitest';
-import type { TypedFunction, Signature, Param } from '../../src/core/types.js';
+import type { TypedFunction, Signature } from '../../src/core/types.js';
 
 /**
  * Assert that a signature matches expected parameters
