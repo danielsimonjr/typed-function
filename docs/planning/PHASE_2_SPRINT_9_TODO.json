@@ -1,0 +1,100 @@
+{
+  "sprint": 9,
+  "title": "Branch Coverage Completion",
+  "week": "Week 9",
+  "effort": "14-16 hours",
+  "status": "pending",
+  "tasks": [
+    {
+      "id": 1,
+      "category": "Fast Path",
+      "description": "Fast-path branch 67 - Test specific dispatch condition",
+      "status": "pending",
+      "estimatedHours": 1.5,
+      "files": ["src/dispatch/fast-path.ts"],
+      "lines": "67"
+    },
+    {
+      "id": 2,
+      "category": "Fast Path",
+      "description": "Fast-path branches 88-89 - Signature slot activation",
+      "status": "pending",
+      "estimatedHours": 1.5,
+      "files": ["src/dispatch/fast-path.ts"],
+      "lines": "88-89"
+    },
+    {
+      "id": 3,
+      "category": "Fast Path",
+      "description": "Fast-path branches 179-184 - Multi-param type checking",
+      "status": "pending",
+      "estimatedHours": 1.5,
+      "files": ["src/dispatch/fast-path.ts"],
+      "lines": "179-184"
+    },
+    {
+      "id": 4,
+      "category": "Generic Path",
+      "description": "Generic-path branch 78 - Dispatch fallback condition",
+      "status": "pending",
+      "estimatedHours": 1.5,
+      "files": ["src/dispatch/generic-path.ts"],
+      "lines": "78"
+    },
+    {
+      "id": 5,
+      "category": "Dispatcher",
+      "description": "Dispatcher branch 78 - Name handling branch",
+      "status": "pending",
+      "estimatedHours": 1,
+      "files": ["src/dispatch/dispatcher.ts"],
+      "lines": "78"
+    },
+    {
+      "id": 6,
+      "category": "Reference Resolver",
+      "description": "Reference-resolver branch 203 - Resolution edge case",
+      "status": "pending",
+      "estimatedHours": 1,
+      "files": ["src/core/reference-resolver.ts"],
+      "lines": "203"
+    },
+    {
+      "id": 7,
+      "category": "Conversion Manager",
+      "description": "Conversion-manager branches - All remaining branches (64.28% coverage)",
+      "status": "pending",
+      "estimatedHours": 2,
+      "files": ["src/core/conversion-manager.ts"],
+      "lines": "varies"
+    },
+    {
+      "id": 8,
+      "category": "Signature Parser",
+      "description": "Signature-parser branches - All remaining branches (63.33% coverage)",
+      "status": "pending",
+      "estimatedHours": 2,
+      "files": ["src/core/signature-parser.ts"],
+      "lines": "varies"
+    },
+    {
+      "id": 9,
+      "category": "Type Registry",
+      "description": "Type-registry branches - All remaining branches (61.01% coverage)",
+      "status": "pending",
+      "estimatedHours": 2,
+      "files": ["src/core/type-registry.ts"],
+      "lines": "varies"
+    },
+    {
+      "id": 10,
+      "category": "Factory",
+      "description": "Factory branches - All remaining branches (88.76% coverage)",
+      "status": "pending",
+      "estimatedHours": 1.5,
+      "files": ["src/factory.ts"],
+      "lines": "varies"
+    }
+  ],
+  "expectedCoverageGain": "+5% branches"
+}

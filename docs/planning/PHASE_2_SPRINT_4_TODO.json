@@ -1,0 +1,82 @@
+{
+  "sprint": 4,
+  "title": "Signature Compiler Complete Coverage",
+  "week": "Week 4",
+  "effort": "12-14 hours",
+  "status": "pending",
+  "tasks": [
+    {
+      "id": 1,
+      "category": "Signature Compiler",
+      "description": "Test empty conversion array - Param with hasConversion=true but empty conversions",
+      "status": "pending",
+      "estimatedHours": 1.5,
+      "files": ["src/core/signature-compiler.ts"],
+      "lines": "140"
+    },
+    {
+      "id": 2,
+      "category": "Signature Compiler",
+      "description": "Test case 2 with null conv0 - Two conversions where first is undefined",
+      "status": "pending",
+      "estimatedHours": 1.5,
+      "files": ["src/core/signature-compiler.ts"],
+      "lines": "200"
+    },
+    {
+      "id": 3,
+      "category": "Signature Compiler",
+      "description": "Test case 2 with null conv1 - Two conversions where second is undefined",
+      "status": "pending",
+      "estimatedHours": 1.5,
+      "files": ["src/core/signature-compiler.ts"],
+      "lines": "221"
+    },
+    {
+      "id": 4,
+      "category": "Signature Compiler",
+      "description": "Test 3+ conversions default case - Param with 3+ type conversions",
+      "status": "pending",
+      "estimatedHours": 2,
+      "files": ["src/core/signature-compiler.ts"],
+      "lines": "227-234"
+    },
+    {
+      "id": 5,
+      "category": "Signature Compiler",
+      "description": "Test conversion function naming - Verify Object.defineProperty sets name",
+      "status": "pending",
+      "estimatedHours": 1,
+      "files": ["src/core/signature-compiler.ts"],
+      "lines": "239"
+    },
+    {
+      "id": 6,
+      "category": "Signature Compiler",
+      "description": "Test all conversion branches - Both test0/test1 true/false combinations",
+      "status": "pending",
+      "estimatedHours": 2,
+      "files": ["src/core/signature-compiler.ts"],
+      "lines": "206-224"
+    },
+    {
+      "id": 7,
+      "category": "Signature Compiler",
+      "description": "Test compileTests with restParam - Rest param with conversions",
+      "status": "pending",
+      "estimatedHours": 1.5,
+      "files": ["src/core/signature-compiler.ts"],
+      "lines": "varies"
+    },
+    {
+      "id": 8,
+      "category": "Signature Compiler",
+      "description": "Test preprocessing chain - Multiple args with different conversion needs",
+      "status": "pending",
+      "estimatedHours": 1.5,
+      "files": ["src/core/signature-compiler.ts"],
+      "lines": "varies"
+    }
+  ],
+  "expectedCoverageGain": "+3% statements"
+}

@@ -1,0 +1,82 @@
+{
+  "sprint": 6,
+  "title": "Type Registry Complete Coverage",
+  "week": "Week 6",
+  "effort": "12-14 hours",
+  "status": "pending",
+  "tasks": [
+    {
+      "id": 1,
+      "category": "Type Registry",
+      "description": "Test updateConversions method - Modify conversions after type registration",
+      "status": "pending",
+      "estimatedHours": 1.5,
+      "files": ["src/core/type-registry.ts"],
+      "lines": "220-252"
+    },
+    {
+      "id": 2,
+      "category": "Type Registry",
+      "description": "Test conversionsTo initialization - Types with undefined conversionsTo",
+      "status": "pending",
+      "estimatedHours": 1.5,
+      "files": ["src/core/type-registry.ts"],
+      "lines": "300-302"
+    },
+    {
+      "id": 3,
+      "category": "Type Registry",
+      "description": "Test Symbol.iterator - Iterate registry with for...of",
+      "status": "pending",
+      "estimatedHours": 1.5,
+      "files": ["src/core/type-registry.ts"],
+      "lines": "308-312"
+    },
+    {
+      "id": 4,
+      "category": "Type Registry",
+      "description": "Test keys() method - Get all type names in order",
+      "status": "pending",
+      "estimatedHours": 1,
+      "files": ["src/core/type-registry.ts"],
+      "lines": "317-319"
+    },
+    {
+      "id": 5,
+      "category": "Type Registry",
+      "description": "Test values() method - Get all type definitions in order",
+      "status": "pending",
+      "estimatedHours": 1,
+      "files": ["src/core/type-registry.ts"],
+      "lines": "324-326"
+    },
+    {
+      "id": 6,
+      "category": "Type Registry",
+      "description": "Test values() filtering - Handle undefined types in filter",
+      "status": "pending",
+      "estimatedHours": 1.5,
+      "files": ["src/core/type-registry.ts"],
+      "lines": "325"
+    },
+    {
+      "id": 7,
+      "category": "Type Registry",
+      "description": "Test type index assignment - Verify indices after multiple addTypes",
+      "status": "pending",
+      "estimatedHours": 1.5,
+      "files": ["src/core/type-registry.ts"],
+      "lines": "varies"
+    },
+    {
+      "id": 8,
+      "category": "Type Registry",
+      "description": "Test type removal/clear - Clear registry, verify state reset",
+      "status": "pending",
+      "estimatedHours": 1.5,
+      "files": ["src/core/type-registry.ts"],
+      "lines": "varies"
+    }
+  ],
+  "expectedCoverageGain": "+2% statements"
+}

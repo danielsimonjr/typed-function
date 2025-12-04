@@ -1,0 +1,73 @@
+{
+  "sprint": 5,
+  "title": "Signature Parser & Comparator",
+  "week": "Week 5",
+  "effort": "10-12 hours",
+  "status": "pending",
+  "tasks": [
+    {
+      "id": 1,
+      "category": "Signature Parser",
+      "description": "Test empty param type resolution - Malformed param with no valid types",
+      "status": "pending",
+      "estimatedHours": 1.5,
+      "files": ["src/core/signature-parser.ts"],
+      "lines": "155"
+    },
+    {
+      "id": 2,
+      "category": "Signature Parser",
+      "description": "Test type resolution failures - Unknown type names, registry lookup failures",
+      "status": "pending",
+      "estimatedHours": 1.5,
+      "files": ["src/core/signature-parser.ts"],
+      "lines": "169-170"
+    },
+    {
+      "id": 3,
+      "category": "Signature Parser",
+      "description": "Test splitParams edge cases - Complex union + rest combinations",
+      "status": "pending",
+      "estimatedHours": 1.5,
+      "files": ["src/core/signature-parser.ts"],
+      "lines": "246"
+    },
+    {
+      "id": 4,
+      "category": "Signature Comparator",
+      "description": "Test compareParams edge branches - Specific comparison edge cases",
+      "status": "pending",
+      "estimatedHours": 1.5,
+      "files": ["src/core/signature-comparator.ts"],
+      "lines": "122,128"
+    },
+    {
+      "id": 5,
+      "category": "Signature Comparator",
+      "description": "Test conflicting with edge params - Parameter conflict edge detection",
+      "status": "pending",
+      "estimatedHours": 1.5,
+      "files": ["src/core/signature-comparator.ts"],
+      "lines": "171"
+    },
+    {
+      "id": 6,
+      "category": "Signature Comparator",
+      "description": "Test comparator factory pattern - createSignatureComparator usage",
+      "status": "pending",
+      "estimatedHours": 1,
+      "files": ["src/core/signature-comparator.ts"],
+      "lines": "340"
+    },
+    {
+      "id": 7,
+      "category": "Signature Comparator",
+      "description": "Test signature priority ordering - Complex priority scenarios",
+      "status": "pending",
+      "estimatedHours": 1.5,
+      "files": ["src/core/signature-comparator.ts"],
+      "lines": "varies"
+    }
+  ],
+  "expectedCoverageGain": "+2.5% statements"
+}

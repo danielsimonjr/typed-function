@@ -1,0 +1,82 @@
+{
+  "sprint": 3,
+  "title": "Error Factory Complete Coverage",
+  "week": "Week 3",
+  "effort": "12-14 hours",
+  "status": "pending",
+  "tasks": [
+    {
+      "id": 1,
+      "category": "Error Factory",
+      "description": "Test createParamTest edge cases - Param with undefined types returning `() => true`",
+      "status": "pending",
+      "estimatedHours": 1.5,
+      "files": ["src/core/error-factory.ts"],
+      "lines": "119"
+    },
+    {
+      "id": 2,
+      "category": "Error Factory",
+      "description": "Test 3+ type param all-false path - Param with 3+ types, value matches none",
+      "status": "pending",
+      "estimatedHours": 1.5,
+      "files": ["src/core/error-factory.ts"],
+      "lines": "128"
+    },
+    {
+      "id": 3,
+      "category": "Error Factory",
+      "description": "Test generic mismatch error - Arguments that pass type checks but fail other criteria",
+      "status": "pending",
+      "estimatedHours": 2,
+      "files": ["src/core/error-factory.ts"],
+      "lines": "239-256"
+    },
+    {
+      "id": 4,
+      "category": "Error Factory",
+      "description": "Test defaultOnMismatch function - Directly call defaultOnMismatch, verify throws",
+      "status": "pending",
+      "estimatedHours": 1.5,
+      "files": ["src/core/error-factory.ts"],
+      "lines": "267-273"
+    },
+    {
+      "id": 5,
+      "category": "Error Factory",
+      "description": "Test error data structure - Verify all error.data fields for mismatch category",
+      "status": "pending",
+      "estimatedHours": 1.5,
+      "files": ["src/core/error-factory.ts"],
+      "lines": "248-253"
+    },
+    {
+      "id": 6,
+      "category": "Error Factory",
+      "description": "Test argTypes generation - Multiple argument types in error message",
+      "status": "pending",
+      "estimatedHours": 1,
+      "files": ["src/core/error-factory.ts"],
+      "lines": "239-241"
+    },
+    {
+      "id": 7,
+      "category": "Error Factory",
+      "description": "Test empty signature matching - Empty signatures array handling",
+      "status": "pending",
+      "estimatedHours": 1,
+      "files": ["src/core/error-factory.ts"],
+      "lines": "150"
+    },
+    {
+      "id": 8,
+      "category": "Error Factory",
+      "description": "Test index iteration edge - args.length === 0 case",
+      "status": "pending",
+      "estimatedHours": 1,
+      "files": ["src/core/error-factory.ts"],
+      "lines": "153"
+    }
+  ],
+  "expectedCoverageGain": "+3% statements"
+}

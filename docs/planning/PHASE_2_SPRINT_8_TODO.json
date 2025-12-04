@@ -1,0 +1,64 @@
+{
+  "sprint": 8,
+  "title": "WASM & Utils Complete Coverage",
+  "week": "Week 8",
+  "effort": "8-10 hours",
+  "status": "pending",
+  "tasks": [
+    {
+      "id": 1,
+      "category": "WASM Fallback",
+      "description": "Test fallback cache edge cases - Cache miss paths, eviction",
+      "status": "pending",
+      "estimatedHours": 1.5,
+      "files": ["src/wasm/fallback.ts"],
+      "lines": "129,133"
+    },
+    {
+      "id": 2,
+      "category": "WASM Fallback",
+      "description": "Test fallback dispatch no-match - No matching signature return",
+      "status": "pending",
+      "estimatedHours": 1.5,
+      "files": ["src/wasm/fallback.ts"],
+      "lines": "142"
+    },
+    {
+      "id": 3,
+      "category": "WASM Fallback",
+      "description": "Test fallback with custom types - Custom type registration path",
+      "status": "pending",
+      "estimatedHours": 1.5,
+      "files": ["src/wasm/fallback.ts"],
+      "lines": "214"
+    },
+    {
+      "id": 4,
+      "category": "Type Masks",
+      "description": "Test type mask edge case - Unknown type handling",
+      "status": "pending",
+      "estimatedHours": 1,
+      "files": ["src/wasm/type-masks.ts"],
+      "lines": "130"
+    },
+    {
+      "id": 5,
+      "category": "Object Helpers",
+      "description": "Test object-helpers branch - Conditional edge case",
+      "status": "pending",
+      "estimatedHours": 1,
+      "files": ["src/utils/object-helpers.ts"],
+      "lines": "63"
+    },
+    {
+      "id": 6,
+      "category": "WASM",
+      "description": "Test WASM state management - Reset, reinitialize paths",
+      "status": "pending",
+      "estimatedHours": 1.5,
+      "files": ["src/wasm/index.ts", "src/wasm/fallback.ts"],
+      "lines": "varies"
+    }
+  ],
+  "expectedCoverageGain": "+1% statements"
+}

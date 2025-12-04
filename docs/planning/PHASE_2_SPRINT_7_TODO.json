@@ -1,0 +1,82 @@
+{
+  "sprint": 7,
+  "title": "Dispatch & Factory Edge Cases",
+  "week": "Week 7",
+  "effort": "12-14 hours",
+  "status": "pending",
+  "tasks": [
+    {
+      "id": 1,
+      "category": "Dispatcher",
+      "description": "Test checkName edge cases - Invalid name handling, empty strings",
+      "status": "pending",
+      "estimatedHours": 1.5,
+      "files": ["src/dispatch/dispatcher.ts"],
+      "lines": "59"
+    },
+    {
+      "id": 2,
+      "category": "Dispatcher",
+      "description": "Test getObjectName - Object without name property",
+      "status": "pending",
+      "estimatedHours": 1.5,
+      "files": ["src/dispatch/dispatcher.ts"],
+      "lines": "79"
+    },
+    {
+      "id": 3,
+      "category": "Dispatcher",
+      "description": "Test mergeSignatures edge - Merge with conflicting signatures",
+      "status": "pending",
+      "estimatedHours": 2,
+      "files": ["src/dispatch/dispatcher.ts"],
+      "lines": "220"
+    },
+    {
+      "id": 4,
+      "category": "Factory",
+      "description": "Test factory typed detection - Passing typed functions to typed()",
+      "status": "pending",
+      "estimatedHours": 1.5,
+      "files": ["src/factory.ts"],
+      "lines": "110"
+    },
+    {
+      "id": 5,
+      "category": "Factory",
+      "description": "Test signature property handling - Functions with .signature property",
+      "status": "pending",
+      "estimatedHours": 1.5,
+      "files": ["src/factory.ts"],
+      "lines": "119"
+    },
+    {
+      "id": 6,
+      "category": "Factory",
+      "description": "Test reference validation - Invalid referTo/referToSelf usage",
+      "status": "pending",
+      "estimatedHours": 1.5,
+      "files": ["src/factory.ts"],
+      "lines": "196"
+    },
+    {
+      "id": 7,
+      "category": "Factory",
+      "description": "Test return type inference - Return type edge cases",
+      "status": "pending",
+      "estimatedHours": 1.5,
+      "files": ["src/factory.ts"],
+      "lines": "213"
+    },
+    {
+      "id": 8,
+      "category": "Factory",
+      "description": "Test create() isolation - Multiple create() instances don't share state",
+      "status": "pending",
+      "estimatedHours": 1.5,
+      "files": ["src/factory.ts"],
+      "lines": "varies"
+    }
+  ],
+  "expectedCoverageGain": "+1.5% statements"
+}
