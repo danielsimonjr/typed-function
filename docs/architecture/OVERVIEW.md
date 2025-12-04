@@ -106,10 +106,11 @@ typed-function comes with these built-in types:
 
 ## Project Statistics
 
-- **Version**: 4.2.2
-- **Bundle Size**: ~8KB (minified + gzip)
+- **Version**: 5.0.0-alpha.1
+- **Bundle Size**: ~26KB minified (~8KB gzip)
 - **Runtime Dependencies**: Zero
-- **Source**: Single file (~1,988 lines)
+- **Source**: 26 TypeScript modules (~4,500 lines)
+- **Test Coverage**: 89% statements, 552 tests
 - **License**: MIT
 
 ## Use Cases
