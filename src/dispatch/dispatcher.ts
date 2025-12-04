@@ -20,7 +20,7 @@ import { parseSignature, expandParam, stringifyParams, splitParams } from '../co
 import { compareSignatures, conflicting } from '../core/signature-comparator.js';
 import { compileArgsPreprocessing } from '../core/signature-compiler.js';
 import { resolveReferences, validateDeprecatedThis } from '../core/reference-resolver.js';
-import { createDispatcher, compileSignatureTests, createFastPathDispatcher } from './fast-path.js';
+import { compileSignatureTests, createFastPathDispatcher, createFastPathSlot, createInactiveSlot, isFastPathEligible } from './fast-path.js';
 import { createGenericDispatcher } from './generic-path.js';
 
 /**
@@ -50,7 +50,10 @@ export function createTypedFunction(
   rawSignaturesMap: Record<string, SignatureFunction | ReferTo | ReferToSelf>,
   options: CreateTypedFunctionOptions
 ): TypedFunction {
-  const { registry, conversions, onMismatch, warnAgainstDeprecatedThis = true } = options;
+  const { registry, conversions, warnAgainstDeprecatedThis = true } = options;
+  // Create a wrapper that dynamically calls options.onMismatch
+  // This allows the handler to be changed after function creation
+  const onMismatch: MismatchHandler = (fnName, args, sigs) => options.onMismatch(fnName, args, sigs);
 
   if (Object.keys(rawSignaturesMap).length === 0) {
     throw new SyntaxError('No signatures provided');
@@ -123,30 +126,8 @@ export function createTypedFunction(
     compareSignatures(a, b, maxTypeIndex, maxConversionIndex)
   );
 
-  // Create placeholder for the typed function (for referToSelf)
-  let theTypedFn: TypedFunction;
-
-  // Resolve references
-  const resolvedFunctions = resolveReferences(
-    originalFunctions,
-    signaturesMap,
-    // Forward reference - will be set after function is created
-    { signatures: {} } as unknown as TypedFunction
-  );
-
-  // Fill in the proper function for each signature
+  // PublicSignaturesMap will be filled after reference resolution
   const publicSignaturesMap: Record<string, SignatureFunction> = {};
-  for (const s in signaturesMap) {
-    if (Object.prototype.hasOwnProperty.call(signaturesMap, s)) {
-      const idx = signaturesMap[s];
-      if (idx !== undefined) {
-        const fn = resolvedFunctions[idx];
-        if (fn) {
-          publicSignaturesMap[s] = fn;
-        }
-      }
-    }
-  }
 
   // Build final signatures array
   const signatures: Signature[] = [];
@@ -155,10 +136,10 @@ export function createTypedFunction(
   for (const s of preliminarySignatures) {
     // Only add unique signatures (after sorting, duplicates from conversions are eliminated)
     if (!internalSignatureMap.has(s.name)) {
-      const resolvedFn = resolvedFunctions[s.fn];
+      // Initially, fn will be null - it's filled in after reference resolution
       const signature: Signature = {
         params: s.params,
-        fn: resolvedFn ?? null,
+        fn: null,
         test: null,
         implementation: null,
       };
@@ -170,40 +151,94 @@ export function createTypedFunction(
   // Compile test functions
   compileSignatureTests(signatures, registry);
 
-  // Compile args preprocessing (implementation)
-  for (const sig of signatures) {
-    if (sig.fn) {
-      sig.implementation = compileArgsPreprocessing(sig.params, sig.fn, registry);
+  // Create the typed function shell FIRST
+  // This is the actual function that will be returned and passed to referToSelf
+  // The dispatch logic will be set up via closure after reference resolution
+  let genericDispatch: ((args: IArguments, context: unknown) => unknown) | null = null;
+  let fastPathReady = false;
+  let slot0Test0: (x: unknown) => boolean;
+  let slot0Test1: (x: unknown) => boolean;
+  let slot0Len: number;
+  let slot0Fn: SignatureFunction;
+  let slot1Test0: (x: unknown) => boolean;
+  let slot1Test1: (x: unknown) => boolean;
+  let slot1Len: number;
+  let slot1Fn: SignatureFunction;
+  let slot2Test0: (x: unknown) => boolean;
+  let slot2Test1: (x: unknown) => boolean;
+  let slot2Len: number;
+  let slot2Fn: SignatureFunction;
+  let slot3Test0: (x: unknown) => boolean;
+  let slot3Test1: (x: unknown) => boolean;
+  let slot3Len: number;
+  let slot3Fn: SignatureFunction;
+  let slot4Test0: (x: unknown) => boolean;
+  let slot4Test1: (x: unknown) => boolean;
+  let slot4Len: number;
+  let slot4Fn: SignatureFunction;
+  let slot5Test0: (x: unknown) => boolean;
+  let slot5Test1: (x: unknown) => boolean;
+  let slot5Len: number;
+  let slot5Fn: SignatureFunction;
+
+  function theTypedFn(this: unknown, arg0?: unknown, arg1?: unknown): unknown {
+    const argc = arguments.length;
+
+    if (fastPathReady) {
+      // Fast path checks for first 6 signatures
+      if (argc === slot0Len && slot0Test0(arg0) && slot0Test1(arg1)) {
+        return slot0Fn.apply(this, arguments as unknown as unknown[]);
+      }
+      if (argc === slot1Len && slot1Test0(arg0) && slot1Test1(arg1)) {
+        return slot1Fn.apply(this, arguments as unknown as unknown[]);
+      }
+      if (argc === slot2Len && slot2Test0(arg0) && slot2Test1(arg1)) {
+        return slot2Fn.apply(this, arguments as unknown as unknown[]);
+      }
+      if (argc === slot3Len && slot3Test0(arg0) && slot3Test1(arg1)) {
+        return slot3Fn.apply(this, arguments as unknown as unknown[]);
+      }
+      if (argc === slot4Len && slot4Test0(arg0) && slot4Test1(arg1)) {
+        return slot4Fn.apply(this, arguments as unknown as unknown[]);
+      }
+      if (argc === slot5Len && slot5Test0(arg0) && slot5Test1(arg1)) {
+        return slot5Fn.apply(this, arguments as unknown as unknown[]);
+      }
     }
+
+    // Fall back to generic dispatch
+    if (genericDispatch) {
+      return genericDispatch(arguments, this);
+    }
+
+    // Should never happen - function not fully initialized
+    throw new Error('Typed function not initialized');
   }
 
-  // Create fast-path dispatcher data
-  const fpData = createFastPathDispatcher(signatures);
+  // Set the function name
+  try {
+    Object.defineProperty(theTypedFn, 'name', { value: name });
+  } catch {
+    // Some environments don't support setting function name
+  }
 
-  // Create generic dispatcher
-  const genericDispatch = createGenericDispatcher(
-    name,
+  // Cast to TypedFunction and set initial properties
+  const typedFn = theTypedFn as unknown as TypedFunction;
+  typedFn.signatures = publicSignaturesMap; // Will be filled in
+  typedFn._typedFunctionData = {
     signatures,
-    fpData.genericStartIndex,
-    onMismatch
-  );
+    signatureMap: internalSignatureMap,
+  };
 
-  // Create the main dispatcher with fast-path
-  theTypedFn = createDispatcher(
-    name,
-    signatures,
-    genericDispatch,
-    onMismatch
-  ) as TypedFunction;
-
-  // Now resolve references again with the actual function
+  // Now resolve references with the actual function
+  // referToSelf callbacks will receive this exact function
   const fullyResolvedFunctions = resolveReferences(
     originalFunctions,
     signaturesMap,
-    theTypedFn
+    typedFn
   );
 
-  // Update implementations with fully resolved functions
+  // Update signatures with fully resolved functions
   for (let i = 0; i < signatures.length; i++) {
     const sig = signatures[i];
     if (sig) {
@@ -218,16 +253,51 @@ export function createTypedFunction(
     }
   }
 
-  // Attach signatures to the function
-  theTypedFn.signatures = publicSignaturesMap;
+  // Fill in the public signatures map with resolved functions
+  for (const s in signaturesMap) {
+    if (Object.prototype.hasOwnProperty.call(signaturesMap, s)) {
+      const idx = signaturesMap[s];
+      if (idx !== undefined) {
+        const fn = fullyResolvedFunctions[idx];
+        if (fn) {
+          publicSignaturesMap[s] = fn;
+        }
+      }
+    }
+  }
 
-  // Store internal data
-  theTypedFn._typedFunctionData = {
+  // Now set up the fast-path dispatch slots
+  const fpData = createFastPathDispatcher(signatures);
+
+  // Initialize slot variables from fast-path data
+  const inactiveSlot = createInactiveSlot();
+
+  const s0 = fpData.slots[0] || inactiveSlot;
+  const s1 = fpData.slots[1] || inactiveSlot;
+  const s2 = fpData.slots[2] || inactiveSlot;
+  const s3 = fpData.slots[3] || inactiveSlot;
+  const s4 = fpData.slots[4] || inactiveSlot;
+  const s5 = fpData.slots[5] || inactiveSlot;
+
+  slot0Test0 = s0.test0; slot0Test1 = s0.test1; slot0Len = s0.length; slot0Fn = s0.fn;
+  slot1Test0 = s1.test0; slot1Test1 = s1.test1; slot1Len = s1.length; slot1Fn = s1.fn;
+  slot2Test0 = s2.test0; slot2Test1 = s2.test1; slot2Len = s2.length; slot2Fn = s2.fn;
+  slot3Test0 = s3.test0; slot3Test1 = s3.test1; slot3Len = s3.length; slot3Fn = s3.fn;
+  slot4Test0 = s4.test0; slot4Test1 = s4.test1; slot4Len = s4.length; slot4Fn = s4.fn;
+  slot5Test0 = s5.test0; slot5Test1 = s5.test1; slot5Len = s5.length; slot5Fn = s5.fn;
+
+  // Create generic dispatcher
+  genericDispatch = createGenericDispatcher(
+    name,
     signatures,
-    signatureMap: internalSignatureMap,
-  };
+    fpData.genericStartIndex,
+    onMismatch
+  );
 
-  return theTypedFn;
+  // Enable fast path
+  fastPathReady = true;
+
+  return typedFn;
 }
 
 /**

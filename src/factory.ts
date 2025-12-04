@@ -185,14 +185,19 @@ export function create(): TypedInstance {
    * Create a referTo reference
    */
   function referTo(...args: [...string[], (...fns: SignatureFunction[]) => SignatureFunction]): ReferTo {
-    const references = initial(args as unknown[]).map((s) =>
-      stringifyParams(parseSignature(s as string, registry)!)
-    );
     const callback = last(args as unknown[]) as (...fns: SignatureFunction[]) => SignatureFunction;
 
     if (typeof callback !== 'function') {
       throw new TypeError('Callback function expected as last argument');
     }
+
+    // Validate that all arguments before callback are strings
+    const references = initial(args as unknown[]).map((s) => {
+      if (typeof s !== 'string') {
+        throw new TypeError('Signatures must be strings');
+      }
+      return stringifyParams(parseSignature(s, registry)!);
+    });
 
     return makeReferTo(references, callback);
   }
@@ -264,7 +269,10 @@ export function create(): TypedInstance {
     return createTypedFunction(name || '', allSignatures, {
       registry,
       conversions,
-      onMismatch: typed.onMismatch,
+      // Use getter to always look up current onMismatch value
+      get onMismatch(): MismatchHandler {
+        return typed.onMismatch;
+      },
       warnAgainstDeprecatedThis: typed.warnAgainstDeprecatedThis,
     });
   }
@@ -276,16 +284,20 @@ export function create(): TypedInstance {
 
   // Attach properties and methods to typed
   typed.create = create;
-  typed.createCount = createCount;
+  // Make createCount a getter to always return current value
+  Object.defineProperty(typed, 'createCount', {
+    get: () => createCount,
+    enumerable: true,
+    configurable: true,
+  });
   typed.onMismatch = onMismatch;
   typed.throwMismatchError = onMismatch;
   typed.createError = (fnName: string, args: ArrayLike<unknown>, signatures: Signature[]) =>
     createError(fnName, Array.from(args), signatures, registry);
 
   typed.clear = () => {
-    // registry.clear() already adds 'any' type, then we add builtin types
+    // Truly clear the registry - allows creating custom type universes
     registry.clear();
-    registry.addTypes(BUILTIN_TYPES);
     conversions.clearConversions();
   };
 
