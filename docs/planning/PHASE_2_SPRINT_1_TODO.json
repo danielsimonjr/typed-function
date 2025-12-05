@@ -3,13 +3,13 @@
   "title": "Entry Points & Index Files",
   "week": "Week 1",
   "effort": "8-10 hours",
-  "status": "pending",
+  "status": "completed",
   "tasks": [
     {
       "id": 1,
       "category": "Entry Points",
       "description": "Test isTypedFunction from index.ts - Import directly from index, test with typed functions, plain functions, objects, null",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 1,
       "files": ["src/index.ts"],
       "lines": "152"
@@ -18,7 +18,7 @@
       "id": 2,
       "category": "WASM Interface",
       "description": "Test addSignature unified interface - Test WASM auto-selection, fallback path, parameter validation",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 1.5,
       "files": ["src/wasm/index.ts"],
       "lines": "87-92"
@@ -27,7 +27,7 @@
       "id": 3,
       "category": "WASM Interface",
       "description": "Test dispatchFind unified interface - Test dispatch with/without WASM, edge cases for no-match",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 1.5,
       "files": ["src/wasm/index.ts"],
       "lines": "100-105"
@@ -36,7 +36,7 @@
       "id": 4,
       "category": "Entry Points",
       "description": "Test all re-exports from index.ts - Import and invoke each exported function at least once",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 2,
       "files": ["src/index.ts"],
       "lines": "all"
@@ -45,7 +45,7 @@
       "id": 5,
       "category": "Entry Points",
       "description": "Add module boundary tests - Test that all public API functions are accessible",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 1.5,
       "files": ["src/index.ts"],
       "lines": "all"
@@ -54,7 +54,7 @@
       "id": 6,
       "category": "Type Exports",
       "description": "Verify type exports - TypeScript compilation tests for type exports",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 1,
       "files": ["src/index.ts"],
       "lines": "10-33"
