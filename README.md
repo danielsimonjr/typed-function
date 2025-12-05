@@ -296,17 +296,15 @@ once with different implementations, an error will be thrown.
     been added with `typed.addConversion()` and/or `typed.addConversions()`
     (see below in the method list).
     Example:
-    
-    ```js
+
+    ```typescript
     typed.addConversion({
       from: 'number',
       to: 'string',
-      convert: function (x) {
-        return +x;
-      }
+      convert: (x: number) => String(x)
     });
-    
-    var str = typed.convert(2.3, 'string'); // '2.3' 
+
+    const str = typed.convert(2.3, 'string'); // '2.3'
     ```
 
 -   `typed.create() : function`
@@ -365,11 +363,11 @@ once with different implementations, an error will be thrown.
     signature object produced by `typed.findSignature(fn, signature, options)`.
     
     For example:
-    
-    ```js
-    var fn = typed(...);
-    var f = typed.find(fn, ['number', 'string']);
-    var f = typed.find(fn, 'number, string', 'exact');
+
+    ```typescript
+    const fn = typed({ 'number, string': (a: number, b: string) => a + b });
+    const f1 = typed.find(fn, ['number', 'string']);
+    const f2 = typed.find(fn, 'number, string', { exact: true });
     ```
 
 -   `typed.referTo(...string, callback: (resolvedFunctions: ...function) => function)`
@@ -377,24 +375,20 @@ once with different implementations, an error will be thrown.
     Within the definition of a typed-function, resolve references to one or
     multiple signatures of the typed-function itself. This looks like:
 
-    ```
-    typed.referTo(signature1, signature2, ..., function callback(fn1, fn2, ...) {
+    ```typescript
+    typed.referTo(signature1, signature2, ..., (fn1, fn2, ...) => {
       // ... use the resolved signatures fn1, fn2, ...
     });
     ```
 
     Example usage:
 
-    ```js
+    ```typescript
     const fn = typed({
-      'number': function (value) {
-        return 'Input was a number: ' + value;
-      },
-      'boolean': function (value) {
-        return 'Input was a boolean: ' + value;
-      },
+      'number': (value: number) => 'Input was a number: ' + value,
+      'boolean': (value: boolean) => 'Input was a boolean: ' + value,
       'string': typed.referTo('number', 'boolean', (fnNumber, fnBoolean) => {
-        return function fnString(value) {
+        return (value: string) => {
           // here we use the signatures of the typed-function directly:
           if (value === 'true') {
             return fnBoolean(true);
@@ -403,7 +397,7 @@ once with different implementations, an error will be thrown.
             return fnBoolean(false);
           }
           return fnNumber(parseFloat(value));
-        }
+        };
       })
     });
     ```
@@ -436,18 +430,17 @@ once with different implementations, an error will be thrown.
     it in the type order so that it won't be masked in type testing.
     
     Example:
-    
-    ```js
-    function Person(...) {
-      ...
+
+    ```typescript
+    class Person {
+      isPerson = true;
+      constructor(public name: string) {}
     }
-    
-    Person.prototype.isPerson = true;
 
     typed.addType({
       name: 'Person',
-      test: function (x) {
-        return x && x.isPerson === true;
+      test: (x: unknown): x is Person => {
+        return x !== null && typeof x === 'object' && 'isPerson' in x && x.isPerson === true;
       }
     });
     ```
@@ -473,13 +466,12 @@ once with different implementations, an error will be thrown.
 -   `typed.addConversion(conversion: {from: string, to: string, convert: function}, options?: { override: boolean }) : void`
 
     Add a new conversion.
-    
-    ```js
+
+    ```typescript
     typed.addConversion({
       from: 'boolean',
       to: 'number',
-      convert: function (x) {
-        return +x;
+      convert: (x: boolean) => (x ? 1 : 0)
     });
     ```
 
