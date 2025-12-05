@@ -398,13 +398,12 @@ describe('Phase 2 Sprint 7: Dispatch & Factory Edge Cases', () => {
       expect(() => typed('test', 42 as unknown as Record<string, SignatureFunction>)).toThrow(TypeError);
     });
 
-    it('should throw for conflicting signatures', () => {
-      expect(() =>
-        typed({
-          'number': (n: number) => n,
-          'number': (n: number) => n * 2,
-        } as unknown as Record<string, SignatureFunction>)
-      ).toBeDefined();
+    it('should throw for conflicting signatures when merging', () => {
+      const fn1 = typed({ 'number': (n: number) => n });
+      const fn2 = typed({ 'number': (n: number) => n * 2 });
+
+      // Merging two typed functions with same signature should throw
+      expect(() => typed(fn1, fn2)).toThrow();
     });
 
     it('should provide helpful error for not-a-typed-function', () => {
