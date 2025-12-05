@@ -82,58 +82,57 @@ Install via npm:
 Here are some usage examples. More examples are available in the
 [/examples](/examples) folder.
 
-```js
-import typed from 'typed-function'
+```typescript
+import typed from 'typed-function';
 
-// create a typed function
-var fn1 = typed({
-  'number, string': function (a, b) {
+// Create a typed function
+const fn1 = typed({
+  'number, string': (a: number, b: string) => {
     return 'a is a number, b is a string';
   }
 });
 
-// create a typed function with multiple types per argument (type union)
-var fn2 = typed({
-  'string, number | boolean': function (a, b) {
+// Create a typed function with multiple types per argument (type union)
+const fn2 = typed({
+  'string, number | boolean': (a: string, b: number | boolean) => {
     return 'a is a string, b is a number or a boolean';
   }
 });
 
-// create a typed function with any type argument
-var fn3 = typed({
-  'string, any': function (a, b) {
+// Create a typed function with any type argument
+const fn3 = typed({
+  'string, any': (a: string, b: unknown) => {
     return 'a is a string, b can be anything';
   }
 });
 
-// create a typed function with multiple signatures
-var fn4 = typed({
-  'number': function (a) {
+// Create a typed function with multiple signatures
+const fn4 = typed({
+  'number': (a: number) => {
     return 'a is a number';
   },
-  'number, boolean': function (a, b) {
+  'number, boolean': (a: number, b: boolean) => {
     return 'a is a number, b is a boolean';
   },
-  'number, number': function (a, b) {
+  'number, number': (a: number, b: number) => {
     return 'a is a number, b is a number';
   }
 });
 
-// create a typed function from a plain function with signature
-function fnPlain (a, b) {
+// Create a typed function from a plain function with signature
+const fnPlain = (a: number, b: string) => {
   return 'a is a number, b is a string';
-}
+};
+(fnPlain as any).signature = 'number, string';
+const fn5 = typed(fnPlain);
 
-fnPlain.signature = 'number, string';
-var fn5 = typed(fnPlain);
-
-// use the functions
+// Use the functions
 console.log(fn1(2, 'foo'));      // outputs 'a is a number, b is a string'
 console.log(fn4(2));             // outputs 'a is a number'
 
-// calling the function with a non-supported type signature will throw an error
+// Calling the function with a non-supported type signature will throw an error
 try {
-  fn2('hello', 'world');
+  fn2('hello', 'world' as any);
 } catch (err) {
   console.log(err.toString());
   // outputs:  TypeError: Unexpected type of argument.
@@ -314,9 +313,9 @@ once with different implementations, an error will be thrown.
 
     Create a new, isolated instance of typed-function. Example:
 
-    ```js
-    import typed from 'typed-function.mjs';  // default instance
-    const typed2 = typed.create();           // a second instance
+    ```typescript
+    import typed from 'typed-function';  // default instance
+    const typed2 = typed.create();       // a second instance
     ```
 
     This would allow you, for example, to have two different type hierarchies
@@ -571,20 +570,22 @@ once with different implementations, an error will be thrown.
 
 ### Recursion
 
-The `this` keyword can be used to self-reference the typed-function:
+Use `typed.referToSelf` for recursive calls (recommended in v5.0+):
 
-```js
-var sqrt = typed({
-  'number': function (value) {
+```typescript
+const sqrt = typed({
+  'number': (value: number) => {
     return Math.sqrt(value);
   },
-  'string': function (value) {
-    // on the following line we self reference the typed-function using "this"
-    return this(parseInt(value, 10));
-  }
+  'string': typed.referToSelf((self) => {
+    return (value: string) => {
+      // Use the resolved self reference for recursive calls
+      return self(parseInt(value, 10));
+    };
+  })
 });
 
-// use the typed function
+// Use the typed function
 console.log(sqrt('9')); // output: 3
 ```
 
