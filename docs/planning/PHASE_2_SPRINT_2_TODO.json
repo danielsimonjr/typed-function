@@ -3,13 +3,13 @@
   "title": "Conversion Manager Complete Coverage",
   "week": "Week 2",
   "effort": "10-12 hours",
-  "status": "pending",
+  "status": "completed",
   "tasks": [
     {
       "id": 1,
       "category": "Conversion Manager",
       "description": "Test multi-type conversion lookup - Create scenarios with 3+ target types sharing conversions",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 1.5,
       "files": ["src/core/conversion-manager.ts"],
       "lines": "187-198"
@@ -18,7 +18,7 @@
       "id": 2,
       "category": "Conversion Manager",
       "description": "Test lowest-index conversion selection - Add multiple conversions, verify index-based priority",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 1.5,
       "files": ["src/core/conversion-manager.ts"],
       "lines": "199-221"
@@ -27,7 +27,7 @@
       "id": 3,
       "category": "Conversion Manager",
       "description": "Test conversion with null types - Handle `if (!type) continue` branch",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 1,
       "files": ["src/core/conversion-manager.ts"],
       "lines": "191"
@@ -36,7 +36,7 @@
       "id": 4,
       "category": "Conversion Manager",
       "description": "Test empty conversionsTo array - Test types with no conversions defined",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 1,
       "files": ["src/core/conversion-manager.ts"],
       "lines": "183"
@@ -45,7 +45,7 @@
       "id": 5,
       "category": "Conversion Manager",
       "description": "Test knownTypes filtering - Verify existing types are excluded from conversion candidates",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 1.5,
       "files": ["src/core/conversion-manager.ts"],
       "lines": "193"
@@ -54,7 +54,7 @@
       "id": 6,
       "category": "Conversion Manager",
       "description": "Test convertibleTypes deduplication - Add duplicate source types, verify Set behavior",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 1,
       "files": ["src/core/conversion-manager.ts"],
       "lines": "194"
@@ -63,7 +63,7 @@
       "id": 7,
       "category": "Conversion Manager",
       "description": "Test bestConversion selection - Verify null bestConversion handling",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 1.5,
       "files": ["src/core/conversion-manager.ts"],
       "lines": "216-218"
