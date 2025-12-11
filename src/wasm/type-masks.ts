@@ -246,3 +246,147 @@ export function maskToTypeNames(mask: number): string[] {
 
   return names.length > 0 ? names : ['unknown'];
 }
+
+// =============================================================================
+// Pre-built Type Masks for Common Patterns
+// =============================================================================
+
+/**
+ * Pre-built type masks for common type patterns
+ * These combine multiple types into a single mask for efficient dispatch
+ */
+export const TypeMasks = {
+  // Numeric types
+  /** Matches number only */
+  NUMBER: 1 << TYPE_NUMBER,
+
+  /** Matches string only */
+  STRING: 1 << TYPE_STRING,
+
+  /** Matches boolean only */
+  BOOLEAN: 1 << TYPE_BOOLEAN,
+
+  /** Matches number | string (common for math operations) */
+  NUMERIC_OR_STRING: (1 << TYPE_NUMBER) | (1 << TYPE_STRING),
+
+  /** Matches number | boolean (truthy/falsy conversions) */
+  NUMERIC_OR_BOOLEAN: (1 << TYPE_NUMBER) | (1 << TYPE_BOOLEAN),
+
+  // Collection types
+  /** Matches Array only */
+  ARRAY: 1 << TYPE_ARRAY,
+
+  /** Matches Object only (plain objects) */
+  OBJECT: 1 << TYPE_OBJECT,
+
+  /** Matches Array | Object (collection-like) */
+  ARRAY_LIKE: (1 << TYPE_ARRAY) | (1 << TYPE_OBJECT),
+
+  /** Matches iterable types: Array | string | Object */
+  ITERABLE: (1 << TYPE_ARRAY) | (1 << TYPE_STRING) | (1 << TYPE_OBJECT),
+
+  // Function types
+  /** Matches Function only */
+  FUNCTION: 1 << TYPE_FUNCTION,
+
+  /** Matches Function | null (optional callback) */
+  OPTIONAL_FUNCTION: (1 << TYPE_FUNCTION) | (1 << TYPE_NULL),
+
+  // Special object types
+  /** Matches Date only */
+  DATE: 1 << TYPE_DATE,
+
+  /** Matches RegExp only */
+  REGEXP: 1 << TYPE_REGEXP,
+
+  /** Matches Date | string (parseable dates) */
+  DATE_LIKE: (1 << TYPE_DATE) | (1 << TYPE_STRING) | (1 << TYPE_NUMBER),
+
+  // Nullable patterns
+  /** Matches null only */
+  NULL: 1 << TYPE_NULL,
+
+  /** Matches undefined only */
+  UNDEFINED: 1 << TYPE_UNDEFINED,
+
+  /** Matches null | undefined (nullish) */
+  NULLISH: (1 << TYPE_NULL) | (1 << TYPE_UNDEFINED),
+
+  /** Matches any primitive: number | string | boolean | null | undefined */
+  PRIMITIVE: (1 << TYPE_NUMBER) | (1 << TYPE_STRING) | (1 << TYPE_BOOLEAN) | (1 << TYPE_NULL) | (1 << TYPE_UNDEFINED),
+
+  /** Matches any scalar: number | string | boolean */
+  SCALAR: (1 << TYPE_NUMBER) | (1 << TYPE_STRING) | (1 << TYPE_BOOLEAN),
+
+  // Optional patterns (type | null | undefined)
+  /** Optional number */
+  OPTIONAL_NUMBER: (1 << TYPE_NUMBER) | (1 << TYPE_NULL) | (1 << TYPE_UNDEFINED),
+
+  /** Optional string */
+  OPTIONAL_STRING: (1 << TYPE_STRING) | (1 << TYPE_NULL) | (1 << TYPE_UNDEFINED),
+
+  /** Optional boolean */
+  OPTIONAL_BOOLEAN: (1 << TYPE_BOOLEAN) | (1 << TYPE_NULL) | (1 << TYPE_UNDEFINED),
+
+  /** Optional array */
+  OPTIONAL_ARRAY: (1 << TYPE_ARRAY) | (1 << TYPE_NULL) | (1 << TYPE_UNDEFINED),
+
+  /** Optional object */
+  OPTIONAL_OBJECT: (1 << TYPE_OBJECT) | (1 << TYPE_NULL) | (1 << TYPE_UNDEFINED),
+
+  // Object type patterns
+  /** Matches any object type: Object | Array | Date | RegExp | Function */
+  ANY_OBJECT: (1 << TYPE_OBJECT) | (1 << TYPE_ARRAY) | (1 << TYPE_DATE) | (1 << TYPE_REGEXP) | (1 << TYPE_FUNCTION),
+
+  /** Matches all types (same as any) */
+  ANY: TYPE_ANY_MASK,
+} as const;
+
+/**
+ * Create a custom type mask by combining type names
+ *
+ * @param typeNames - Array of type names to combine
+ * @returns Combined mask
+ *
+ * @example
+ * ```ts
+ * const numericMask = createMask(['number', 'string', 'boolean']);
+ * ```
+ */
+export function createMask(typeNames: string[]): number {
+  return getParamMask(typeNames);
+}
+
+/**
+ * Create an optional mask (type | null | undefined)
+ *
+ * @param baseMask - The base type mask
+ * @returns Mask with null and undefined added
+ */
+export function optionalMask(baseMask: number): number {
+  return baseMask | (1 << TYPE_NULL) | (1 << TYPE_UNDEFINED);
+}
+
+/**
+ * Create a nullable mask (type | null)
+ *
+ * @param baseMask - The base type mask
+ * @returns Mask with null added
+ */
+export function nullableMask(baseMask: number): number {
+  return baseMask | (1 << TYPE_NULL);
+}
+
+/**
+ * Combine multiple masks with OR
+ *
+ * @param masks - Masks to combine
+ * @returns Combined mask
+ */
+export function combineMasks(...masks: number[]): number {
+  let result = 0;
+  for (const mask of masks) {
+    result |= mask;
+  }
+  return result;
+}

@@ -87,4 +87,95 @@ export declare function registerCustomType(typeName: string): number;
  * @returns Type name(s) as string
  */
 export declare function maskToTypeNames(mask: number): string[];
+/**
+ * Pre-built type masks for common type patterns
+ * These combine multiple types into a single mask for efficient dispatch
+ */
+export declare const TypeMasks: {
+    /** Matches number only */
+    readonly NUMBER: number;
+    /** Matches string only */
+    readonly STRING: number;
+    /** Matches boolean only */
+    readonly BOOLEAN: number;
+    /** Matches number | string (common for math operations) */
+    readonly NUMERIC_OR_STRING: number;
+    /** Matches number | boolean (truthy/falsy conversions) */
+    readonly NUMERIC_OR_BOOLEAN: number;
+    /** Matches Array only */
+    readonly ARRAY: number;
+    /** Matches Object only (plain objects) */
+    readonly OBJECT: number;
+    /** Matches Array | Object (collection-like) */
+    readonly ARRAY_LIKE: number;
+    /** Matches iterable types: Array | string | Object */
+    readonly ITERABLE: number;
+    /** Matches Function only */
+    readonly FUNCTION: number;
+    /** Matches Function | null (optional callback) */
+    readonly OPTIONAL_FUNCTION: number;
+    /** Matches Date only */
+    readonly DATE: number;
+    /** Matches RegExp only */
+    readonly REGEXP: number;
+    /** Matches Date | string (parseable dates) */
+    readonly DATE_LIKE: number;
+    /** Matches null only */
+    readonly NULL: number;
+    /** Matches undefined only */
+    readonly UNDEFINED: number;
+    /** Matches null | undefined (nullish) */
+    readonly NULLISH: number;
+    /** Matches any primitive: number | string | boolean | null | undefined */
+    readonly PRIMITIVE: number;
+    /** Matches any scalar: number | string | boolean */
+    readonly SCALAR: number;
+    /** Optional number */
+    readonly OPTIONAL_NUMBER: number;
+    /** Optional string */
+    readonly OPTIONAL_STRING: number;
+    /** Optional boolean */
+    readonly OPTIONAL_BOOLEAN: number;
+    /** Optional array */
+    readonly OPTIONAL_ARRAY: number;
+    /** Optional object */
+    readonly OPTIONAL_OBJECT: number;
+    /** Matches any object type: Object | Array | Date | RegExp | Function */
+    readonly ANY_OBJECT: number;
+    /** Matches all types (same as any) */
+    readonly ANY: 4294967295;
+};
+/**
+ * Create a custom type mask by combining type names
+ *
+ * @param typeNames - Array of type names to combine
+ * @returns Combined mask
+ *
+ * @example
+ * ```ts
+ * const numericMask = createMask(['number', 'string', 'boolean']);
+ * ```
+ */
+export declare function createMask(typeNames: string[]): number;
+/**
+ * Create an optional mask (type | null | undefined)
+ *
+ * @param baseMask - The base type mask
+ * @returns Mask with null and undefined added
+ */
+export declare function optionalMask(baseMask: number): number;
+/**
+ * Create a nullable mask (type | null)
+ *
+ * @param baseMask - The base type mask
+ * @returns Mask with null added
+ */
+export declare function nullableMask(baseMask: number): number;
+/**
+ * Combine multiple masks with OR
+ *
+ * @param masks - Masks to combine
+ * @returns Combined mask
+ */
+export declare function combineMasks(...masks: number[]): number;
 //# sourceMappingURL=type-masks.d.ts.map

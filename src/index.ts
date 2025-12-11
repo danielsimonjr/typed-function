@@ -141,6 +141,16 @@ export {
 
 // Re-export factory and create function
 export { create } from './factory.js';
+export type { InitOptions } from './factory.js';
+
+// Re-export WASM utilities for advanced usage
+export {
+  TypeMasks,
+  createMask,
+  optionalMask,
+  nullableMask,
+  combineMasks,
+} from './wasm/type-masks.js';
 
 // Import the default typed instance
 import typedInstance from './factory.js';

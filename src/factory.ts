@@ -29,6 +29,19 @@ import { createTypedFunction, checkName, getObjectName, mergeSignatures } from '
 import { makeReferTo, makeReferToSelf } from './core/reference-resolver.js';
 import { initial, last } from './utils/array-helpers.js';
 import { isPlainObject } from './utils/object-helpers.js';
+import { loadWasm, isWasmAvailable, resetWasm } from './wasm/index.js';
+import { registerCustomType } from './wasm/type-masks.js';
+
+/**
+ * Options for initializing the typed-function instance
+ */
+export interface InitOptions {
+  /** Whether to prefer WASM dispatch when available (default: true) */
+  preferWasm?: boolean;
+
+  /** Custom path to the WASM file (optional) */
+  wasmPath?: string;
+}
 
 /**
  * Type for a function that may have preserved referTo/referToSelf info
@@ -346,8 +359,13 @@ export function create(): TypedInstance {
 
   typed.clearConversions = () => conversions.clearConversions();
 
-  typed.addTypes = (types: TypeDef[], before?: string | boolean) =>
+  typed.addTypes = (types: TypeDef[], before?: string | boolean) => {
     registry.addTypes(types, before);
+    // Auto-register WASM type masks for all new types
+    for (const type of types) {
+      registerCustomType(type.name);
+    }
+  };
 
   typed.addType = (type: TypeDef, beforeObjectTest?: boolean) => {
     let before: string | boolean = 'any';
@@ -377,6 +395,62 @@ export function create(): TypedInstance {
 
   // Internal access for testing
   typed._findType = (fnName: string) => registry.findType(fnName);
+
+  // Track WASM initialization state
+  let wasmInitialized = false;
+  let wasmPreferred = true;
+
+  /**
+   * Initialize the typed-function instance with optional WASM support
+   *
+   * @param options - Initialization options
+   * @returns Promise that resolves when initialization is complete
+   *
+   * @example
+   * ```ts
+   * // Initialize with WASM support (default)
+   * await typed.init({ preferWasm: true });
+   *
+   * // Initialize without WASM
+   * await typed.init({ preferWasm: false });
+   *
+   * // Initialize with custom WASM path
+   * await typed.init({ wasmPath: '/path/to/dispatch.wasm' });
+   * ```
+   */
+  typed.init = async (options: InitOptions = {}): Promise<boolean> => {
+    const { preferWasm = true, wasmPath } = options;
+    wasmPreferred = preferWasm;
+
+    if (!preferWasm) {
+      wasmInitialized = false;
+      return false;
+    }
+
+    try {
+      const loaded = await loadWasm(wasmPath);
+      wasmInitialized = loaded;
+      return loaded;
+    } catch {
+      wasmInitialized = false;
+      return false;
+    }
+  };
+
+  /**
+   * Check if WASM dispatch is available and enabled
+   */
+  typed.isWasmEnabled = (): boolean => {
+    return wasmPreferred && wasmInitialized && isWasmAvailable();
+  };
+
+  /**
+   * Reset WASM state (for testing)
+   */
+  typed.resetWasm = (): void => {
+    resetWasm();
+    wasmInitialized = false;
+  };
 
   return typed as TypedInstance;
 }

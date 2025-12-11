@@ -6,6 +6,15 @@
  */
 import type { TypedInstance } from './core/types.js';
 /**
+ * Options for initializing the typed-function instance
+ */
+export interface InitOptions {
+    /** Whether to prefer WASM dispatch when available (default: true) */
+    preferWasm?: boolean;
+    /** Custom path to the WASM file (optional) */
+    wasmPath?: string;
+}
+/**
  * Create a new typed-function instance
  *
  * Each instance has its own type registry and conversion manager,

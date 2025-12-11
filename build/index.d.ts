@@ -24,6 +24,8 @@ export type { CreateTypedFunctionOptions } from './dispatch/dispatcher.js';
 export { last, initial, slice, flatMap, findInArray, hasItem, createArray, arraysEqual } from './utils/array-helpers.js';
 export { isPlainObject, hasOwnProperty, getProperty, shallowCopy, mapObject, objectSize, isEmptyObject, mergeObjects, pick, omit, } from './utils/object-helpers.js';
 export { create } from './factory.js';
+export type { InitOptions } from './factory.js';
+export { TypeMasks, createMask, optionalMask, nullableMask, combineMasks, } from './wasm/type-masks.js';
 import typedInstance from './factory.js';
 /**
  * Check if an entity is a typed function created by any instance

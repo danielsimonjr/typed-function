@@ -2590,6 +2590,335 @@ function omit(obj, keys) {
 }
 
 /**
+ * JS-WASM Bridge for typed-function dispatch
+ *
+ * TypeScript bindings for the WASM dispatch module.
+ * Provides type-safe access to WASM functions.
+ */
+/** Global WASM dispatch state */
+const wasmState = {
+    initialized: false,
+    exports: null,
+    functionTable: [],
+    initError: null,
+};
+/**
+ * Initialize WASM module with given exports
+ *
+ * @param exports - WASM module exports
+ */
+function initWasm(exports$1) {
+    wasmState.exports = exports$1;
+    wasmState.functionTable = [];
+    wasmState.initError = null;
+    wasmState.initialized = true;
+    // Initialize built-in types
+    exports$1.initBuiltinTypes();
+}
+/**
+ * Check if WASM is available and initialized
+ */
+function isWasmAvailable() {
+    return wasmState.initialized && wasmState.exports !== null;
+}
+/**
+ * Reset WASM state (for testing)
+ */
+function resetWasm() {
+    if (wasmState.exports) {
+        wasmState.exports.clearMemory();
+        wasmState.exports.clearCache();
+    }
+    wasmState.functionTable = [];
+}
+
+/**
+ * WASM Loader for typed-function dispatch
+ *
+ * Handles sync/async loading of WASM module with graceful fallback.
+ */
+/** Loading state */
+let loadingPromise = null;
+/**
+ * Load WASM module asynchronously
+ *
+ * @param wasmPath - Path to the WASM file
+ * @returns Promise that resolves to true if loaded, false otherwise
+ */
+async function loadWasm(wasmPath) {
+    // Return cached promise if already loading
+    if (loadingPromise) {
+        return loadingPromise;
+    }
+    // Already loaded
+    if (isWasmAvailable()) {
+        return true;
+    }
+    loadingPromise = doLoadWasm(wasmPath);
+    return loadingPromise;
+}
+/**
+ * Internal async loader
+ */
+async function doLoadWasm(wasmPath) {
+    try {
+        // Determine WASM path
+        const path = wasmPath || getDefaultWasmPath();
+        // Check for WebAssembly support
+        if (typeof WebAssembly === 'undefined') {
+            throw new Error('WebAssembly not supported');
+        }
+        // Fetch and instantiate
+        const response = await fetch(path);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch WASM: ${response.status}`);
+        }
+        const wasmBuffer = await response.arrayBuffer();
+        const wasmModule = await WebAssembly.compile(wasmBuffer);
+        const instance = await WebAssembly.instantiate(wasmModule, {
+            env: {
+                abort: () => {
+                    throw new Error('WASM abort');
+                },
+            },
+        });
+        // Initialize with exports
+        initWasm(instance.exports);
+        return true;
+    }
+    catch (error) {
+        return false;
+    }
+}
+/**
+ * Get default WASM path based on environment
+ */
+function getDefaultWasmPath() {
+    // In browser, assume WASM is served from same directory
+    if (typeof window !== 'undefined') {
+        return 'dispatch.wasm';
+    }
+    // In Node.js, use relative path from module
+    return new URL('../../../build/dispatch.wasm', import.meta.url).href;
+}
+
+/**
+ * Type Mask Assignment for typed-function dispatch
+ *
+ * Maps JavaScript type checks to bit masks for WASM dispatch.
+ */
+// === Built-in Type IDs (must match WASM) ===
+/** Type ID for number */
+const TYPE_NUMBER = 0;
+/** Type ID for string */
+const TYPE_STRING = 1;
+/** Type ID for boolean */
+const TYPE_BOOLEAN = 2;
+/** Type ID for Function */
+const TYPE_FUNCTION = 3;
+/** Type ID for Array */
+const TYPE_ARRAY = 4;
+/** Type ID for Date */
+const TYPE_DATE = 5;
+/** Type ID for RegExp */
+const TYPE_REGEXP = 6;
+/** Type ID for Object */
+const TYPE_OBJECT = 7;
+/** Type ID for null */
+const TYPE_NULL = 8;
+/** Type ID for undefined */
+const TYPE_UNDEFINED = 9;
+/** Mask for any type (matches all) */
+const TYPE_ANY_MASK = 0xffffffff;
+/** Next available custom type ID */
+let nextCustomTypeId = 10;
+/** Map from type name to bit */
+const typeNameToBit = new Map([
+    ['number', TYPE_NUMBER],
+    ['string', TYPE_STRING],
+    ['boolean', TYPE_BOOLEAN],
+    ['Function', TYPE_FUNCTION],
+    ['Array', TYPE_ARRAY],
+    ['Date', TYPE_DATE],
+    ['RegExp', TYPE_REGEXP],
+    ['Object', TYPE_OBJECT],
+    ['null', TYPE_NULL],
+    ['undefined', TYPE_UNDEFINED],
+    ['any', -1], // Special marker for any
+]);
+/**
+ * Get the type bit for a type name
+ *
+ * @param typeName - The type name
+ * @returns The type bit position
+ */
+function getTypeBit(typeName) {
+    const existing = typeNameToBit.get(typeName);
+    if (existing !== undefined) {
+        return existing;
+    }
+    // Assign new bit for custom type
+    const bit = nextCustomTypeId++;
+    typeNameToBit.set(typeName, bit);
+    return bit;
+}
+/**
+ * Get the type mask for a type name
+ *
+ * @param typeName - The type name
+ * @returns The type mask (1 << bit for single types, or ANY_MASK for 'any')
+ */
+function getTypeMaskForName(typeName) {
+    const bit = getTypeBit(typeName);
+    if (bit === -1) {
+        return TYPE_ANY_MASK;
+    }
+    return 1 << bit;
+}
+/**
+ * Get combined mask for a parameter's types
+ *
+ * @param typeNames - Array of type names that the parameter accepts
+ * @returns Combined mask (OR of all type masks)
+ */
+function getParamMask(typeNames) {
+    if (typeNames.length === 0) {
+        return TYPE_ANY_MASK;
+    }
+    let mask = 0;
+    for (const name of typeNames) {
+        const typeMask = getTypeMaskForName(name);
+        if (typeMask === TYPE_ANY_MASK) {
+            return TYPE_ANY_MASK;
+        }
+        mask |= typeMask;
+    }
+    return mask;
+}
+/**
+ * Register a custom type with its test function
+ *
+ * @param typeName - The type name
+ * @returns The assigned type bit
+ */
+function registerCustomType(typeName) {
+    return getTypeBit(typeName);
+}
+// =============================================================================
+// Pre-built Type Masks for Common Patterns
+// =============================================================================
+/**
+ * Pre-built type masks for common type patterns
+ * These combine multiple types into a single mask for efficient dispatch
+ */
+const TypeMasks = {
+    // Numeric types
+    /** Matches number only */
+    NUMBER: 1 << TYPE_NUMBER,
+    /** Matches string only */
+    STRING: 1 << TYPE_STRING,
+    /** Matches boolean only */
+    BOOLEAN: 1 << TYPE_BOOLEAN,
+    /** Matches number | string (common for math operations) */
+    NUMERIC_OR_STRING: (1 << TYPE_NUMBER) | (1 << TYPE_STRING),
+    /** Matches number | boolean (truthy/falsy conversions) */
+    NUMERIC_OR_BOOLEAN: (1 << TYPE_NUMBER) | (1 << TYPE_BOOLEAN),
+    // Collection types
+    /** Matches Array only */
+    ARRAY: 1 << TYPE_ARRAY,
+    /** Matches Object only (plain objects) */
+    OBJECT: 1 << TYPE_OBJECT,
+    /** Matches Array | Object (collection-like) */
+    ARRAY_LIKE: (1 << TYPE_ARRAY) | (1 << TYPE_OBJECT),
+    /** Matches iterable types: Array | string | Object */
+    ITERABLE: (1 << TYPE_ARRAY) | (1 << TYPE_STRING) | (1 << TYPE_OBJECT),
+    // Function types
+    /** Matches Function only */
+    FUNCTION: 1 << TYPE_FUNCTION,
+    /** Matches Function | null (optional callback) */
+    OPTIONAL_FUNCTION: (1 << TYPE_FUNCTION) | (1 << TYPE_NULL),
+    // Special object types
+    /** Matches Date only */
+    DATE: 1 << TYPE_DATE,
+    /** Matches RegExp only */
+    REGEXP: 1 << TYPE_REGEXP,
+    /** Matches Date | string (parseable dates) */
+    DATE_LIKE: (1 << TYPE_DATE) | (1 << TYPE_STRING) | (1 << TYPE_NUMBER),
+    // Nullable patterns
+    /** Matches null only */
+    NULL: 1 << TYPE_NULL,
+    /** Matches undefined only */
+    UNDEFINED: 1 << TYPE_UNDEFINED,
+    /** Matches null | undefined (nullish) */
+    NULLISH: (1 << TYPE_NULL) | (1 << TYPE_UNDEFINED),
+    /** Matches any primitive: number | string | boolean | null | undefined */
+    PRIMITIVE: (1 << TYPE_NUMBER) | (1 << TYPE_STRING) | (1 << TYPE_BOOLEAN) | (1 << TYPE_NULL) | (1 << TYPE_UNDEFINED),
+    /** Matches any scalar: number | string | boolean */
+    SCALAR: (1 << TYPE_NUMBER) | (1 << TYPE_STRING) | (1 << TYPE_BOOLEAN),
+    // Optional patterns (type | null | undefined)
+    /** Optional number */
+    OPTIONAL_NUMBER: (1 << TYPE_NUMBER) | (1 << TYPE_NULL) | (1 << TYPE_UNDEFINED),
+    /** Optional string */
+    OPTIONAL_STRING: (1 << TYPE_STRING) | (1 << TYPE_NULL) | (1 << TYPE_UNDEFINED),
+    /** Optional boolean */
+    OPTIONAL_BOOLEAN: (1 << TYPE_BOOLEAN) | (1 << TYPE_NULL) | (1 << TYPE_UNDEFINED),
+    /** Optional array */
+    OPTIONAL_ARRAY: (1 << TYPE_ARRAY) | (1 << TYPE_NULL) | (1 << TYPE_UNDEFINED),
+    /** Optional object */
+    OPTIONAL_OBJECT: (1 << TYPE_OBJECT) | (1 << TYPE_NULL) | (1 << TYPE_UNDEFINED),
+    // Object type patterns
+    /** Matches any object type: Object | Array | Date | RegExp | Function */
+    ANY_OBJECT: (1 << TYPE_OBJECT) | (1 << TYPE_ARRAY) | (1 << TYPE_DATE) | (1 << TYPE_REGEXP) | (1 << TYPE_FUNCTION),
+    /** Matches all types (same as any) */
+    ANY: TYPE_ANY_MASK,
+};
+/**
+ * Create a custom type mask by combining type names
+ *
+ * @param typeNames - Array of type names to combine
+ * @returns Combined mask
+ *
+ * @example
+ * ```ts
+ * const numericMask = createMask(['number', 'string', 'boolean']);
+ * ```
+ */
+function createMask(typeNames) {
+    return getParamMask(typeNames);
+}
+/**
+ * Create an optional mask (type | null | undefined)
+ *
+ * @param baseMask - The base type mask
+ * @returns Mask with null and undefined added
+ */
+function optionalMask(baseMask) {
+    return baseMask | (1 << TYPE_NULL) | (1 << TYPE_UNDEFINED);
+}
+/**
+ * Create a nullable mask (type | null)
+ *
+ * @param baseMask - The base type mask
+ * @returns Mask with null added
+ */
+function nullableMask(baseMask) {
+    return baseMask | (1 << TYPE_NULL);
+}
+/**
+ * Combine multiple masks with OR
+ *
+ * @param masks - Masks to combine
+ * @returns Combined mask
+ */
+function combineMasks(...masks) {
+    let result = 0;
+    for (const mask of masks) {
+        result |= mask;
+    }
+    return result;
+}
+
+/**
  * Factory Function for typed-function
  *
  * Creates isolated typed universes with independent type registries
@@ -2846,7 +3175,13 @@ function create() {
         conversions.clearConversions();
     };
     typed.clearConversions = () => conversions.clearConversions();
-    typed.addTypes = (types, before) => registry.addTypes(types, before);
+    typed.addTypes = (types, before) => {
+        registry.addTypes(types, before);
+        // Auto-register WASM type masks for all new types
+        for (const type of types) {
+            registerCustomType(type.name);
+        }
+    };
     typed.addType = (type, beforeObjectTest) => {
         let before = 'any';
         if (beforeObjectTest !== false && registry.hasType('Object')) {
@@ -2867,6 +3202,57 @@ function create() {
     typed.warnAgainstDeprecatedThis = true;
     // Internal access for testing
     typed._findType = (fnName) => registry.findType(fnName);
+    // Track WASM initialization state
+    let wasmInitialized = false;
+    let wasmPreferred = true;
+    /**
+     * Initialize the typed-function instance with optional WASM support
+     *
+     * @param options - Initialization options
+     * @returns Promise that resolves when initialization is complete
+     *
+     * @example
+     * ```ts
+     * // Initialize with WASM support (default)
+     * await typed.init({ preferWasm: true });
+     *
+     * // Initialize without WASM
+     * await typed.init({ preferWasm: false });
+     *
+     * // Initialize with custom WASM path
+     * await typed.init({ wasmPath: '/path/to/dispatch.wasm' });
+     * ```
+     */
+    typed.init = async (options = {}) => {
+        const { preferWasm = true, wasmPath } = options;
+        wasmPreferred = preferWasm;
+        if (!preferWasm) {
+            wasmInitialized = false;
+            return false;
+        }
+        try {
+            const loaded = await loadWasm(wasmPath);
+            wasmInitialized = loaded;
+            return loaded;
+        }
+        catch {
+            wasmInitialized = false;
+            return false;
+        }
+    };
+    /**
+     * Check if WASM dispatch is available and enabled
+     */
+    typed.isWasmEnabled = () => {
+        return wasmPreferred && wasmInitialized && isWasmAvailable();
+    };
+    /**
+     * Reset WASM state (for testing)
+     */
+    typed.resetWasm = () => {
+        resetWasm();
+        wasmInitialized = false;
+    };
     return typed;
 }
 // Export the default typed instance
@@ -2886,5 +3272,5 @@ function isTypedFunction(entity) {
     return entity !== null && typeof entity === 'function' && '_typedFunctionData' in entity;
 }
 
-export { BUILTIN_TYPES, ConversionManager, NOT_TYPED_FUNCTION, TypeRegistry, arraysEqual, availableConversions, checkName, clearResolutions, collectResolutions, compareParams, compareSignatures, compileArgConversion, compileArgsPreprocessing, compileSignatureTests, compileTest, compileTests, conflicting, create, createArray, createConversionManager, createDispatcher, createError, createFastPathDispatcher, createFastPathSlot, createGenericDispatcher, createInactiveSlot, createParamTest, createSignatureComparator, createSimpleDispatcher, createTypeRegistry, createTypedFunction, typedInstance as default, defaultOnMismatch, expandParam, findInArray, flatMap, getLowestConversionIndex, getLowestTypeIndex, getObjectName, getParamAtIndex, getProperty, getTypeSetAtIndex$1 as getTypeSetAtIndex, hasCompiledTests, hasImplementations, hasItem, hasOwnProperty, hasRestParam, hasRestParam$2 as hasRestParamError, initial, isEmptyObject, isExactType$1 as isExactType, isFastPathEligible, isPlainObject, isReferTo, isReferToSelf, isTypedFunction, last, makeReferTo, makeReferToSelf, mapObject, mergeExpectedParams, mergeObjects, mergeSignatures, objectSize, omit, paramTypeSet, parseParam, parseSignature, pick, resolveReferences, shallowCopy, slice, splitParams, stringifyParams, stringifyParams$1 as stringifyParamsError, validateDeprecatedThis };
+export { BUILTIN_TYPES, ConversionManager, NOT_TYPED_FUNCTION, TypeMasks, TypeRegistry, arraysEqual, availableConversions, checkName, clearResolutions, collectResolutions, combineMasks, compareParams, compareSignatures, compileArgConversion, compileArgsPreprocessing, compileSignatureTests, compileTest, compileTests, conflicting, create, createArray, createConversionManager, createDispatcher, createError, createFastPathDispatcher, createFastPathSlot, createGenericDispatcher, createInactiveSlot, createMask, createParamTest, createSignatureComparator, createSimpleDispatcher, createTypeRegistry, createTypedFunction, typedInstance as default, defaultOnMismatch, expandParam, findInArray, flatMap, getLowestConversionIndex, getLowestTypeIndex, getObjectName, getParamAtIndex, getProperty, getTypeSetAtIndex$1 as getTypeSetAtIndex, hasCompiledTests, hasImplementations, hasItem, hasOwnProperty, hasRestParam, hasRestParam$2 as hasRestParamError, initial, isEmptyObject, isExactType$1 as isExactType, isFastPathEligible, isPlainObject, isReferTo, isReferToSelf, isTypedFunction, last, makeReferTo, makeReferToSelf, mapObject, mergeExpectedParams, mergeObjects, mergeSignatures, nullableMask, objectSize, omit, optionalMask, paramTypeSet, parseParam, parseSignature, pick, resolveReferences, shallowCopy, slice, splitParams, stringifyParams, stringifyParams$1 as stringifyParamsError, validateDeprecatedThis };
 //# sourceMappingURL=typed-function.mjs.map
