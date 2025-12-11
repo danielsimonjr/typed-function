@@ -1992,7 +1992,9 @@ function createFastPathDispatcher(signatures) {
  * @param _onMismatch - Handler for when no signature matches (handled by generic)
  * @returns The typed function dispatcher
  */
-function createDispatcher(name, signatures, genericDispatch, _onMismatch) {
+function createDispatcher(name, signatures, genericDispatch, 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+_onMismatch) {
     const fp = createFastPathDispatcher(signatures);
     // Extract slot data for closure optimization
     const slot0 = fp.slots[0] || createInactiveSlot();
@@ -2262,6 +2264,9 @@ function createTypedFunction(name, rawSignaturesMap, options) {
     // The dispatch logic will be set up via closure after reference resolution
     let genericDispatch = null;
     let fastPathReady = false;
+    // Fast-path slot variables - intentionally use `let` for closure pattern
+    // These are assigned once after theTypedFn is defined, then used via closure
+    /* eslint-disable prefer-const */
     let slot0Test0;
     let slot0Test1;
     let slot0Len;
@@ -2286,6 +2291,7 @@ function createTypedFunction(name, rawSignaturesMap, options) {
     let slot5Test1;
     let slot5Len;
     let slot5Fn;
+    /* eslint-enable prefer-const */
     function theTypedFn(arg0, arg1) {
         const argc = arguments.length;
         if (fastPathReady) {
@@ -2594,6 +2600,36 @@ function omit(obj, keys) {
  * and conversion managers.
  */
 /**
+ * Extract signatures from a typed function, restoring referTo/referToSelf markers
+ * so they can be re-resolved in the context of a new typed function.
+ *
+ * @param signatures - The signatures object from a typed function
+ * @returns Object with referTo/referToSelf markers restored
+ */
+function extractSignaturesWithReferences(signatures) {
+    const result = {};
+    for (const key in signatures) {
+        if (Object.prototype.hasOwnProperty.call(signatures, key)) {
+            const fn = signatures[key];
+            if (fn) {
+                // Check if the function has preserved referTo info
+                if (fn.referTo) {
+                    result[key] = makeReferTo(fn.referTo.references, fn.referTo.callback);
+                }
+                // Check if the function has preserved referToSelf info
+                else if (fn.referToSelf) {
+                    result[key] = makeReferToSelf(fn.referToSelf.callback);
+                }
+                // Otherwise, use the function directly
+                else {
+                    result[key] = fn;
+                }
+            }
+        }
+    }
+    return result;
+}
+/**
  * Create a new typed-function instance
  *
  * Each instance has its own type registry and conversion manager,
@@ -2760,13 +2796,13 @@ function create() {
                     theseSignatures[itemWithSig.signature] = item;
                 }
                 else if (isTypedFunction(item)) {
-                    // Case 2: Existing typed function
-                    theseSignatures = item.signatures;
+                    // Case 2: Existing typed function - extract with preserved references
+                    theseSignatures = extractSignaturesWithReferences(item.signatures);
                 }
             }
             else if (isPlainObject(item)) {
-                // Case 3: Plain object with signatures
-                theseSignatures = item;
+                // Case 3: Plain object with signatures - extract with preserved references
+                theseSignatures = extractSignaturesWithReferences(item);
                 if (!named) {
                     thisName = getObjectName(item, isTypedFunction);
                 }
