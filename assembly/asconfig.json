@@ -1,14 +1,15 @@
 {
+  "entries": ["../src/wasm/assembly/index.ts"],
   "targets": {
     "debug": {
-      "outFile": "build/dispatch.debug.wasm",
-      "textFile": "build/dispatch.debug.wat",
+      "outFile": "../build/dispatch.debug.wasm",
+      "textFile": "../build/dispatch.debug.wat",
       "sourceMap": true,
       "debug": true
     },
     "release": {
-      "outFile": "build/dispatch.wasm",
-      "textFile": "build/dispatch.wat",
+      "outFile": "../build/dispatch.wasm",
+      "textFile": "../build/dispatch.wat",
       "sourceMap": true,
       "optimizeLevel": 3,
       "shrinkLevel": 2,
