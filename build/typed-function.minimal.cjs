@@ -368,18 +368,6 @@ function slice(arr, start, end) {
     return Array.prototype.slice.call(arr, start, end);
 }
 /**
- * Flat map over an array, concatenating results
- *
- * @param arr - The array to map over
- * @param callback - Function that returns an array for each element
- * @returns A new array with all results concatenated
- */
-function flatMap(arr, callback) {
-    return arr.reduce((acc, item, index, array) => {
-        return acc.concat(callback(item, index, array));
-    }, []);
-}
-/**
  * Find the first item in an array that matches a predicate
  *
  * @param arr - The array to search
@@ -394,46 +382,6 @@ function findInArray(arr, predicate) {
         }
     }
     return undefined;
-}
-/**
- * Check if an array has a specific item by predicate
- *
- * @param arr - The array to search
- * @param predicate - Function that tests each element
- * @returns true if a matching element is found
- */
-function hasItem(arr, predicate) {
-    return findInArray(arr, predicate) !== undefined;
-}
-/**
- * Create an array with a specified length and fill it using a callback
- *
- * @param length - The length of the array to create
- * @param callback - Function that generates each element
- * @returns A new array with generated elements
- */
-function createArray(length, callback) {
-    const result = new Array(length);
-    for (let i = 0; i < length; i++) {
-        result[i] = callback(i);
-    }
-    return result;
-}
-/**
- * Check if two arrays are equal using strict equality
- *
- * @param a - First array
- * @param b - Second array
- * @returns true if arrays have same length and equal elements
- */
-function arraysEqual(a, b) {
-    if (a.length !== b.length)
-        return false;
-    for (let i = 0; i < a.length; i++) {
-        if (a[i] !== b[i])
-            return false;
-    }
-    return true;
 }
 
 /**
@@ -650,16 +598,6 @@ function createError(name, args, signatures, registry) {
 function defaultOnMismatch(name, args, signatures, registry) {
     throw createError(name, args, signatures, registry);
 }
-/**
- * Stringify parameters in a normalized way
- *
- * @param params - The parameters to stringify
- * @param separator - The separator to use (default: ',')
- * @returns A string representation of the parameters
- */
-function stringifyParams$1(params, separator = ',') {
-    return params.map((p) => p.name).join(separator);
-}
 
 /**
  * Specific Error Classes for typed-function
@@ -770,32 +708,6 @@ class SignatureNotFoundError extends TypedFunctionError {
     }
 }
 /**
- * Error thrown when WASM is not available but required
- */
-class WasmNotAvailableError extends Error {
-    constructor(reason = 'WebAssembly is not available in this environment') {
-        super(`WASM dispatch unavailable: ${reason}`);
-        this.name = 'WasmNotAvailableError';
-        this.reason = reason;
-        if (Error.captureStackTrace) {
-            Error.captureStackTrace(this, this.constructor);
-        }
-    }
-}
-/**
- * Error thrown when WASM initialization fails
- */
-class WasmInitializationError extends Error {
-    constructor(message, cause) {
-        super(`WASM initialization failed: ${message}`);
-        this.name = 'WasmInitializationError';
-        this.cause = cause ?? undefined;
-        if (Error.captureStackTrace) {
-            Error.captureStackTrace(this, this.constructor);
-        }
-    }
-}
-/**
  * Error thrown when a type is not found in the registry
  */
 class TypeNotFoundError extends TypeError {
@@ -849,12 +761,6 @@ function isTooFewArgumentsError(error) {
  */
 function isTooManyArgumentsError(error) {
     return error instanceof TooManyArgumentsError;
-}
-/**
- * Type guard to check if an error is a WasmNotAvailableError
- */
-function isWasmNotAvailableError(error) {
-    return error instanceof WasmNotAvailableError;
 }
 
 /**
@@ -1116,275 +1022,6 @@ function stringifyParams(params, separator = ',') {
 }
 
 /**
- * Signature Compiler Module for typed-function
- *
- * This module compiles signature parameters into optimized test functions
- * and argument preprocessing functions.
- */
-/**
- * Test whether a set of params contains a rest param
- */
-function hasRestParam$1(params) {
-    const param = last(params);
-    return param ? param.restParam : false;
-}
-/**
- * Create a type test for a single parameter
- *
- * Optimized for common cases (0, 1, 2 types)
- *
- * @param param - The parameter to create a test for
- * @param registry - The type registry
- * @returns A function that tests if a value matches the parameter
- */
-function compileTest(param, registry) {
-    if (!param || param.types.length === 0) {
-        // Empty param matches everything
-        return () => true;
-    }
-    if (param.types.length === 1) {
-        const type = param.types[0];
-        if (type) {
-            return registry.findType(type.name).test;
-        }
-        return () => true;
-    }
-    if (param.types.length === 2) {
-        const type0 = param.types[0];
-        const type1 = param.types[1];
-        if (type0 && type1) {
-            const test0 = registry.findType(type0.name).test;
-            const test1 = registry.findType(type1.name).test;
-            return function or(x) {
-                return test0(x) || test1(x);
-            };
-        }
-        return () => true;
-    }
-    // 3+ types: use a loop
-    const tests = param.types
-        .map((type) => (type ? registry.findType(type.name).test : null))
-        .filter((t) => t !== null);
-    return function or(x) {
-        for (let i = 0; i < tests.length; i++) {
-            const test = tests[i];
-            if (test && test(x)) {
-                return true;
-            }
-        }
-        return false;
-    };
-}
-/**
- * Create a test function for all parameters of a signature
- *
- * Optimized for common cases (0, 1, 2 params without rest)
- *
- * @param params - The parameters to compile tests for
- * @param registry - The type registry
- * @returns A function that tests if an argument list matches the signature
- */
-function compileTests(params, registry) {
-    if (hasRestParam$1(params)) {
-        // Variable arguments like '...number'
-        const tests = initial(params).map((p) => compileTest(p, registry));
-        const varIndex = tests.length;
-        const lastParam = last(params);
-        const lastTest = compileTest(lastParam, registry);
-        const testRestParam = function (args) {
-            for (let i = varIndex; i < args.length; i++) {
-                if (!lastTest(args[i])) {
-                    return false;
-                }
-            }
-            return true;
-        };
-        return function testArgs(args) {
-            for (let i = 0; i < tests.length; i++) {
-                const test = tests[i];
-                if (test && !test(args[i])) {
-                    return false;
-                }
-            }
-            return testRestParam(args) && args.length >= varIndex + 1;
-        };
-    }
-    // No variable arguments - specialize for 0, 1, 2 params
-    switch (params.length) {
-        case 0:
-            return function testArgs(args) {
-                return args.length === 0;
-            };
-        case 1: {
-            const param0 = params[0];
-            const test0 = compileTest(param0, registry);
-            return function testArgs(args) {
-                return test0(args[0]) && args.length === 1;
-            };
-        }
-        case 2: {
-            const param0 = params[0];
-            const param1 = params[1];
-            const test0 = compileTest(param0, registry);
-            const test1 = compileTest(param1, registry);
-            return function testArgs(args) {
-                return test0(args[0]) && test1(args[1]) && args.length === 2;
-            };
-        }
-        default: {
-            // 3+ params
-            const tests = params.map((p) => compileTest(p, registry));
-            const len = tests.length;
-            return function testArgs(args) {
-                if (args.length !== len) {
-                    return false;
-                }
-                for (let i = 0; i < len; i++) {
-                    const test = tests[i];
-                    if (test && !test(args[i])) {
-                        return false;
-                    }
-                }
-                return true;
-            };
-        }
-    }
-}
-/**
- * Compile a conversion function for a single argument
- *
- * @param param - The parameter containing conversion info
- * @param registry - The type registry
- * @returns A function that converts an argument if needed
- */
-function compileArgConversion(param, registry) {
-    const conversions = [];
-    let name = '';
-    for (const type of param.types) {
-        if (type.conversion) {
-            name += type.conversion.from + '~>' + type.conversion.to + ',';
-            conversions.push({
-                test: registry.findType(type.conversion.from).test,
-                convert: type.conversion.convert,
-            });
-        }
-    }
-    if (name) {
-        name = name.slice(0, -1); // Remove trailing comma
-    }
-    else {
-        name = 'pass';
-    }
-    // Create optimized conversion functions
-    let convertor;
-    switch (conversions.length) {
-        case 0:
-            convertor = (arg) => arg;
-            break;
-        case 1: {
-            const conv = conversions[0];
-            if (conv) {
-                const { test: test0, convert: conversion0 } = conv;
-                convertor = function convertArg(arg) {
-                    if (test0(arg)) {
-                        return conversion0(arg);
-                    }
-                    return arg;
-                };
-            }
-            else {
-                convertor = (arg) => arg;
-            }
-            break;
-        }
-        case 2: {
-            const conv0 = conversions[0];
-            const conv1 = conversions[1];
-            if (conv0 && conv1) {
-                const { test: test0, convert: conversion0 } = conv0;
-                const { test: test1, convert: conversion1 } = conv1;
-                convertor = function convertArg(arg) {
-                    if (test0(arg)) {
-                        return conversion0(arg);
-                    }
-                    if (test1(arg)) {
-                        return conversion1(arg);
-                    }
-                    return arg;
-                };
-            }
-            else {
-                convertor = (arg) => arg;
-            }
-            break;
-        }
-        default:
-            convertor = function convertArg(arg) {
-                for (let i = 0; i < conversions.length; i++) {
-                    const conv = conversions[i];
-                    if (conv && conv.test(arg)) {
-                        return conv.convert(arg);
-                    }
-                }
-                return arg;
-            };
-    }
-    // Attach name for debugging
-    Object.defineProperty(convertor, 'name', { value: name });
-    return convertor;
-}
-/**
- * Compile argument preprocessing for a signature
- *
- * This handles:
- * - Converting arguments if needed
- * - Collecting rest parameters into an array
- *
- * @param params - The signature parameters
- * @param fn - The original function
- * @param registry - The type registry
- * @returns A wrapped function that preprocesses arguments
- */
-function compileArgsPreprocessing(params, fn, registry) {
-    let fnConvert = fn;
-    let name = '';
-    // Check if any conversions are needed
-    if (params.some((p) => p.hasConversion)) {
-        const restParam = hasRestParam$1(params);
-        const compiledConversions = params.map((p) => compileArgConversion(p, registry));
-        name = compiledConversions.map((conv) => conv.name).join(';');
-        fnConvert = function convertArgs() {
-            const args = [];
-            const lastIdx = restParam ? arguments.length - 1 : arguments.length;
-            for (let i = 0; i < lastIdx; i++) {
-                const conv = compiledConversions[i];
-                args[i] = conv ? conv(arguments[i]) : arguments[i];
-            }
-            if (restParam) {
-                const lastConv = compiledConversions[lastIdx];
-                const restArgs = arguments[lastIdx];
-                args[lastIdx] = lastConv ? restArgs.map(lastConv) : restArgs;
-            }
-            return fn.apply(this, args);
-        };
-    }
-    // Handle rest parameters
-    let fnPreprocess = fnConvert;
-    if (hasRestParam$1(params)) {
-        const offset = params.length - 1;
-        fnPreprocess = function preprocessRestParams() {
-            const args = slice(arguments, 0, offset);
-            args.push(slice(arguments, offset));
-            return fnConvert.apply(this, args);
-        };
-    }
-    if (name) {
-        Object.defineProperty(fnPreprocess, 'name', { value: name });
-    }
-    return fnPreprocess;
-}
-
-/**
  * Signature Comparator Module for typed-function
  *
  * This module handles comparing and ordering signatures for dispatch priority,
@@ -1393,7 +1030,7 @@ function compileArgsPreprocessing(params, fn, registry) {
 /**
  * Test whether a set of params contains a rest param
  */
-function hasRestParam(params) {
+function hasRestParam$1(params) {
     const param = last(params);
     return param ? param.restParam : false;
 }
@@ -1519,8 +1156,8 @@ function compareSignatures(signature1, signature2, maxTypeIndex, maxConversionIn
     const pars2 = signature2.params;
     const last1 = last(pars1);
     const last2 = last(pars2);
-    const hasRest1 = hasRestParam(pars1);
-    const hasRest2 = hasRestParam(pars2);
+    const hasRest1 = hasRestParam$1(pars1);
+    const hasRest2 = hasRestParam$1(pars2);
     // 1) An "any rest param" is least preferred
     if (hasRest1 && last1 && last1.hasAny) {
         if (!hasRest2 || !last2 || !last2.hasAny) {
@@ -1613,7 +1250,7 @@ function getTypeSetAtIndex(params, index) {
     if (index < params.length) {
         param = params[index];
     }
-    else if (hasRestParam(params)) {
+    else if (hasRestParam$1(params)) {
         param = last(params);
     }
     if (!param) {
@@ -1660,24 +1297,14 @@ function conflicting(params1, params2) {
     // All positions have overlapping types, check length compatibility
     const len1 = params1.length;
     const len2 = params2.length;
-    const restParam1 = hasRestParam(params1);
-    const restParam2 = hasRestParam(params2);
+    const restParam1 = hasRestParam$1(params1);
+    const restParam2 = hasRestParam$1(params2);
     if (restParam1) {
         return restParam2 ? len1 === len2 : len2 >= len1;
     }
     else {
         return restParam2 ? len1 >= len2 : len1 === len2;
     }
-}
-/**
- * Create a signature comparator function for sorting
- *
- * @param maxTypeIndex - Maximum type index in registry
- * @param maxConversionIndex - Maximum conversion index
- * @returns A comparator function for Array.sort
- */
-function createSignatureComparator(maxTypeIndex, maxConversionIndex) {
-    return (a, b) => compareSignatures(a, b, maxTypeIndex, maxConversionIndex);
 }
 
 /**
@@ -2066,213 +1693,6 @@ function validateDeprecatedThis(signaturesMap) {
 }
 
 /**
- * Fast-Path Dispatcher for typed-function
- *
- * Implements optimized dispatch for up to 6 signatures with max 2 arguments.
- * Falls back to generic dispatcher for more complex cases.
- */
-/**
- * Helper that always returns true (for empty/any param)
- */
-function ok() {
-    return true;
-}
-/**
- * Helper that always returns false (for disabled slots)
- */
-function notOk() {
-    return false;
-}
-/**
- * Helper that always returns undefined (for disabled function slots)
- */
-function undef() {
-    return undefined;
-}
-/**
- * Check if a signature is eligible for fast-path dispatch
- * (max 2 parameters, no rest param)
- */
-function isFastPathEligible(signature) {
-    return signature.params.length <= 2 && !hasRestParam(signature.params);
-}
-/**
- * Create a simple test function for a parameter (without registry)
- */
-function createSimpleTest(param) {
-    if (param.types.length === 0 || param.hasAny) {
-        return ok;
-    }
-    if (param.types.length === 1) {
-        const firstType = param.types[0];
-        return firstType ? firstType.test : ok;
-    }
-    const tests = param.types.map(t => t.test);
-    return (x) => {
-        for (const test of tests) {
-            if (test(x))
-                return true;
-        }
-        return false;
-    };
-}
-/**
- * Create a fast-path slot for a signature
- */
-function createFastPathSlot(signature, registry) {
-    const params = signature.params;
-    let test0;
-    let test1;
-    if (registry) {
-        test0 = params[0] ? compileTest(params[0], registry) : ok;
-        test1 = params[1] ? compileTest(params[1], registry) : ok;
-    }
-    else {
-        test0 = params[0] ? createSimpleTest(params[0]) : ok;
-        test1 = params[1] ? createSimpleTest(params[1]) : ok;
-    }
-    return {
-        test0,
-        test1,
-        length: params.length,
-        fn: signature.implementation,
-        active: true,
-    };
-}
-/**
- * Create an inactive (disabled) fast-path slot
- */
-function createInactiveSlot() {
-    return {
-        test0: notOk,
-        test1: notOk,
-        length: -1,
-        fn: undef,
-        active: false,
-    };
-}
-/**
- * Create fast-path dispatcher data for a list of signatures
- *
- * @param signatures - The sorted signatures array
- * @returns Fast-path dispatcher data
- */
-function createFastPathDispatcher(signatures) {
-    const slots = [];
-    let allActive = true;
-    // Create slots for first 6 signatures
-    for (let i = 0; i < 6; i++) {
-        const sig = signatures[i];
-        if (sig && isFastPathEligible(sig) && sig.implementation) {
-            slots.push(createFastPathSlot(sig));
-        }
-        else {
-            slots.push(createInactiveSlot());
-            allActive = false;
-        }
-    }
-    return {
-        slots,
-        allActive,
-        genericStartIndex: allActive ? 6 : 0,
-    };
-}
-/**
- * Create the fast-path dispatch function
- *
- * This returns a function that tries fast-path dispatch for the first 6 signatures,
- * then falls back to the generic dispatcher.
- *
- * @param name - Function name for error messages
- * @param signatures - The sorted signatures array
- * @param genericDispatch - Generic dispatcher to fall back to
- * @param _onMismatch - Handler for when no signature matches (handled by generic)
- * @returns The typed function dispatcher
- */
-function createDispatcher(name, signatures, genericDispatch, 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-_onMismatch) {
-    const fp = createFastPathDispatcher(signatures);
-    // Extract slot data for closure optimization
-    const slot0 = fp.slots[0] || createInactiveSlot();
-    const slot1 = fp.slots[1] || createInactiveSlot();
-    const slot2 = fp.slots[2] || createInactiveSlot();
-    const slot3 = fp.slots[3] || createInactiveSlot();
-    const slot4 = fp.slots[4] || createInactiveSlot();
-    const slot5 = fp.slots[5] || createInactiveSlot();
-    const test00 = slot0.test0;
-    const test01 = slot0.test1;
-    const test10 = slot1.test0;
-    const test11 = slot1.test1;
-    const test20 = slot2.test0;
-    const test21 = slot2.test1;
-    const test30 = slot3.test0;
-    const test31 = slot3.test1;
-    const test40 = slot4.test0;
-    const test41 = slot4.test1;
-    const test50 = slot5.test0;
-    const test51 = slot5.test1;
-    const fn0 = slot0.fn;
-    const fn1 = slot1.fn;
-    const fn2 = slot2.fn;
-    const fn3 = slot3.fn;
-    const fn4 = slot4.fn;
-    const fn5 = slot5.fn;
-    const len0 = slot0.length;
-    const len1 = slot1.length;
-    const len2 = slot2.length;
-    const len3 = slot3.length;
-    const len4 = slot4.length;
-    const len5 = slot5.length;
-    // Create the typed function with fast-path dispatch
-    function theTypedFn(arg0, arg1) {
-        const argc = arguments.length;
-        // Fast path checks for first 6 signatures
-        if (argc === len0 && test00(arg0) && test01(arg1)) {
-            return fn0.apply(this, arguments);
-        }
-        if (argc === len1 && test10(arg0) && test11(arg1)) {
-            return fn1.apply(this, arguments);
-        }
-        if (argc === len2 && test20(arg0) && test21(arg1)) {
-            return fn2.apply(this, arguments);
-        }
-        if (argc === len3 && test30(arg0) && test31(arg1)) {
-            return fn3.apply(this, arguments);
-        }
-        if (argc === len4 && test40(arg0) && test41(arg1)) {
-            return fn4.apply(this, arguments);
-        }
-        if (argc === len5 && test50(arg0) && test51(arg1)) {
-            return fn5.apply(this, arguments);
-        }
-        // Fall back to generic dispatch
-        return genericDispatch(arguments, this);
-    }
-    // Set the function name
-    try {
-        Object.defineProperty(theTypedFn, 'name', { value: name });
-    }
-    catch {
-        // Some environments don't support setting function name
-    }
-    return theTypedFn;
-}
-/**
- * Compile test functions for all signatures
- *
- * @param signatures - Array of signatures to compile tests for
- * @param registry - The type registry
- */
-function compileSignatureTests(signatures, registry) {
-    for (const sig of signatures) {
-        if (!sig.test) {
-            sig.test = compileTests(sig.params, registry);
-        }
-    }
-}
-
-/**
  * Generic Dispatcher for typed-function
  *
  * Fallback loop dispatcher for signatures beyond fast-path,
@@ -2350,17 +1770,396 @@ function createSimpleDispatcher(name, signatures, onMismatch) {
     }
     return dispatcher;
 }
+
 /**
- * Check if all signatures have compiled test functions
+ * Signature Compiler Module for typed-function
+ *
+ * This module compiles signature parameters into optimized test functions
+ * and argument preprocessing functions.
  */
-function hasCompiledTests(signatures) {
-    return signatures.every((s) => typeof s.test === 'function');
+/**
+ * Test whether a set of params contains a rest param
+ */
+function hasRestParam(params) {
+    const param = last(params);
+    return param ? param.restParam : false;
 }
 /**
- * Check if all signatures have implementation functions
+ * Create a type test for a single parameter
+ *
+ * Optimized for common cases (0, 1, 2 types)
+ *
+ * @param param - The parameter to create a test for
+ * @param registry - The type registry
+ * @returns A function that tests if a value matches the parameter
  */
-function hasImplementations(signatures) {
-    return signatures.every((s) => typeof s.implementation === 'function');
+function compileTest(param, registry) {
+    if (!param || param.types.length === 0) {
+        // Empty param matches everything
+        return () => true;
+    }
+    if (param.types.length === 1) {
+        const type = param.types[0];
+        if (type) {
+            return registry.findType(type.name).test;
+        }
+        return () => true;
+    }
+    if (param.types.length === 2) {
+        const type0 = param.types[0];
+        const type1 = param.types[1];
+        if (type0 && type1) {
+            const test0 = registry.findType(type0.name).test;
+            const test1 = registry.findType(type1.name).test;
+            return function or(x) {
+                return test0(x) || test1(x);
+            };
+        }
+        return () => true;
+    }
+    // 3+ types: use a loop
+    const tests = param.types
+        .map((type) => (type ? registry.findType(type.name).test : null))
+        .filter((t) => t !== null);
+    return function or(x) {
+        for (let i = 0; i < tests.length; i++) {
+            const test = tests[i];
+            if (test && test(x)) {
+                return true;
+            }
+        }
+        return false;
+    };
+}
+/**
+ * Create a test function for all parameters of a signature
+ *
+ * Optimized for common cases (0, 1, 2 params without rest)
+ *
+ * @param params - The parameters to compile tests for
+ * @param registry - The type registry
+ * @returns A function that tests if an argument list matches the signature
+ */
+function compileTests(params, registry) {
+    if (hasRestParam(params)) {
+        // Variable arguments like '...number'
+        const tests = initial(params).map((p) => compileTest(p, registry));
+        const varIndex = tests.length;
+        const lastParam = last(params);
+        const lastTest = compileTest(lastParam, registry);
+        const testRestParam = function (args) {
+            for (let i = varIndex; i < args.length; i++) {
+                if (!lastTest(args[i])) {
+                    return false;
+                }
+            }
+            return true;
+        };
+        return function testArgs(args) {
+            for (let i = 0; i < tests.length; i++) {
+                const test = tests[i];
+                if (test && !test(args[i])) {
+                    return false;
+                }
+            }
+            return testRestParam(args) && args.length >= varIndex + 1;
+        };
+    }
+    // No variable arguments - specialize for 0, 1, 2 params
+    switch (params.length) {
+        case 0:
+            return function testArgs(args) {
+                return args.length === 0;
+            };
+        case 1: {
+            const param0 = params[0];
+            const test0 = compileTest(param0, registry);
+            return function testArgs(args) {
+                return test0(args[0]) && args.length === 1;
+            };
+        }
+        case 2: {
+            const param0 = params[0];
+            const param1 = params[1];
+            const test0 = compileTest(param0, registry);
+            const test1 = compileTest(param1, registry);
+            return function testArgs(args) {
+                return test0(args[0]) && test1(args[1]) && args.length === 2;
+            };
+        }
+        default: {
+            // 3+ params
+            const tests = params.map((p) => compileTest(p, registry));
+            const len = tests.length;
+            return function testArgs(args) {
+                if (args.length !== len) {
+                    return false;
+                }
+                for (let i = 0; i < len; i++) {
+                    const test = tests[i];
+                    if (test && !test(args[i])) {
+                        return false;
+                    }
+                }
+                return true;
+            };
+        }
+    }
+}
+/**
+ * Compile a conversion function for a single argument
+ *
+ * @param param - The parameter containing conversion info
+ * @param registry - The type registry
+ * @returns A function that converts an argument if needed
+ */
+function compileArgConversion(param, registry) {
+    const conversions = [];
+    let name = '';
+    for (const type of param.types) {
+        if (type.conversion) {
+            name += type.conversion.from + '~>' + type.conversion.to + ',';
+            conversions.push({
+                test: registry.findType(type.conversion.from).test,
+                convert: type.conversion.convert,
+            });
+        }
+    }
+    if (name) {
+        name = name.slice(0, -1); // Remove trailing comma
+    }
+    else {
+        name = 'pass';
+    }
+    // Create optimized conversion functions
+    let convertor;
+    switch (conversions.length) {
+        case 0:
+            convertor = (arg) => arg;
+            break;
+        case 1: {
+            const conv = conversions[0];
+            if (conv) {
+                const { test: test0, convert: conversion0 } = conv;
+                convertor = function convertArg(arg) {
+                    if (test0(arg)) {
+                        return conversion0(arg);
+                    }
+                    return arg;
+                };
+            }
+            else {
+                convertor = (arg) => arg;
+            }
+            break;
+        }
+        case 2: {
+            const conv0 = conversions[0];
+            const conv1 = conversions[1];
+            if (conv0 && conv1) {
+                const { test: test0, convert: conversion0 } = conv0;
+                const { test: test1, convert: conversion1 } = conv1;
+                convertor = function convertArg(arg) {
+                    if (test0(arg)) {
+                        return conversion0(arg);
+                    }
+                    if (test1(arg)) {
+                        return conversion1(arg);
+                    }
+                    return arg;
+                };
+            }
+            else {
+                convertor = (arg) => arg;
+            }
+            break;
+        }
+        default:
+            convertor = function convertArg(arg) {
+                for (let i = 0; i < conversions.length; i++) {
+                    const conv = conversions[i];
+                    if (conv && conv.test(arg)) {
+                        return conv.convert(arg);
+                    }
+                }
+                return arg;
+            };
+    }
+    // Attach name for debugging
+    Object.defineProperty(convertor, 'name', { value: name });
+    return convertor;
+}
+/**
+ * Compile argument preprocessing for a signature
+ *
+ * This handles:
+ * - Converting arguments if needed
+ * - Collecting rest parameters into an array
+ *
+ * @param params - The signature parameters
+ * @param fn - The original function
+ * @param registry - The type registry
+ * @returns A wrapped function that preprocesses arguments
+ */
+function compileArgsPreprocessing(params, fn, registry) {
+    let fnConvert = fn;
+    let name = '';
+    // Check if any conversions are needed
+    if (params.some((p) => p.hasConversion)) {
+        const restParam = hasRestParam(params);
+        const compiledConversions = params.map((p) => compileArgConversion(p, registry));
+        name = compiledConversions.map((conv) => conv.name).join(';');
+        fnConvert = function convertArgs() {
+            const args = [];
+            const lastIdx = restParam ? arguments.length - 1 : arguments.length;
+            for (let i = 0; i < lastIdx; i++) {
+                const conv = compiledConversions[i];
+                args[i] = conv ? conv(arguments[i]) : arguments[i];
+            }
+            if (restParam) {
+                const lastConv = compiledConversions[lastIdx];
+                const restArgs = arguments[lastIdx];
+                args[lastIdx] = lastConv ? restArgs.map(lastConv) : restArgs;
+            }
+            return fn.apply(this, args);
+        };
+    }
+    // Handle rest parameters
+    let fnPreprocess = fnConvert;
+    if (hasRestParam(params)) {
+        const offset = params.length - 1;
+        fnPreprocess = function preprocessRestParams() {
+            const args = slice(arguments, 0, offset);
+            args.push(slice(arguments, offset));
+            return fnConvert.apply(this, args);
+        };
+    }
+    if (name) {
+        Object.defineProperty(fnPreprocess, 'name', { value: name });
+    }
+    return fnPreprocess;
+}
+
+/**
+ * Fast-Path Dispatcher for typed-function
+ *
+ * Implements optimized dispatch for up to 6 signatures with max 2 arguments.
+ * Falls back to generic dispatcher for more complex cases.
+ */
+/**
+ * Helper that always returns true (for empty/any param)
+ */
+function ok() {
+    return true;
+}
+/**
+ * Helper that always returns false (for disabled slots)
+ */
+function notOk() {
+    return false;
+}
+/**
+ * Helper that always returns undefined (for disabled function slots)
+ */
+function undef() {
+    return undefined;
+}
+/**
+ * Check if a signature is eligible for fast-path dispatch
+ * (max 2 parameters, no rest param)
+ */
+function isFastPathEligible(signature) {
+    return signature.params.length <= 2 && !hasRestParam$1(signature.params);
+}
+/**
+ * Create a simple test function for a parameter (without registry)
+ */
+function createSimpleTest(param) {
+    if (param.types.length === 0 || param.hasAny) {
+        return ok;
+    }
+    if (param.types.length === 1) {
+        const firstType = param.types[0];
+        return firstType ? firstType.test : ok;
+    }
+    const tests = param.types.map(t => t.test);
+    return (x) => {
+        for (const test of tests) {
+            if (test(x))
+                return true;
+        }
+        return false;
+    };
+}
+/**
+ * Create a fast-path slot for a signature
+ */
+function createFastPathSlot(signature, registry) {
+    const params = signature.params;
+    let test0;
+    let test1;
+    {
+        test0 = params[0] ? createSimpleTest(params[0]) : ok;
+        test1 = params[1] ? createSimpleTest(params[1]) : ok;
+    }
+    return {
+        test0,
+        test1,
+        length: params.length,
+        fn: signature.implementation,
+        active: true,
+    };
+}
+/**
+ * Create an inactive (disabled) fast-path slot
+ */
+function createInactiveSlot() {
+    return {
+        test0: notOk,
+        test1: notOk,
+        length: -1,
+        fn: undef,
+        active: false,
+    };
+}
+/**
+ * Create fast-path dispatcher data for a list of signatures
+ *
+ * @param signatures - The sorted signatures array
+ * @returns Fast-path dispatcher data
+ */
+function createFastPathDispatcher(signatures) {
+    const slots = [];
+    let allActive = true;
+    // Create slots for first 6 signatures
+    for (let i = 0; i < 6; i++) {
+        const sig = signatures[i];
+        if (sig && isFastPathEligible(sig) && sig.implementation) {
+            slots.push(createFastPathSlot(sig));
+        }
+        else {
+            slots.push(createInactiveSlot());
+            allActive = false;
+        }
+    }
+    return {
+        slots,
+        allActive,
+        genericStartIndex: allActive ? 6 : 0,
+    };
+}
+/**
+ * Compile test functions for all signatures
+ *
+ * @param signatures - Array of signatures to compile tests for
+ * @param registry - The type registry
+ */
+function compileSignatureTests(signatures, registry) {
+    for (const sig of signatures) {
+        if (!sig.test) {
+            sig.test = compileTests(sig.params, registry);
+        }
+    }
 }
 
 /**
@@ -2695,100 +2494,6 @@ function isPlainObject(x) {
 function hasOwnProperty(obj, prop) {
     return Object.prototype.hasOwnProperty.call(obj, prop);
 }
-/**
- * Safely get a property from an object
- *
- * @param obj - The object to get the property from
- * @param prop - The property name
- * @returns The property value, or undefined
- */
-function getProperty(obj, prop) {
-    return hasOwnProperty(obj, prop) ? obj[prop] : undefined;
-}
-/**
- * Create a shallow copy of an object
- *
- * @param obj - The object to copy
- * @returns A new object with the same properties
- */
-function shallowCopy(obj) {
-    return Object.assign({}, obj);
-}
-/**
- * Map over object entries and return a new object
- *
- * @param obj - The object to map over
- * @param callback - Function that transforms each entry
- * @returns A new object with transformed values
- */
-function mapObject(obj, callback) {
-    const result = {};
-    for (const key in obj) {
-        if (hasOwnProperty(obj, key)) {
-            result[key] = callback(obj[key], key);
-        }
-    }
-    return result;
-}
-/**
- * Get the number of own properties in an object
- *
- * @param obj - The object to count properties in
- * @returns The number of own properties
- */
-function objectSize(obj) {
-    return Object.keys(obj).length;
-}
-/**
- * Check if an object is empty (has no own properties)
- *
- * @param obj - The object to check
- * @returns true if the object has no own properties
- */
-function isEmptyObject(obj) {
-    return objectSize(obj) === 0;
-}
-/**
- * Merge multiple objects into a new object
- *
- * Later objects override earlier ones.
- *
- * @param objects - Objects to merge
- * @returns A new merged object
- */
-function mergeObjects(...objects) {
-    return Object.assign({}, ...objects);
-}
-/**
- * Pick specific keys from an object
- *
- * @param obj - The source object
- * @param keys - The keys to pick
- * @returns A new object with only the specified keys
- */
-function pick(obj, keys) {
-    const result = {};
-    for (const key of keys) {
-        if (hasOwnProperty(obj, key)) {
-            result[key] = obj[key];
-        }
-    }
-    return result;
-}
-/**
- * Omit specific keys from an object
- *
- * @param obj - The source object
- * @param keys - The keys to omit
- * @returns A new object without the specified keys
- */
-function omit(obj, keys) {
-    const result = { ...obj };
-    for (const key of keys) {
-        delete result[key];
-    }
-    return result;
-}
 
 /**
  * JS-WASM Bridge for typed-function dispatch
@@ -2900,7 +2605,7 @@ function getDefaultWasmPath() {
         return 'dispatch.wasm';
     }
     // In Node.js, use relative path from module
-    return new URL('../../../build/dispatch.wasm', (typeof document === 'undefined' ? require('u' + 'rl').pathToFileURL(__filename).href : (_documentCurrentScript && _documentCurrentScript.tagName.toUpperCase() === 'SCRIPT' && _documentCurrentScript.src || new URL('typed-function.cjs', document.baseURI).href))).href;
+    return new URL('../../../build/dispatch.wasm', (typeof document === 'undefined' ? require('u' + 'rl').pathToFileURL(__filename).href : (_documentCurrentScript && _documentCurrentScript.tagName.toUpperCase() === 'SCRIPT' && _documentCurrentScript.src || new URL('typed-function.minimal.cjs', document.baseURI).href))).href;
 }
 
 /**
@@ -2929,8 +2634,6 @@ const TYPE_OBJECT = 7;
 const TYPE_NULL = 8;
 /** Type ID for undefined */
 const TYPE_UNDEFINED = 9;
-/** Mask for any type (matches all) */
-const TYPE_ANY_MASK = 0xffffffff;
 /** Next available custom type ID */
 let nextCustomTypeId = 10;
 /** Map from type name to bit */
@@ -2964,39 +2667,6 @@ function getTypeBit(typeName) {
     return bit;
 }
 /**
- * Get the type mask for a type name
- *
- * @param typeName - The type name
- * @returns The type mask (1 << bit for single types, or ANY_MASK for 'any')
- */
-function getTypeMaskForName(typeName) {
-    const bit = getTypeBit(typeName);
-    if (bit === -1) {
-        return TYPE_ANY_MASK;
-    }
-    return 1 << bit;
-}
-/**
- * Get combined mask for a parameter's types
- *
- * @param typeNames - Array of type names that the parameter accepts
- * @returns Combined mask (OR of all type masks)
- */
-function getParamMask(typeNames) {
-    if (typeNames.length === 0) {
-        return TYPE_ANY_MASK;
-    }
-    let mask = 0;
-    for (const name of typeNames) {
-        const typeMask = getTypeMaskForName(name);
-        if (typeMask === TYPE_ANY_MASK) {
-            return TYPE_ANY_MASK;
-        }
-        mask |= typeMask;
-    }
-    return mask;
-}
-/**
  * Register a custom type with its test function
  *
  * @param typeName - The type name
@@ -3004,119 +2674,6 @@ function getParamMask(typeNames) {
  */
 function registerCustomType(typeName) {
     return getTypeBit(typeName);
-}
-// =============================================================================
-// Pre-built Type Masks for Common Patterns
-// =============================================================================
-/**
- * Pre-built type masks for common type patterns
- * These combine multiple types into a single mask for efficient dispatch
- */
-const TypeMasks = {
-    // Numeric types
-    /** Matches number only */
-    NUMBER: 1 << TYPE_NUMBER,
-    /** Matches string only */
-    STRING: 1 << TYPE_STRING,
-    /** Matches boolean only */
-    BOOLEAN: 1 << TYPE_BOOLEAN,
-    /** Matches number | string (common for math operations) */
-    NUMERIC_OR_STRING: (1 << TYPE_NUMBER) | (1 << TYPE_STRING),
-    /** Matches number | boolean (truthy/falsy conversions) */
-    NUMERIC_OR_BOOLEAN: (1 << TYPE_NUMBER) | (1 << TYPE_BOOLEAN),
-    // Collection types
-    /** Matches Array only */
-    ARRAY: 1 << TYPE_ARRAY,
-    /** Matches Object only (plain objects) */
-    OBJECT: 1 << TYPE_OBJECT,
-    /** Matches Array | Object (collection-like) */
-    ARRAY_LIKE: (1 << TYPE_ARRAY) | (1 << TYPE_OBJECT),
-    /** Matches iterable types: Array | string | Object */
-    ITERABLE: (1 << TYPE_ARRAY) | (1 << TYPE_STRING) | (1 << TYPE_OBJECT),
-    // Function types
-    /** Matches Function only */
-    FUNCTION: 1 << TYPE_FUNCTION,
-    /** Matches Function | null (optional callback) */
-    OPTIONAL_FUNCTION: (1 << TYPE_FUNCTION) | (1 << TYPE_NULL),
-    // Special object types
-    /** Matches Date only */
-    DATE: 1 << TYPE_DATE,
-    /** Matches RegExp only */
-    REGEXP: 1 << TYPE_REGEXP,
-    /** Matches Date | string (parseable dates) */
-    DATE_LIKE: (1 << TYPE_DATE) | (1 << TYPE_STRING) | (1 << TYPE_NUMBER),
-    // Nullable patterns
-    /** Matches null only */
-    NULL: 1 << TYPE_NULL,
-    /** Matches undefined only */
-    UNDEFINED: 1 << TYPE_UNDEFINED,
-    /** Matches null | undefined (nullish) */
-    NULLISH: (1 << TYPE_NULL) | (1 << TYPE_UNDEFINED),
-    /** Matches any primitive: number | string | boolean | null | undefined */
-    PRIMITIVE: (1 << TYPE_NUMBER) | (1 << TYPE_STRING) | (1 << TYPE_BOOLEAN) | (1 << TYPE_NULL) | (1 << TYPE_UNDEFINED),
-    /** Matches any scalar: number | string | boolean */
-    SCALAR: (1 << TYPE_NUMBER) | (1 << TYPE_STRING) | (1 << TYPE_BOOLEAN),
-    // Optional patterns (type | null | undefined)
-    /** Optional number */
-    OPTIONAL_NUMBER: (1 << TYPE_NUMBER) | (1 << TYPE_NULL) | (1 << TYPE_UNDEFINED),
-    /** Optional string */
-    OPTIONAL_STRING: (1 << TYPE_STRING) | (1 << TYPE_NULL) | (1 << TYPE_UNDEFINED),
-    /** Optional boolean */
-    OPTIONAL_BOOLEAN: (1 << TYPE_BOOLEAN) | (1 << TYPE_NULL) | (1 << TYPE_UNDEFINED),
-    /** Optional array */
-    OPTIONAL_ARRAY: (1 << TYPE_ARRAY) | (1 << TYPE_NULL) | (1 << TYPE_UNDEFINED),
-    /** Optional object */
-    OPTIONAL_OBJECT: (1 << TYPE_OBJECT) | (1 << TYPE_NULL) | (1 << TYPE_UNDEFINED),
-    // Object type patterns
-    /** Matches any object type: Object | Array | Date | RegExp | Function */
-    ANY_OBJECT: (1 << TYPE_OBJECT) | (1 << TYPE_ARRAY) | (1 << TYPE_DATE) | (1 << TYPE_REGEXP) | (1 << TYPE_FUNCTION),
-    /** Matches all types (same as any) */
-    ANY: TYPE_ANY_MASK,
-};
-/**
- * Create a custom type mask by combining type names
- *
- * @param typeNames - Array of type names to combine
- * @returns Combined mask
- *
- * @example
- * ```ts
- * const numericMask = createMask(['number', 'string', 'boolean']);
- * ```
- */
-function createMask(typeNames) {
-    return getParamMask(typeNames);
-}
-/**
- * Create an optional mask (type | null | undefined)
- *
- * @param baseMask - The base type mask
- * @returns Mask with null and undefined added
- */
-function optionalMask(baseMask) {
-    return baseMask | (1 << TYPE_NULL) | (1 << TYPE_UNDEFINED);
-}
-/**
- * Create a nullable mask (type | null)
- *
- * @param baseMask - The base type mask
- * @returns Mask with null added
- */
-function nullableMask(baseMask) {
-    return baseMask | (1 << TYPE_NULL);
-}
-/**
- * Combine multiple masks with OR
- *
- * @param masks - Masks to combine
- * @returns Combined mask
- */
-function combineMasks(...masks) {
-    let result = 0;
-    for (const mask of masks) {
-        result |= mask;
-    }
-    return result;
 }
 
 /**
@@ -3460,244 +3017,21 @@ function create() {
 var typedInstance = create();
 
 /**
- * Debug Module for typed-function
+ * typed-function Minimal Entry Point
  *
- * Provides logging and debugging utilities for understanding
- * dispatch decisions and function creation.
- */
-// Default configuration
-const defaultConfig = {
-    enabled: false,
-    level: 'info',
-    timing: false,
-    stackTraces: false,
-};
-// Current configuration
-let config = { ...defaultConfig };
-// Event handlers
-const handlers = new Set();
-/**
- * Configure debug mode
- *
- * @param options - Debug configuration options
+ * This is a lightweight entry point (~5KB) that provides core functionality
+ * without WASM dispatch. Use this for smaller bundle sizes when WASM
+ * acceleration is not needed.
  *
  * @example
  * ```ts
- * import { configureDebug } from 'typed-function';
+ * import typed from 'typed-function/minimal';
  *
- * // Enable debug mode with info level
- * configureDebug({ enabled: true, level: 'info' });
- *
- * // Enable with custom handler
- * configureDebug({
- *   enabled: true,
- *   handler: (event) => console.log(JSON.stringify(event))
+ * const add = typed('add', {
+ *   'number, number': (a, b) => a + b,
+ *   'string, string': (a, b) => a + b,
  * });
  * ```
- */
-function configureDebug(options) {
-    config = { ...config, ...options };
-    if (options.handler) {
-        handlers.add(options.handler);
-    }
-}
-/**
- * Reset debug configuration to defaults
- */
-function resetDebug() {
-    config = { ...defaultConfig };
-    handlers.clear();
-}
-/**
- * Check if debug mode is enabled
- */
-function isDebugEnabled() {
-    return config.enabled;
-}
-/**
- * Get current debug level
- */
-function getDebugLevel() {
-    return config.level;
-}
-/**
- * Add a debug event handler
- *
- * @param handler - The handler function
- * @returns A function to remove the handler
- */
-function addDebugHandler(handler) {
-    handlers.add(handler);
-    return () => handlers.delete(handler);
-}
-/**
- * Emit a debug event
- *
- * @param type - The event type
- * @param data - Additional event data
- * @param fnName - Function name (if applicable)
- */
-function emitDebugEvent(type, data, fnName) {
-    if (!config.enabled)
-        return;
-    // Check filter
-    if (config.filter && !config.filter.includes(type))
-        return;
-    // Build the event object, only including optional fields if defined
-    const event = {
-        type,
-        timestamp: config.timing ? performance.now() : Date.now(),
-    };
-    if (fnName !== undefined) {
-        event.fnName = fnName;
-    }
-    if (data !== undefined) {
-        event.data = data;
-        // Add stack trace if configured
-        if (config.stackTraces) {
-            data.stack = new Error().stack;
-        }
-    }
-    // Call all handlers
-    for (const handler of handlers) {
-        try {
-            handler(event);
-        }
-        catch {
-            // Ignore handler errors
-        }
-    }
-    // Default console output if no custom handler
-    if (handlers.size === 0 || config.handler === undefined) {
-        logEvent(event);
-    }
-}
-/**
- * Log an event to console
- */
-function logEvent(event) {
-    const prefix = `[typed-function:${event.type}]`;
-    const fnInfo = event.fnName ? ` ${event.fnName}` : '';
-    switch (event.type) {
-        case 'function:create':
-            console.log(`${prefix}${fnInfo} created with ${event.data?.signatureCount ?? 0} signatures`);
-            break;
-        case 'function:call':
-            console.log(`${prefix}${fnInfo} called with ${event.data?.argCount ?? 0} arguments`);
-            break;
-        case 'dispatch:start':
-            console.log(`${prefix}${fnInfo} dispatching...`);
-            break;
-        case 'dispatch:match':
-            console.log(`${prefix}${fnInfo} matched signature: ${event.data?.signature ?? 'unknown'}`);
-            break;
-        case 'dispatch:nomatch':
-            console.warn(`${prefix}${fnInfo} no matching signature found`);
-            break;
-        case 'dispatch:conversion':
-            console.log(`${prefix}${fnInfo} converting ${event.data?.from} -> ${event.data?.to}`);
-            break;
-        case 'type:register':
-            console.log(`${prefix} registered type: ${event.data?.typeName}`);
-            break;
-        case 'conversion:register':
-            console.log(`${prefix} registered conversion: ${event.data?.from} -> ${event.data?.to}`);
-            break;
-        case 'wasm:init':
-            console.log(`${prefix} WASM initialized: ${event.data?.success ? 'success' : 'failed'}`);
-            break;
-        case 'wasm:dispatch':
-            console.log(`${prefix}${fnInfo} using WASM dispatch`);
-            break;
-        case 'cache:hit':
-            console.log(`${prefix}${fnInfo} cache hit`);
-            break;
-        case 'cache:miss':
-            console.log(`${prefix}${fnInfo} cache miss`);
-            break;
-        default:
-            console.log(`${prefix}${fnInfo}`, event.data);
-    }
-}
-/**
- * Format a signature for logging
- */
-function formatSignature(signature) {
-    return signature.params.map((p) => p.name).join(', ');
-}
-/**
- * Format a parameter for logging
- */
-function formatParam(param) {
-    const prefix = param.restParam ? '...' : '';
-    return `${prefix}${param.name}`;
-}
-/**
- * Format arguments for logging
- */
-function formatArgs(args) {
-    const types = [];
-    for (let i = 0; i < args.length; i++) {
-        const arg = args[i];
-        types.push(typeof arg === 'object' ? (arg === null ? 'null' : arg.constructor.name) : typeof arg);
-    }
-    return types.join(', ');
-}
-/**
- * Create a debug wrapper for a typed function
- *
- * @param fn - The typed function to wrap
- * @returns A wrapped function that logs debug info
- *
- * @example
- * ```ts
- * const add = typed('add', { 'number, number': (a, b) => a + b });
- * const debugAdd = wrapWithDebug(add);
- *
- * // Now calls to debugAdd will be logged
- * debugAdd(1, 2);
- * ```
- */
-function wrapWithDebug(fn) {
-    const wrapper = function (...args) {
-        const fnName = fn.name || 'anonymous';
-        emitDebugEvent('function:call', { argCount: args.length, argTypes: formatArgs(args) }, fnName);
-        emitDebugEvent('dispatch:start', {}, fnName);
-        try {
-            const result = fn.apply(this, args);
-            emitDebugEvent('dispatch:match', { argTypes: formatArgs(args) }, fnName);
-            return result;
-        }
-        catch (error) {
-            emitDebugEvent('dispatch:nomatch', { error: String(error) }, fnName);
-            throw error;
-        }
-    };
-    // Copy properties from original function
-    Object.defineProperty(wrapper, 'name', { value: fn.name, writable: false });
-    Object.defineProperty(wrapper, 'signatures', { value: fn.signatures, writable: false });
-    Object.defineProperty(wrapper, '_typedFunctionData', { value: fn._typedFunctionData, writable: false });
-    return wrapper;
-}
-/**
- * Convenience function to enable debug mode
- */
-function enableDebug(level = 'info') {
-    configureDebug({ enabled: true, level });
-}
-/**
- * Convenience function to disable debug mode
- */
-function disableDebug() {
-    configureDebug({ enabled: false });
-}
-
-/**
- * typed-function v5.0
- *
- * Type checking for JavaScript functions
- *
- * This is the main entry point for the typed-function library.
  */
 /**
  * Check if an entity is a typed function created by any instance
@@ -3714,73 +3048,26 @@ exports.SignatureMismatchError = SignatureMismatchError;
 exports.SignatureNotFoundError = SignatureNotFoundError;
 exports.TooFewArgumentsError = TooFewArgumentsError;
 exports.TooManyArgumentsError = TooManyArgumentsError;
-exports.TypeMasks = TypeMasks;
 exports.TypeMismatchError = TypeMismatchError;
 exports.TypeNotFoundError = TypeNotFoundError;
 exports.TypeRegistry = TypeRegistry;
 exports.TypedFunctionError = TypedFunctionError;
-exports.WasmInitializationError = WasmInitializationError;
-exports.WasmNotAvailableError = WasmNotAvailableError;
-exports.addDebugHandler = addDebugHandler;
-exports.arraysEqual = arraysEqual;
-exports.availableConversions = availableConversions;
 exports.checkName = checkName;
-exports.clearResolutions = clearResolutions;
-exports.collectResolutions = collectResolutions;
-exports.combineMasks = combineMasks;
 exports.compareParams = compareParams;
 exports.compareSignatures = compareSignatures;
-exports.compileArgConversion = compileArgConversion;
-exports.compileArgsPreprocessing = compileArgsPreprocessing;
-exports.compileSignatureTests = compileSignatureTests;
-exports.compileTest = compileTest;
-exports.compileTests = compileTests;
-exports.configureDebug = configureDebug;
-exports.conflicting = conflicting;
 exports.create = create;
-exports.createArray = createArray;
 exports.createConversionManager = createConversionManager;
-exports.createDispatcher = createDispatcher;
 exports.createError = createError;
-exports.createFastPathDispatcher = createFastPathDispatcher;
-exports.createFastPathSlot = createFastPathSlot;
 exports.createGenericDispatcher = createGenericDispatcher;
-exports.createInactiveSlot = createInactiveSlot;
-exports.createMask = createMask;
-exports.createParamTest = createParamTest;
-exports.createSignatureComparator = createSignatureComparator;
 exports.createSimpleDispatcher = createSimpleDispatcher;
 exports.createTypeRegistry = createTypeRegistry;
 exports.createTypedFunction = createTypedFunction;
 exports.default = typedInstance;
 exports.defaultOnMismatch = defaultOnMismatch;
-exports.disableDebug = disableDebug;
-exports.emitDebugEvent = emitDebugEvent;
-exports.enableDebug = enableDebug;
-exports.expandParam = expandParam;
-exports.findInArray = findInArray;
-exports.flatMap = flatMap;
-exports.formatArgs = formatArgs;
-exports.formatParam = formatParam;
-exports.formatSignature = formatSignature;
-exports.getDebugLevel = getDebugLevel;
-exports.getLowestConversionIndex = getLowestConversionIndex;
-exports.getLowestTypeIndex = getLowestTypeIndex;
-exports.getObjectName = getObjectName;
 exports.getParamAtIndex = getParamAtIndex;
-exports.getProperty = getProperty;
-exports.getTypeSetAtIndex = getTypeSetAtIndex$1;
-exports.hasCompiledTests = hasCompiledTests;
-exports.hasImplementations = hasImplementations;
-exports.hasItem = hasItem;
 exports.hasOwnProperty = hasOwnProperty;
-exports.hasRestParam = hasRestParam;
-exports.hasRestParamError = hasRestParam$2;
+exports.hasRestParam = hasRestParam$1;
 exports.initial = initial;
-exports.isDebugEnabled = isDebugEnabled;
-exports.isEmptyObject = isEmptyObject;
-exports.isExactType = isExactType$1;
-exports.isFastPathEligible = isFastPathEligible;
 exports.isPlainObject = isPlainObject;
 exports.isReferTo = isReferTo;
 exports.isReferToSelf = isReferToSelf;
@@ -3789,29 +3076,13 @@ exports.isTooManyArgumentsError = isTooManyArgumentsError;
 exports.isTypeMismatchError = isTypeMismatchError;
 exports.isTypedFunction = isTypedFunction;
 exports.isTypedFunctionError = isTypedFunctionError;
-exports.isWasmNotAvailableError = isWasmNotAvailableError;
 exports.last = last;
 exports.makeReferTo = makeReferTo;
 exports.makeReferToSelf = makeReferToSelf;
-exports.mapObject = mapObject;
 exports.mergeExpectedParams = mergeExpectedParams;
-exports.mergeObjects = mergeObjects;
 exports.mergeSignatures = mergeSignatures;
-exports.nullableMask = nullableMask;
-exports.objectSize = objectSize;
-exports.omit = omit;
-exports.optionalMask = optionalMask;
 exports.paramTypeSet = paramTypeSet;
 exports.parseParam = parseParam;
 exports.parseSignature = parseSignature;
-exports.pick = pick;
-exports.resetDebug = resetDebug;
-exports.resolveReferences = resolveReferences;
-exports.shallowCopy = shallowCopy;
-exports.slice = slice;
-exports.splitParams = splitParams;
 exports.stringifyParams = stringifyParams;
-exports.stringifyParamsError = stringifyParams$1;
-exports.validateDeprecatedThis = validateDeprecatedThis;
-exports.wrapWithDebug = wrapWithDebug;
-//# sourceMappingURL=typed-function.cjs.map
+//# sourceMappingURL=typed-function.minimal.cjs.map

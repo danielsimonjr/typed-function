@@ -31,12 +31,22 @@
       "import": "./build/typed-function.mjs",
       "require": "./build/typed-function.cjs"
     },
+    "./minimal": {
+      "types": "./build/minimal.d.ts",
+      "import": "./build/typed-function.minimal.mjs",
+      "require": "./build/typed-function.minimal.cjs"
+    },
     "./wasm": {
       "types": "./build/wasm/index.d.ts",
       "import": "./build/wasm/index.js",
       "require": "./build/wasm/index.js"
     },
-    "./wasm/dispatch.wasm": "./build/dispatch.wasm"
+    "./wasm/dispatch.wasm": "./build/dispatch.wasm",
+    "./debug": {
+      "types": "./build/debug.d.ts",
+      "import": "./build/debug.js",
+      "require": "./build/debug.js"
+    }
   },
   "sideEffects": false,
   "scripts": {

@@ -10,6 +10,7 @@ export { NOT_TYPED_FUNCTION } from './core/types.js';
 export { TypeRegistry, BUILTIN_TYPES, createTypeRegistry } from './core/type-registry.js';
 export type { InternalTypeDef } from './core/type-registry.js';
 export { createError, defaultOnMismatch, stringifyParams as stringifyParamsError, hasRestParam as hasRestParamError, getParamAtIndex, paramTypeSet, getTypeSetAtIndex, mergeExpectedParams, createParamTest, } from './core/error-factory.js';
+export { TypedFunctionError, TypeMismatchError, TooFewArgumentsError, TooManyArgumentsError, SignatureMismatchError, SignatureNotFoundError, WasmNotAvailableError, WasmInitializationError, TypeNotFoundError, DuplicateTypeError, isTypedFunctionError, isTypeMismatchError, isTooFewArgumentsError, isTooManyArgumentsError, isWasmNotAvailableError, } from './core/errors.js';
 export { parseParam, parseSignature, availableConversions, expandParam, isExactType, splitParams, stringifyParams, } from './core/signature-parser.js';
 export { compileTest, compileTests, compileArgConversion, compileArgsPreprocessing, } from './core/signature-compiler.js';
 export { hasRestParam, getLowestTypeIndex, getLowestConversionIndex, compareParams, compareSignatures, conflicting, createSignatureComparator, } from './core/signature-comparator.js';
@@ -26,6 +27,8 @@ export { isPlainObject, hasOwnProperty, getProperty, shallowCopy, mapObject, obj
 export { create } from './factory.js';
 export type { InitOptions } from './factory.js';
 export { TypeMasks, createMask, optionalMask, nullableMask, combineMasks, } from './wasm/type-masks.js';
+export { configureDebug, resetDebug, isDebugEnabled, getDebugLevel, addDebugHandler, emitDebugEvent, formatSignature, formatParam, formatArgs, wrapWithDebug, enableDebug, disableDebug, } from './debug.js';
+export type { DebugLevel, DebugEventType, DebugEvent, DebugHandler, DebugConfig } from './debug.js';
 import typedInstance from './factory.js';
 /**
  * Check if an entity is a typed function created by any instance
