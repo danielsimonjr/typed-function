@@ -338,6 +338,15 @@ export interface TypedInstance {
 
   /** Internal: find a type by name (for testing) */
   _findType: (name: string) => TypeDef;
+
+  /** Initialize the typed-function instance with optional WASM support */
+  init: (options?: { preferWasm?: boolean; wasmPath?: string }) => Promise<boolean>;
+
+  /** Check if WASM dispatch is available and enabled */
+  isWasmEnabled: () => boolean;
+
+  /** Reset WASM state (for testing) */
+  resetWasm: () => void;
 }
 
 /**

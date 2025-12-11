@@ -75,6 +75,12 @@ export {
   resetTypeMasks,
   registerCustomType,
   maskToTypeNames,
+  // Pre-built type masks
+  TypeMasks,
+  createMask,
+  optionalMask,
+  nullableMask,
+  combineMasks,
 } from './type-masks.js';
 
 /**
