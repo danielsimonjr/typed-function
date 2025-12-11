@@ -101,6 +101,47 @@ const config = [
       }),
     ],
   },
+
+  // Minimal ESM build (smaller bundle without WASM)
+  {
+    input: 'src/minimal.ts',
+    output: {
+      file: 'build/typed-function.minimal.mjs',
+      format: 'es',
+      sourcemap: true,
+      banner,
+    },
+    plugins: [
+      typescript({
+        tsconfig: './tsconfig.build.json',
+        declaration: true,
+        declarationDir: './build',
+      }),
+      resolve(),
+      commonjs(),
+    ],
+  },
+
+  // Minimal CJS build
+  {
+    input: 'src/minimal.ts',
+    output: {
+      file: 'build/typed-function.minimal.cjs',
+      format: 'cjs',
+      sourcemap: true,
+      banner,
+      exports: 'named',
+    },
+    plugins: [
+      typescript({
+        tsconfig: './tsconfig.build.json',
+        declaration: false,
+        declarationMap: false,
+      }),
+      resolve(),
+      commonjs(),
+    ],
+  },
 ];
 
 export default config;

@@ -657,6 +657,202 @@ function stringifyParams$1(params, separator = ',') {
 }
 
 /**
+ * Specific Error Classes for typed-function
+ *
+ * This module provides specific error types for better error handling
+ * and type-safe error catching in TypeScript.
+ */
+/**
+ * Base class for all typed-function errors
+ */
+class TypedFunctionError extends TypeError {
+    constructor(message, data) {
+        super(message);
+        this.name = 'TypedFunctionError';
+        this.data = data;
+        // Maintain proper stack trace in V8 environments
+        if (Error.captureStackTrace) {
+            Error.captureStackTrace(this, this.constructor);
+        }
+    }
+}
+/**
+ * Error thrown when an argument has an unexpected type
+ */
+class TypeMismatchError extends TypedFunctionError {
+    constructor(fnName, index, actualTypes, expectedTypes) {
+        const message = `Unexpected type of argument in function ${fnName || 'unnamed'} ` +
+            `(expected: ${expectedTypes.join(' or ')}, ` +
+            `actual: ${actualTypes.join(' | ')}, index: ${index})`;
+        super(message, {
+            category: 'wrongType',
+            fn: fnName,
+            index,
+            actual: actualTypes,
+            expected: expectedTypes,
+        });
+        this.name = 'TypeMismatchError';
+        this.index = index;
+        this.actualTypes = actualTypes;
+        this.expectedTypes = expectedTypes;
+    }
+}
+/**
+ * Error thrown when too few arguments are provided
+ */
+class TooFewArgumentsError extends TypedFunctionError {
+    constructor(fnName, providedCount, expectedTypes) {
+        const message = `Too few arguments in function ${fnName || 'unnamed'} ` +
+            `(expected: ${expectedTypes.join(' or ')}, index: ${providedCount})`;
+        super(message, {
+            category: 'tooFewArgs',
+            fn: fnName,
+            index: providedCount,
+            expected: expectedTypes,
+        });
+        this.name = 'TooFewArgumentsError';
+        this.providedCount = providedCount;
+        this.expectedTypes = expectedTypes;
+    }
+}
+/**
+ * Error thrown when too many arguments are provided
+ */
+class TooManyArgumentsError extends TypedFunctionError {
+    constructor(fnName, providedCount, expectedCount) {
+        const message = `Too many arguments in function ${fnName || 'unnamed'} ` +
+            `(expected: ${expectedCount}, actual: ${providedCount})`;
+        super(message, {
+            category: 'tooManyArgs',
+            fn: fnName,
+            index: providedCount,
+            expectedLength: expectedCount,
+        });
+        this.name = 'TooManyArgumentsError';
+        this.providedCount = providedCount;
+        this.expectedCount = expectedCount;
+    }
+}
+/**
+ * Error thrown when arguments don't match any signature
+ */
+class SignatureMismatchError extends TypedFunctionError {
+    constructor(fnName, argumentTypes, signatures) {
+        const message = `Arguments of type "${argumentTypes.join(', ')}" do not match any of the ` +
+            `defined signatures of function ${fnName || 'unnamed'}.`;
+        super(message, {
+            category: 'mismatch',
+            fn: fnName,
+            actual: argumentTypes,
+        });
+        this.name = 'SignatureMismatchError';
+        this.argumentTypes = argumentTypes;
+        this.signatures = signatures;
+    }
+}
+/**
+ * Error thrown when a signature is not found
+ */
+class SignatureNotFoundError extends TypedFunctionError {
+    constructor(fnName, signature) {
+        const message = `Signature not found (signature: ${fnName || 'unnamed'}(${signature}))`;
+        super(message, {
+            category: 'mismatch',
+            fn: fnName,
+        });
+        this.name = 'SignatureNotFoundError';
+        this.signature = signature;
+    }
+}
+/**
+ * Error thrown when WASM is not available but required
+ */
+class WasmNotAvailableError extends Error {
+    constructor(reason = 'WebAssembly is not available in this environment') {
+        super(`WASM dispatch unavailable: ${reason}`);
+        this.name = 'WasmNotAvailableError';
+        this.reason = reason;
+        if (Error.captureStackTrace) {
+            Error.captureStackTrace(this, this.constructor);
+        }
+    }
+}
+/**
+ * Error thrown when WASM initialization fails
+ */
+class WasmInitializationError extends Error {
+    constructor(message, cause) {
+        super(`WASM initialization failed: ${message}`);
+        this.name = 'WasmInitializationError';
+        this.cause = cause ?? undefined;
+        if (Error.captureStackTrace) {
+            Error.captureStackTrace(this, this.constructor);
+        }
+    }
+}
+/**
+ * Error thrown when a type is not found in the registry
+ */
+class TypeNotFoundError extends TypeError {
+    constructor(typeName, suggestion) {
+        let message = `Unknown type "${typeName}"`;
+        if (suggestion) {
+            message += `. Did you mean "${suggestion}"?`;
+        }
+        super(message);
+        this.name = 'TypeNotFoundError';
+        this.typeName = typeName;
+        this.suggestion = suggestion ?? undefined;
+        if (Error.captureStackTrace) {
+            Error.captureStackTrace(this, this.constructor);
+        }
+    }
+}
+/**
+ * Error thrown when a duplicate type is registered
+ */
+class DuplicateTypeError extends TypeError {
+    constructor(typeName) {
+        super(`Duplicate type name "${typeName}"`);
+        this.name = 'DuplicateTypeError';
+        this.typeName = typeName;
+        if (Error.captureStackTrace) {
+            Error.captureStackTrace(this, this.constructor);
+        }
+    }
+}
+/**
+ * Type guard to check if an error is a TypedFunctionError
+ */
+function isTypedFunctionError(error) {
+    return error instanceof TypedFunctionError;
+}
+/**
+ * Type guard to check if an error is a TypeMismatchError
+ */
+function isTypeMismatchError(error) {
+    return error instanceof TypeMismatchError;
+}
+/**
+ * Type guard to check if an error is a TooFewArgumentsError
+ */
+function isTooFewArgumentsError(error) {
+    return error instanceof TooFewArgumentsError;
+}
+/**
+ * Type guard to check if an error is a TooManyArgumentsError
+ */
+function isTooManyArgumentsError(error) {
+    return error instanceof TooManyArgumentsError;
+}
+/**
+ * Type guard to check if an error is a WasmNotAvailableError
+ */
+function isWasmNotAvailableError(error) {
+    return error instanceof WasmNotAvailableError;
+}
+
+/**
  * Signature Parser Module for typed-function
  *
  * This module handles parsing signature strings like "number, string | boolean"
@@ -3259,6 +3455,239 @@ function create() {
 var typedInstance = create();
 
 /**
+ * Debug Module for typed-function
+ *
+ * Provides logging and debugging utilities for understanding
+ * dispatch decisions and function creation.
+ */
+// Default configuration
+const defaultConfig = {
+    enabled: false,
+    level: 'info',
+    timing: false,
+    stackTraces: false,
+};
+// Current configuration
+let config = { ...defaultConfig };
+// Event handlers
+const handlers = new Set();
+/**
+ * Configure debug mode
+ *
+ * @param options - Debug configuration options
+ *
+ * @example
+ * ```ts
+ * import { configureDebug } from 'typed-function';
+ *
+ * // Enable debug mode with info level
+ * configureDebug({ enabled: true, level: 'info' });
+ *
+ * // Enable with custom handler
+ * configureDebug({
+ *   enabled: true,
+ *   handler: (event) => console.log(JSON.stringify(event))
+ * });
+ * ```
+ */
+function configureDebug(options) {
+    config = { ...config, ...options };
+    if (options.handler) {
+        handlers.add(options.handler);
+    }
+}
+/**
+ * Reset debug configuration to defaults
+ */
+function resetDebug() {
+    config = { ...defaultConfig };
+    handlers.clear();
+}
+/**
+ * Check if debug mode is enabled
+ */
+function isDebugEnabled() {
+    return config.enabled;
+}
+/**
+ * Get current debug level
+ */
+function getDebugLevel() {
+    return config.level;
+}
+/**
+ * Add a debug event handler
+ *
+ * @param handler - The handler function
+ * @returns A function to remove the handler
+ */
+function addDebugHandler(handler) {
+    handlers.add(handler);
+    return () => handlers.delete(handler);
+}
+/**
+ * Emit a debug event
+ *
+ * @param type - The event type
+ * @param data - Additional event data
+ * @param fnName - Function name (if applicable)
+ */
+function emitDebugEvent(type, data, fnName) {
+    if (!config.enabled)
+        return;
+    // Check filter
+    if (config.filter && !config.filter.includes(type))
+        return;
+    // Build the event object, only including optional fields if defined
+    const event = {
+        type,
+        timestamp: config.timing ? performance.now() : Date.now(),
+    };
+    if (fnName !== undefined) {
+        event.fnName = fnName;
+    }
+    if (data !== undefined) {
+        event.data = data;
+        // Add stack trace if configured
+        if (config.stackTraces) {
+            data.stack = new Error().stack;
+        }
+    }
+    // Call all handlers
+    for (const handler of handlers) {
+        try {
+            handler(event);
+        }
+        catch {
+            // Ignore handler errors
+        }
+    }
+    // Default console output if no custom handler
+    if (handlers.size === 0 || config.handler === undefined) {
+        logEvent(event);
+    }
+}
+/**
+ * Log an event to console
+ */
+function logEvent(event) {
+    const prefix = `[typed-function:${event.type}]`;
+    const fnInfo = event.fnName ? ` ${event.fnName}` : '';
+    switch (event.type) {
+        case 'function:create':
+            console.log(`${prefix}${fnInfo} created with ${event.data?.signatureCount ?? 0} signatures`);
+            break;
+        case 'function:call':
+            console.log(`${prefix}${fnInfo} called with ${event.data?.argCount ?? 0} arguments`);
+            break;
+        case 'dispatch:start':
+            console.log(`${prefix}${fnInfo} dispatching...`);
+            break;
+        case 'dispatch:match':
+            console.log(`${prefix}${fnInfo} matched signature: ${event.data?.signature ?? 'unknown'}`);
+            break;
+        case 'dispatch:nomatch':
+            console.warn(`${prefix}${fnInfo} no matching signature found`);
+            break;
+        case 'dispatch:conversion':
+            console.log(`${prefix}${fnInfo} converting ${event.data?.from} -> ${event.data?.to}`);
+            break;
+        case 'type:register':
+            console.log(`${prefix} registered type: ${event.data?.typeName}`);
+            break;
+        case 'conversion:register':
+            console.log(`${prefix} registered conversion: ${event.data?.from} -> ${event.data?.to}`);
+            break;
+        case 'wasm:init':
+            console.log(`${prefix} WASM initialized: ${event.data?.success ? 'success' : 'failed'}`);
+            break;
+        case 'wasm:dispatch':
+            console.log(`${prefix}${fnInfo} using WASM dispatch`);
+            break;
+        case 'cache:hit':
+            console.log(`${prefix}${fnInfo} cache hit`);
+            break;
+        case 'cache:miss':
+            console.log(`${prefix}${fnInfo} cache miss`);
+            break;
+        default:
+            console.log(`${prefix}${fnInfo}`, event.data);
+    }
+}
+/**
+ * Format a signature for logging
+ */
+function formatSignature(signature) {
+    return signature.params.map((p) => p.name).join(', ');
+}
+/**
+ * Format a parameter for logging
+ */
+function formatParam(param) {
+    const prefix = param.restParam ? '...' : '';
+    return `${prefix}${param.name}`;
+}
+/**
+ * Format arguments for logging
+ */
+function formatArgs(args) {
+    const types = [];
+    for (let i = 0; i < args.length; i++) {
+        const arg = args[i];
+        types.push(typeof arg === 'object' ? (arg === null ? 'null' : arg.constructor.name) : typeof arg);
+    }
+    return types.join(', ');
+}
+/**
+ * Create a debug wrapper for a typed function
+ *
+ * @param fn - The typed function to wrap
+ * @returns A wrapped function that logs debug info
+ *
+ * @example
+ * ```ts
+ * const add = typed('add', { 'number, number': (a, b) => a + b });
+ * const debugAdd = wrapWithDebug(add);
+ *
+ * // Now calls to debugAdd will be logged
+ * debugAdd(1, 2);
+ * ```
+ */
+function wrapWithDebug(fn) {
+    const wrapper = function (...args) {
+        const fnName = fn.name || 'anonymous';
+        emitDebugEvent('function:call', { argCount: args.length, argTypes: formatArgs(args) }, fnName);
+        emitDebugEvent('dispatch:start', {}, fnName);
+        try {
+            const result = fn.apply(this, args);
+            emitDebugEvent('dispatch:match', { argTypes: formatArgs(args) }, fnName);
+            return result;
+        }
+        catch (error) {
+            emitDebugEvent('dispatch:nomatch', { error: String(error) }, fnName);
+            throw error;
+        }
+    };
+    // Copy properties from original function
+    Object.defineProperty(wrapper, 'name', { value: fn.name, writable: false });
+    Object.defineProperty(wrapper, 'signatures', { value: fn.signatures, writable: false });
+    Object.defineProperty(wrapper, '_typedFunctionData', { value: fn._typedFunctionData, writable: false });
+    return wrapper;
+}
+/**
+ * Convenience function to enable debug mode
+ */
+function enableDebug(level = 'info') {
+    configureDebug({ enabled: true, level });
+}
+/**
+ * Convenience function to disable debug mode
+ */
+function disableDebug() {
+    configureDebug({ enabled: false });
+}
+
+/**
  * typed-function v5.0
  *
  * Type checking for JavaScript functions
@@ -3272,5 +3701,5 @@ function isTypedFunction(entity) {
     return entity !== null && typeof entity === 'function' && '_typedFunctionData' in entity;
 }
 
-export { BUILTIN_TYPES, ConversionManager, NOT_TYPED_FUNCTION, TypeMasks, TypeRegistry, arraysEqual, availableConversions, checkName, clearResolutions, collectResolutions, combineMasks, compareParams, compareSignatures, compileArgConversion, compileArgsPreprocessing, compileSignatureTests, compileTest, compileTests, conflicting, create, createArray, createConversionManager, createDispatcher, createError, createFastPathDispatcher, createFastPathSlot, createGenericDispatcher, createInactiveSlot, createMask, createParamTest, createSignatureComparator, createSimpleDispatcher, createTypeRegistry, createTypedFunction, typedInstance as default, defaultOnMismatch, expandParam, findInArray, flatMap, getLowestConversionIndex, getLowestTypeIndex, getObjectName, getParamAtIndex, getProperty, getTypeSetAtIndex$1 as getTypeSetAtIndex, hasCompiledTests, hasImplementations, hasItem, hasOwnProperty, hasRestParam, hasRestParam$2 as hasRestParamError, initial, isEmptyObject, isExactType$1 as isExactType, isFastPathEligible, isPlainObject, isReferTo, isReferToSelf, isTypedFunction, last, makeReferTo, makeReferToSelf, mapObject, mergeExpectedParams, mergeObjects, mergeSignatures, nullableMask, objectSize, omit, optionalMask, paramTypeSet, parseParam, parseSignature, pick, resolveReferences, shallowCopy, slice, splitParams, stringifyParams, stringifyParams$1 as stringifyParamsError, validateDeprecatedThis };
+export { BUILTIN_TYPES, ConversionManager, DuplicateTypeError, NOT_TYPED_FUNCTION, SignatureMismatchError, SignatureNotFoundError, TooFewArgumentsError, TooManyArgumentsError, TypeMasks, TypeMismatchError, TypeNotFoundError, TypeRegistry, TypedFunctionError, WasmInitializationError, WasmNotAvailableError, addDebugHandler, arraysEqual, availableConversions, checkName, clearResolutions, collectResolutions, combineMasks, compareParams, compareSignatures, compileArgConversion, compileArgsPreprocessing, compileSignatureTests, compileTest, compileTests, configureDebug, conflicting, create, createArray, createConversionManager, createDispatcher, createError, createFastPathDispatcher, createFastPathSlot, createGenericDispatcher, createInactiveSlot, createMask, createParamTest, createSignatureComparator, createSimpleDispatcher, createTypeRegistry, createTypedFunction, typedInstance as default, defaultOnMismatch, disableDebug, emitDebugEvent, enableDebug, expandParam, findInArray, flatMap, formatArgs, formatParam, formatSignature, getDebugLevel, getLowestConversionIndex, getLowestTypeIndex, getObjectName, getParamAtIndex, getProperty, getTypeSetAtIndex$1 as getTypeSetAtIndex, hasCompiledTests, hasImplementations, hasItem, hasOwnProperty, hasRestParam, hasRestParam$2 as hasRestParamError, initial, isDebugEnabled, isEmptyObject, isExactType$1 as isExactType, isFastPathEligible, isPlainObject, isReferTo, isReferToSelf, isTooFewArgumentsError, isTooManyArgumentsError, isTypeMismatchError, isTypedFunction, isTypedFunctionError, isWasmNotAvailableError, last, makeReferTo, makeReferToSelf, mapObject, mergeExpectedParams, mergeObjects, mergeSignatures, nullableMask, objectSize, omit, optionalMask, paramTypeSet, parseParam, parseSignature, pick, resetDebug, resolveReferences, shallowCopy, slice, splitParams, stringifyParams, stringifyParams$1 as stringifyParamsError, validateDeprecatedThis, wrapWithDebug };
 //# sourceMappingURL=typed-function.mjs.map

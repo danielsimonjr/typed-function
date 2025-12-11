@@ -1,9 +1,19 @@
 /**
- * typed-function v5.0
+ * typed-function Minimal Entry Point
  *
- * Type checking for JavaScript functions
+ * This is a lightweight entry point (~5KB) that provides core functionality
+ * without WASM dispatch. Use this for smaller bundle sizes when WASM
+ * acceleration is not needed.
  *
- * This is the main entry point for the typed-function library.
+ * @example
+ * ```ts
+ * import typed from 'typed-function/minimal';
+ *
+ * const add = typed('add', {
+ *   'number, number': (a, b) => a + b,
+ *   'string, string': (a, b) => a + b,
+ * });
+ * ```
  */
 
 // Re-export core types
@@ -26,9 +36,6 @@ export type {
   SignatureTest,
   ArgConverter,
   MismatchHandler,
-  TypedDispatcher,
-  GenericDispatcher,
-  TypedContext,
   TypedInstance,
 } from './core/types.js';
 
@@ -42,13 +49,9 @@ export type { InternalTypeDef } from './core/type-registry.js';
 export {
   createError,
   defaultOnMismatch,
-  stringifyParams as stringifyParamsError,
-  hasRestParam as hasRestParamError,
   getParamAtIndex,
   paramTypeSet,
-  getTypeSetAtIndex,
   mergeExpectedParams,
-  createParamTest,
 } from './core/error-factory.js';
 
 // Re-export error classes
@@ -59,46 +62,26 @@ export {
   TooManyArgumentsError,
   SignatureMismatchError,
   SignatureNotFoundError,
-  WasmNotAvailableError,
-  WasmInitializationError,
   TypeNotFoundError,
   DuplicateTypeError,
-  // Type guards
   isTypedFunctionError,
   isTypeMismatchError,
   isTooFewArgumentsError,
   isTooManyArgumentsError,
-  isWasmNotAvailableError,
 } from './core/errors.js';
 
 // Re-export signature parser
 export {
   parseParam,
   parseSignature,
-  availableConversions,
-  expandParam,
-  isExactType,
-  splitParams,
   stringifyParams,
 } from './core/signature-parser.js';
-
-// Re-export signature compiler
-export {
-  compileTest,
-  compileTests,
-  compileArgConversion,
-  compileArgsPreprocessing,
-} from './core/signature-compiler.js';
 
 // Re-export signature comparator
 export {
   hasRestParam,
-  getLowestTypeIndex,
-  getLowestConversionIndex,
   compareParams,
   compareSignatures,
-  conflicting,
-  createSignatureComparator,
 } from './core/signature-comparator.js';
 
 // Re-export conversion manager
@@ -110,84 +93,26 @@ export {
   isReferToSelf,
   makeReferTo,
   makeReferToSelf,
-  clearResolutions,
-  collectResolutions,
-  resolveReferences,
-  validateDeprecatedThis,
 } from './core/reference-resolver.js';
 
-// Re-export dispatcher components
-export {
-  isFastPathEligible,
-  createFastPathSlot,
-  createInactiveSlot,
-  createFastPathDispatcher,
-  createDispatcher,
-  compileSignatureTests,
-} from './dispatch/fast-path.js';
-export type { FastPathSlot, FastPathDispatcher } from './dispatch/fast-path.js';
-
+// Re-export dispatcher components (without WASM)
 export {
   createGenericDispatcher,
   createSimpleDispatcher,
-  hasCompiledTests,
-  hasImplementations,
 } from './dispatch/generic-path.js';
-export type { GenericDispatcher as GenericDispatcherFn } from './dispatch/generic-path.js';
 
 export {
   createTypedFunction,
   checkName,
-  getObjectName,
   mergeSignatures,
 } from './dispatch/dispatcher.js';
-export type { CreateTypedFunctionOptions } from './dispatch/dispatcher.js';
 
-// Re-export utility functions
-export { last, initial, slice, flatMap, findInArray, hasItem, createArray, arraysEqual } from './utils/array-helpers.js';
-
-export {
-  isPlainObject,
-  hasOwnProperty,
-  getProperty,
-  shallowCopy,
-  mapObject,
-  objectSize,
-  isEmptyObject,
-  mergeObjects,
-  pick,
-  omit,
-} from './utils/object-helpers.js';
-
-// Re-export factory and create function
+// Re-export factory - this creates instances without WASM
 export { create } from './factory.js';
-export type { InitOptions } from './factory.js';
 
-// Re-export WASM utilities for advanced usage
-export {
-  TypeMasks,
-  createMask,
-  optionalMask,
-  nullableMask,
-  combineMasks,
-} from './wasm/type-masks.js';
-
-// Re-export debug utilities
-export {
-  configureDebug,
-  resetDebug,
-  isDebugEnabled,
-  getDebugLevel,
-  addDebugHandler,
-  emitDebugEvent,
-  formatSignature,
-  formatParam,
-  formatArgs,
-  wrapWithDebug,
-  enableDebug,
-  disableDebug,
-} from './debug.js';
-export type { DebugLevel, DebugEventType, DebugEvent, DebugHandler, DebugConfig } from './debug.js';
+// Re-export utility functions (minimal set)
+export { last, initial } from './utils/array-helpers.js';
+export { isPlainObject, hasOwnProperty } from './utils/object-helpers.js';
 
 // Import the default typed instance
 import typedInstance from './factory.js';
