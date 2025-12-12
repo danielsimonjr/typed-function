@@ -120,6 +120,7 @@ export {
   NUMERIC_TYPES,
   LINEAR_ALGEBRA_TYPES,
   SCIENTIFIC_TYPES,
+  MEASUREMENT_TYPES,
   PARALLEL_TYPES,
   TYPED_ARRAY_TYPES,
   GPU_TYPES,
@@ -179,7 +180,7 @@ export {
   uncertainty,
   range,
   polynomial,
-} from './core/scientific-types.js';
+} from './core/advanced-types.js';
 
 export type {
   Complex,
@@ -200,9 +201,9 @@ export type {
   Channel,
   SharedArray,
   AtomicNumber,
-  GPUBuffer,
+  GPUBufferType,
   GPUTensor,
-} from './core/scientific-types.js';
+} from './core/advanced-types.js';
 
 // Import the default typed instance
 import typedInstance from './factory.js';

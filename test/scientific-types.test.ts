@@ -87,7 +87,7 @@ import {
   type Channel,
   type SharedArray,
   type AtomicNumber,
-  type GPUBuffer,
+  type GPUBufferType,
   type GPUTensor,
 } from '../src/index.js';
 
