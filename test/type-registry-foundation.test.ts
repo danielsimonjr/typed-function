@@ -46,9 +46,9 @@ describe('TypeRegistry', () => {
       expect(registry.hasType('any')).toBe(true);
     });
 
-    it('should have all 11 default types', () => {
-      // 10 built-in types + 'any'
-      expect(registry.size).toBe(11);
+    it('should have all 17 default types', () => {
+      // 10 built-in types + 6 modern types (BigInt, Symbol, Map, Set, WeakMap, WeakSet) + 'any'
+      expect(registry.size).toBe(17);
     });
   });
 
@@ -157,9 +157,9 @@ describe('TypeRegistry', () => {
       expect(registry.findTypeNames([])).toContain('Array');
     });
 
-    it('should return ["any"] for no specific matches', () => {
-      // Symbol is not a built-in type, so it should return 'any'
-      expect(registry.findTypeNames(Symbol('test'))).toEqual(['any']);
+    it('should find Symbol type for symbol values', () => {
+      // Symbol is now a built-in modern type
+      expect(registry.findTypeNames(Symbol('test'))).toContain('Symbol');
     });
   });
 

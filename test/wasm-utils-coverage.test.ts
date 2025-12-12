@@ -342,8 +342,9 @@ describe('Phase 2 Sprint 8: WASM & Utils Complete Coverage', () => {
         expect(getTypeMaskForValue(new CustomClass())).toBe(1 << TYPE_OBJECT);
       });
 
-      it('should return Object mask for symbol (default case)', () => {
-        expect(getTypeMaskForValue(Symbol('test'))).toBe(1 << TYPE_OBJECT);
+      it('should return Symbol mask for symbol values', () => {
+        // Symbol is now a built-in modern type (bit 11)
+        expect(getTypeMaskForValue(Symbol('test'))).toBe(1 << 11);
       });
     });
 
@@ -402,18 +403,21 @@ describe('Phase 2 Sprint 8: WASM & Utils Complete Coverage', () => {
     });
 
     describe('resetTypeMasks', () => {
-      it('should remove custom types but keep builtins', () => {
+      it('should remove custom types but keep builtins and modern types', () => {
         const customBit = getTypeBit('myCustomType');
-        expect(customBit).toBeGreaterThanOrEqual(10);
+        expect(customBit).toBeGreaterThanOrEqual(16);
 
         resetTypeMasks();
 
         // Builtin should still work
         expect(getTypeBit('number')).toBe(0);
 
+        // Modern type should still work
+        expect(getTypeBit('Symbol')).toBe(11);
+
         // Custom type should get new assignment
         const newBit = getTypeBit('myCustomType');
-        expect(newBit).toBe(10); // Reset to first custom slot
+        expect(newBit).toBe(16); // Reset to first custom slot (after modern types)
       });
     });
 

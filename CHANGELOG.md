@@ -5,6 +5,58 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+#### Modern JavaScript Types (ES6+)
+- Added 6 new built-in types for modern JavaScript:
+  - `BigInt` - ES2020 BigInt primitive type
+  - `Symbol` - ES6 Symbol primitive type
+  - `Map` - ES6 Map collection type
+  - `Set` - ES6 Set collection type
+  - `WeakMap` - ES6 WeakMap type
+  - `WeakSet` - ES6 WeakSet type
+- Extended type bit mask system to support 16 built-in types (bits 0-15)
+- Added pre-built TypeMasks for modern types:
+  - `TypeMasks.BIGINT`, `TypeMasks.SYMBOL`
+  - `TypeMasks.MAP`, `TypeMasks.SET`
+  - `TypeMasks.WEAKMAP`, `TypeMasks.WEAKSET`
+  - `TypeMasks.NUMERIC` (number | BigInt)
+  - `TypeMasks.COLLECTION` (Map | Set)
+  - `TypeMasks.WEAK_COLLECTION` (WeakMap | WeakSet)
+  - `TypeMasks.ANY_COLLECTION` (Array | Map | Set)
+  - `TypeMasks.ALL_ITERABLE` (Array | Map | Set | string)
+
+#### Error Codes System
+- Added `ErrorCode` enum with 20+ error codes for programmatic error handling
+- Error code categories:
+  - `TF1xx` - Type definition errors (UNKNOWN_TYPE, DUPLICATE_TYPE, etc.)
+  - `TF2xx` - Signature errors (NO_SIGNATURES, CONFLICTING_SIGNATURES, etc.)
+  - `TF3xx` - Dispatch errors (TYPE_MISMATCH, TOO_FEW_ARGUMENTS, etc.)
+  - `TF4xx` - Conversion errors (CONVERSION_NOT_FOUND, etc.)
+  - `TF5xx` - Reference errors (CIRCULAR_REFERENCE, etc.)
+  - `TF6xx` - WASM errors (WASM_NOT_INITIALIZED, etc.)
+  - `TF9xx` - General errors (NOT_A_TYPED_FUNCTION, INTERNAL_ERROR)
+- All TypedFunctionError subclasses now include `code` property
+- Added error utility functions: `hasErrorCode()`, `getErrorCode()`
+
+#### Planning Documentation
+- Added comprehensive Phase 3 improvement plan (`docs/planning/IMPROVEMENT_PLAN.md`)
+- Added sprint TODO files for Phase 3:
+  - `PHASE_3_SPRINT_1_TODO.json` - WASM Integration tasks
+  - `PHASE_3_SPRINT_2_TODO.json` - Modern Types & Fast Path tasks
+  - `PHASE_3_SPRINT_3_TODO.json` - Developer Experience tasks
+
+#### Testing
+- Added `test/modern-types.test.ts` - 32 tests for new ES6+ types
+- Added `test/error-codes.test.ts` - 26 tests for error code system
+- Total tests: 1195 passing
+
+### Changed
+- Custom type bit positions now start at bit 16 (previously 10)
+- Built-in type count increased from 11 to 17 (including 'any')
+
 ## [5.0.0-alpha.1] - 2025-12-04
 
 ### Overview
