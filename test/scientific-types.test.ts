@@ -12,6 +12,7 @@ import {
   PARALLEL_TYPES,
   TYPED_ARRAY_TYPES,
   GPU_TYPES,
+  DECIMAL_TYPES,
   ADVANCED_TYPES,
   // Type test functions
   isComplex,
@@ -87,7 +88,7 @@ import {
   type Channel,
   type SharedArray,
   type AtomicNumber,
-  type GPUBuffer,
+  type GPUBufferType,
   type GPUTensor,
 } from '../src/index.js';
 
@@ -176,7 +177,8 @@ describe('Scientific Types - Type Definitions', () => {
         SCIENTIFIC_TYPES.length +
         PARALLEL_TYPES.length +
         TYPED_ARRAY_TYPES.length +
-        GPU_TYPES.length
+        GPU_TYPES.length +
+        DECIMAL_TYPES.length
     );
   });
 });

@@ -120,9 +120,11 @@ export {
   NUMERIC_TYPES,
   LINEAR_ALGEBRA_TYPES,
   SCIENTIFIC_TYPES,
+  MEASUREMENT_TYPES,
   PARALLEL_TYPES,
   TYPED_ARRAY_TYPES,
   GPU_TYPES,
+  DECIMAL_TYPES,
   ADVANCED_TYPES,
   // Type test functions
   isComplex,
@@ -166,6 +168,15 @@ export {
   isBigUint64Array,
   isGPUBuffer,
   isGPUTensor,
+  // Decimal type test functions
+  isDecimal,
+  isBigFloat,
+  isDecimal32,
+  isDecimal64,
+  isDecimal128,
+  isMoney,
+  isFixedDecimal,
+  isRational,
   // Factory functions
   complex,
   fraction,
@@ -179,7 +190,15 @@ export {
   uncertainty,
   range,
   polynomial,
-} from './core/scientific-types.js';
+  // Decimal factory functions
+  bigFloat,
+  decimal32,
+  decimal64,
+  decimal128,
+  money,
+  fixedDecimal,
+  rational,
+} from './core/advanced-types.js';
 
 export type {
   Complex,
@@ -200,9 +219,18 @@ export type {
   Channel,
   SharedArray,
   AtomicNumber,
-  GPUBuffer,
+  GPUBufferType,
   GPUTensor,
-} from './core/scientific-types.js';
+  // Decimal types
+  Decimal,
+  BigFloat,
+  Decimal32,
+  Decimal64,
+  Decimal128,
+  Money,
+  FixedDecimal,
+  Rational,
+} from './core/advanced-types.js';
 
 // Import the default typed instance
 import typedInstance from './factory.js';
