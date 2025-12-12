@@ -110,6 +110,34 @@ export {
   GPU_TYPES,
 } from './gpu-types.js';
 
+// Re-export all decimal types
+export {
+  type Decimal,
+  type BigFloat,
+  type Decimal32,
+  type Decimal64,
+  type Decimal128,
+  type Money,
+  type FixedDecimal,
+  type Rational,
+  isDecimal,
+  isBigFloat,
+  isDecimal32,
+  isDecimal64,
+  isDecimal128,
+  isMoney,
+  isFixedDecimal,
+  isRational,
+  DECIMAL_TYPES,
+  bigFloat,
+  decimal32,
+  decimal64,
+  decimal128,
+  money,
+  fixedDecimal,
+  rational,
+} from './decimal-types.js';
+
 // Import arrays for combining
 import { NUMERIC_TYPES } from './numeric-types.js';
 import { LINEAR_ALGEBRA_TYPES } from './linear-algebra-types.js';
@@ -117,6 +145,7 @@ import { MEASUREMENT_TYPES } from './measurement-types.js';
 import { PARALLEL_TYPES } from './parallel-types.js';
 import { TYPED_ARRAY_TYPES } from './typed-array-types.js';
 import { GPU_TYPES } from './gpu-types.js';
+import { DECIMAL_TYPES } from './decimal-types.js';
 
 /**
  * Alias for MEASUREMENT_TYPES for backwards compatibility
@@ -133,4 +162,5 @@ export const ADVANCED_TYPES: TypeDef[] = [
   ...PARALLEL_TYPES,
   ...TYPED_ARRAY_TYPES,
   ...GPU_TYPES,
+  ...DECIMAL_TYPES,
 ];
