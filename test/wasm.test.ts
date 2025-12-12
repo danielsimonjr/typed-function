@@ -222,25 +222,28 @@ describe('Type Masks', () => {
   });
 
   describe('resetTypeMasks', () => {
-    it('should remove custom types but keep built-ins', () => {
+    it('should remove custom types but keep built-ins and modern types', () => {
       const customBit = getTypeBit('CustomType');
-      expect(customBit).toBeGreaterThanOrEqual(10);
+      expect(customBit).toBeGreaterThanOrEqual(16);
 
       resetTypeMasks();
 
       // Custom type should get a new bit after reset
       const newBit = getTypeBit('CustomType');
-      expect(newBit).toBe(10); // First custom type slot
+      expect(newBit).toBe(16); // First custom type slot (after modern types)
 
       // Built-ins should still work
       expect(getTypeBit('number')).toBe(TYPE_NUMBER);
+
+      // Modern types should still work
+      expect(getTypeBit('Symbol')).toBe(11);
     });
   });
 
   describe('registerCustomType', () => {
     it('should assign a new bit for custom type', () => {
       const bit = registerCustomType('MyType');
-      expect(bit).toBeGreaterThanOrEqual(10);
+      expect(bit).toBeGreaterThanOrEqual(16);
     });
 
     it('should return same bit for same type', () => {

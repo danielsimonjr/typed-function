@@ -209,9 +209,9 @@ describe('Phase 2 Sprint 6: Type Registry Complete Coverage', () => {
       expect(mask).toBeGreaterThan(0);
     });
 
-    it('should return 0 for symbol type', () => {
+    it('should return Symbol mask for symbol type', () => {
       const mask = registry.getTypeMask(Symbol('test'));
-      expect(mask).toBe(0); // Default case
+      expect(mask).toBe(1 << 11); // SYMBOL_BIT = 11
     });
   });
 
@@ -243,9 +243,9 @@ describe('Phase 2 Sprint 6: Type Registry Complete Coverage', () => {
       expect(names).toContain('string');
     });
 
-    it('should return any for non-matching values', () => {
+    it('should find Symbol type for symbol values', () => {
       const names = registry.findTypeNames(Symbol('test'));
-      expect(names).toEqual(['any']);
+      expect(names).toContain('Symbol');
     });
 
     it('should find custom type', () => {

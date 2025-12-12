@@ -1,0 +1,84 @@
+{
+  "sprint": 2,
+  "phase": 3,
+  "title": "Modern Types & Extended Fast Path",
+  "week": "Week 2",
+  "effort": "12-14 hours",
+  "status": "in_progress",
+  "tasks": [
+    {
+      "id": 1,
+      "category": "Type System",
+      "description": "Add BigInt type with proper bit mask - ES2020 BigInt support with type test and mask",
+      "status": "completed",
+      "estimatedHours": 1.5,
+      "files": ["src/core/type-registry.ts", "src/wasm/type-masks.ts"],
+      "lines": "varies"
+    },
+    {
+      "id": 2,
+      "category": "Type System",
+      "description": "Add Symbol type support - ES6 Symbol primitive type",
+      "status": "completed",
+      "estimatedHours": 1,
+      "files": ["src/core/type-registry.ts", "src/wasm/type-masks.ts"],
+      "lines": "varies"
+    },
+    {
+      "id": 3,
+      "category": "Type System",
+      "description": "Add Map and Set types - ES6 collection types with proper instanceof checks",
+      "status": "completed",
+      "estimatedHours": 1.5,
+      "files": ["src/core/type-registry.ts", "src/wasm/type-masks.ts"],
+      "lines": "varies"
+    },
+    {
+      "id": 4,
+      "category": "Type System",
+      "description": "Add WeakMap and WeakSet types - ES6 weak reference collection types",
+      "status": "completed",
+      "estimatedHours": 1,
+      "files": ["src/core/type-registry.ts", "src/wasm/type-masks.ts"],
+      "lines": "varies"
+    },
+    {
+      "id": 5,
+      "category": "Fast Path",
+      "description": "Extend fast-path from 6 to 10 signature slots - Increase inline dispatch capacity",
+      "status": "pending",
+      "estimatedHours": 2,
+      "files": ["src/dispatch/fast-path.ts"],
+      "lines": "varies"
+    },
+    {
+      "id": 6,
+      "category": "Fast Path",
+      "description": "Support 3 parameters in fast-path - Extend from 2-param to 3-param inline tests",
+      "status": "pending",
+      "estimatedHours": 2,
+      "files": ["src/dispatch/fast-path.ts"],
+      "lines": "varies"
+    },
+    {
+      "id": 7,
+      "category": "Testing",
+      "description": "Add tests for all new types - Unit tests for BigInt, Symbol, Map, Set, WeakMap, WeakSet",
+      "status": "completed",
+      "estimatedHours": 2,
+      "files": ["test/modern-types.test.ts"],
+      "lines": "varies"
+    },
+    {
+      "id": 8,
+      "category": "Type Masks",
+      "description": "Update type-masks.ts with new type bits - Assign bits 10-15 to new types",
+      "status": "completed",
+      "estimatedHours": 1,
+      "files": ["src/wasm/type-masks.ts"],
+      "lines": "varies"
+    }
+  ],
+  "expectedOutcome": "Full modern JavaScript type support with extended fast-path",
+  "dependencies": ["PHASE_3_SPRINT_1"]
+}

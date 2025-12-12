@@ -33,7 +33,7 @@ export class TypeRegistry {
   private typeIdMap: Map<string, number> = new Map();
 
   /** Next available bit position for custom types */
-  private nextTypeBit = 10;
+  private nextTypeBit = 16;
 
   /** Built-in type bit positions */
   private static readonly BUILTIN_TYPE_BITS: Record<string, number> = {
@@ -47,6 +47,13 @@ export class TypeRegistry {
     Object: 7,
     null: 8,
     undefined: 9,
+    // Modern types (ES6+)
+    BigInt: 10,
+    Symbol: 11,
+    Map: 12,
+    Set: 13,
+    WeakMap: 14,
+    WeakSet: 15,
   };
 
   /**
@@ -205,6 +212,13 @@ export class TypeRegistry {
     const DATE_BIT = 5;
     const REGEXP_BIT = 6;
     const OBJECT_BIT = 7;
+    // Modern types (ES6+)
+    const BIGINT_BIT = 10;
+    const SYMBOL_BIT = 11;
+    const MAP_BIT = 12;
+    const SET_BIT = 13;
+    const WEAKMAP_BIT = 14;
+    const WEAKSET_BIT = 15;
 
     if (value === null) return 1 << NULL_BIT;
     if (value === undefined) return 1 << UNDEFINED_BIT;
@@ -218,10 +232,18 @@ export class TypeRegistry {
         return 1 << BOOLEAN_BIT;
       case 'function':
         return 1 << FUNCTION_BIT;
+      case 'bigint':
+        return 1 << BIGINT_BIT;
+      case 'symbol':
+        return 1 << SYMBOL_BIT;
       case 'object': {
         if (Array.isArray(value)) return 1 << ARRAY_BIT;
         if (value instanceof Date) return 1 << DATE_BIT;
         if (value instanceof RegExp) return 1 << REGEXP_BIT;
+        if (value instanceof Map) return 1 << MAP_BIT;
+        if (value instanceof Set) return 1 << SET_BIT;
+        if (value instanceof WeakMap) return 1 << WEAKMAP_BIT;
+        if (value instanceof WeakSet) return 1 << WEAKSET_BIT;
         // Check custom types by iterating through registered types
         for (const [name, type] of this.typeMap) {
           if (!type.isAny && name !== 'Object' && type.test(value)) {
@@ -278,7 +300,7 @@ export class TypeRegistry {
     this.typeMap = new Map();
     this.typeList = [];
     this.typeIdMap = new Map();
-    this.nextTypeBit = 10;
+    this.nextTypeBit = 16;
 
     // Add the 'any' type which matches everything
     const anyType: TypeDef = {
@@ -344,6 +366,13 @@ export const BUILTIN_TYPES: TypeDef[] = [
   },
   { name: 'null', test: (x: unknown): x is null => x === null },
   { name: 'undefined', test: (x: unknown): x is undefined => x === undefined },
+  // Modern types (ES6+)
+  { name: 'BigInt', test: (x: unknown): x is bigint => typeof x === 'bigint' },
+  { name: 'Symbol', test: (x: unknown): x is symbol => typeof x === 'symbol' },
+  { name: 'Map', test: (x: unknown): x is Map<unknown, unknown> => x instanceof Map },
+  { name: 'Set', test: (x: unknown): x is Set<unknown> => x instanceof Set },
+  { name: 'WeakMap', test: (x: unknown): x is WeakMap<object, unknown> => x instanceof WeakMap },
+  { name: 'WeakSet', test: (x: unknown): x is WeakSet<object> => x instanceof WeakSet },
 ];
 
 /**

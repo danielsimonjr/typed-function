@@ -36,11 +36,31 @@ export const TYPE_NULL = 8;
 /** Type ID for undefined */
 export const TYPE_UNDEFINED = 9;
 
+// === Modern Type IDs (ES6+) ===
+
+/** Type ID for BigInt */
+export const TYPE_BIGINT = 10;
+
+/** Type ID for Symbol */
+export const TYPE_SYMBOL = 11;
+
+/** Type ID for Map */
+export const TYPE_MAP = 12;
+
+/** Type ID for Set */
+export const TYPE_SET = 13;
+
+/** Type ID for WeakMap */
+export const TYPE_WEAKMAP = 14;
+
+/** Type ID for WeakSet */
+export const TYPE_WEAKSET = 15;
+
 /** Mask for any type (matches all) */
 export const TYPE_ANY_MASK = 0xffffffff;
 
 /** Next available custom type ID */
-let nextCustomTypeId = 10;
+let nextCustomTypeId = 16;
 
 /** Map from type name to bit */
 const typeNameToBit: Map<string, number> = new Map([
@@ -54,6 +74,13 @@ const typeNameToBit: Map<string, number> = new Map([
   ['Object', TYPE_OBJECT],
   ['null', TYPE_NULL],
   ['undefined', TYPE_UNDEFINED],
+  // Modern types (ES6+)
+  ['BigInt', TYPE_BIGINT],
+  ['Symbol', TYPE_SYMBOL],
+  ['Map', TYPE_MAP],
+  ['Set', TYPE_SET],
+  ['WeakMap', TYPE_WEAKMAP],
+  ['WeakSet', TYPE_WEAKSET],
   ['any', -1], // Special marker for any
 ]);
 
@@ -113,6 +140,10 @@ export function getTypeMaskForValue(value: unknown): number {
       return 1 << TYPE_BOOLEAN;
     case 'function':
       return 1 << TYPE_FUNCTION;
+    case 'bigint':
+      return 1 << TYPE_BIGINT;
+    case 'symbol':
+      return 1 << TYPE_SYMBOL;
     case 'object':
       if (Array.isArray(value)) {
         return 1 << TYPE_ARRAY;
@@ -122,6 +153,18 @@ export function getTypeMaskForValue(value: unknown): number {
       }
       if (value instanceof RegExp) {
         return 1 << TYPE_REGEXP;
+      }
+      if (value instanceof Map) {
+        return 1 << TYPE_MAP;
+      }
+      if (value instanceof Set) {
+        return 1 << TYPE_SET;
+      }
+      if (value instanceof WeakMap) {
+        return 1 << TYPE_WEAKMAP;
+      }
+      if (value instanceof WeakSet) {
+        return 1 << TYPE_WEAKSET;
       }
       // Plain object
       return 1 << TYPE_OBJECT;
@@ -186,7 +229,7 @@ export function typeMatches(valueMask: number, paramMask: number): boolean {
  * Reset custom type assignments (for testing)
  */
 export function resetTypeMasks(): void {
-  // Remove custom types, keep built-ins
+  // Remove custom types, keep built-ins and modern types
   const builtIns = [
     'number',
     'string',
@@ -198,6 +241,13 @@ export function resetTypeMasks(): void {
     'Object',
     'null',
     'undefined',
+    // Modern types (ES6+)
+    'BigInt',
+    'Symbol',
+    'Map',
+    'Set',
+    'WeakMap',
+    'WeakSet',
     'any',
   ];
 
@@ -212,7 +262,7 @@ export function resetTypeMasks(): void {
     typeNameToBit.delete(key);
   }
 
-  nextCustomTypeId = 10;
+  nextCustomTypeId = 16;
 }
 
 /**
@@ -340,6 +390,41 @@ export const TypeMasks = {
 
   /** Matches all types (same as any) */
   ANY: TYPE_ANY_MASK,
+
+  // === Modern Types (ES6+) ===
+
+  /** Matches BigInt only */
+  BIGINT: 1 << TYPE_BIGINT,
+
+  /** Matches Symbol only */
+  SYMBOL: 1 << TYPE_SYMBOL,
+
+  /** Matches Map only */
+  MAP: 1 << TYPE_MAP,
+
+  /** Matches Set only */
+  SET: 1 << TYPE_SET,
+
+  /** Matches WeakMap only */
+  WEAKMAP: 1 << TYPE_WEAKMAP,
+
+  /** Matches WeakSet only */
+  WEAKSET: 1 << TYPE_WEAKSET,
+
+  /** Matches number | BigInt (numeric types) */
+  NUMERIC: (1 << TYPE_NUMBER) | (1 << TYPE_BIGINT),
+
+  /** Matches Map | Set (collection types) */
+  COLLECTION: (1 << TYPE_MAP) | (1 << TYPE_SET),
+
+  /** Matches WeakMap | WeakSet (weak collection types) */
+  WEAK_COLLECTION: (1 << TYPE_WEAKMAP) | (1 << TYPE_WEAKSET),
+
+  /** Matches all collection types: Array | Map | Set */
+  ANY_COLLECTION: (1 << TYPE_ARRAY) | (1 << TYPE_MAP) | (1 << TYPE_SET),
+
+  /** Matches all iterable types: Array | Map | Set | string */
+  ALL_ITERABLE: (1 << TYPE_ARRAY) | (1 << TYPE_MAP) | (1 << TYPE_SET) | (1 << TYPE_STRING),
 } as const;
 
 /**
