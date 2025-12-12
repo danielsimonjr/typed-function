@@ -192,6 +192,9 @@ export type { DebugLevel, DebugEventType, DebugEvent, DebugHandler, DebugConfig 
 // Re-export scientific and advanced computing types
 export {
   // Type definitions
+  COMPLEX_TYPES,
+  FRACTION_TYPES,
+  BIGDOUBLE_TYPES,
   NUMERIC_TYPES,
   LINEAR_ALGEBRA_TYPES,
   SCIENTIFIC_TYPES,
@@ -204,6 +207,7 @@ export {
   // Type test functions
   isComplex,
   isFraction,
+  isBigDouble,
   isBigDecimal,
   isInt8,
   isInt16,
@@ -255,6 +259,7 @@ export {
   // Factory functions
   complex,
   fraction,
+  bigDouble,
   bigDecimal,
   vector,
   matrix,
@@ -278,6 +283,7 @@ export {
 export type {
   Complex,
   Fraction,
+  BigDouble,
   BigDecimal,
   Vector,
   Matrix,

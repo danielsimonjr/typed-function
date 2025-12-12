@@ -6,6 +6,9 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import typed, { create } from '../src/index.js';
 import {
   // Type definitions
+  COMPLEX_TYPES,
+  FRACTION_TYPES,
+  BIGDOUBLE_TYPES,
   NUMERIC_TYPES,
   LINEAR_ALGEBRA_TYPES,
   SCIENTIFIC_TYPES,
@@ -17,6 +20,7 @@ import {
   // Type test functions
   isComplex,
   isFraction,
+  isBigDouble,
   isBigDecimal,
   isInt8,
   isInt16,
@@ -93,15 +97,39 @@ import {
 } from '../src/index.js';
 
 describe('Scientific Types - Type Definitions', () => {
+  it('should export COMPLEX_TYPES array', () => {
+    expect(COMPLEX_TYPES).toBeDefined();
+    expect(Array.isArray(COMPLEX_TYPES)).toBe(true);
+    expect(COMPLEX_TYPES.length).toBe(1);
+
+    const names = COMPLEX_TYPES.map((t) => t.name);
+    expect(names).toContain('Complex');
+  });
+
+  it('should export FRACTION_TYPES array', () => {
+    expect(FRACTION_TYPES).toBeDefined();
+    expect(Array.isArray(FRACTION_TYPES)).toBe(true);
+    expect(FRACTION_TYPES.length).toBe(1);
+
+    const names = FRACTION_TYPES.map((t) => t.name);
+    expect(names).toContain('Fraction');
+  });
+
+  it('should export BIGDOUBLE_TYPES array', () => {
+    expect(BIGDOUBLE_TYPES).toBeDefined();
+    expect(Array.isArray(BIGDOUBLE_TYPES)).toBe(true);
+    expect(BIGDOUBLE_TYPES.length).toBe(1);
+
+    const names = BIGDOUBLE_TYPES.map((t) => t.name);
+    expect(names).toContain('BigDouble');
+  });
+
   it('should export NUMERIC_TYPES array', () => {
     expect(NUMERIC_TYPES).toBeDefined();
     expect(Array.isArray(NUMERIC_TYPES)).toBe(true);
     expect(NUMERIC_TYPES.length).toBeGreaterThan(0);
 
     const names = NUMERIC_TYPES.map((t) => t.name);
-    expect(names).toContain('Complex');
-    expect(names).toContain('Fraction');
-    expect(names).toContain('BigDecimal');
     expect(names).toContain('Int8');
     expect(names).toContain('Int16');
     expect(names).toContain('Int32');
@@ -172,7 +200,10 @@ describe('Scientific Types - Type Definitions', () => {
   it('should export ADVANCED_TYPES combining all types', () => {
     expect(ADVANCED_TYPES).toBeDefined();
     expect(ADVANCED_TYPES.length).toBe(
-      NUMERIC_TYPES.length +
+      COMPLEX_TYPES.length +
+        FRACTION_TYPES.length +
+        BIGDOUBLE_TYPES.length +
+        NUMERIC_TYPES.length +
         LINEAR_ALGEBRA_TYPES.length +
         SCIENTIFIC_TYPES.length +
         PARALLEL_TYPES.length +
@@ -786,6 +817,9 @@ describe('Integration with typed-function', () => {
 
   beforeEach(() => {
     myTyped = create();
+    myTyped.addTypes(COMPLEX_TYPES);
+    myTyped.addTypes(FRACTION_TYPES);
+    myTyped.addTypes(BIGDOUBLE_TYPES);
     myTyped.addTypes(NUMERIC_TYPES);
     myTyped.addTypes(LINEAR_ALGEBRA_TYPES);
     myTyped.addTypes(SCIENTIFIC_TYPES);
