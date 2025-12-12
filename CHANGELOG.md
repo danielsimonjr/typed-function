@@ -9,6 +9,82 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Scientific and Advanced Computing Types
+- Added comprehensive scientific computing type system with 40+ new types:
+
+**Numeric Types** (`NUMERIC_TYPES`):
+- `Complex` - Complex numbers with real and imaginary parts
+- `Fraction` - Rational numbers with numerator/denominator
+- `BigDecimal` - Arbitrary precision decimal numbers
+- `Int8`, `Int16`, `Int32`, `Int64` - Fixed-width signed integers
+- `UInt8`, `UInt16`, `UInt32`, `UInt64` - Fixed-width unsigned integers
+- `Float32`, `Float64` - Explicit precision floating point
+
+**Linear Algebra Types** (`LINEAR_ALGEBRA_TYPES`):
+- `Vector` - 1D numeric arrays with length
+- `Matrix` - 2D arrays with rows/cols dimensions
+- `Tensor` - N-dimensional arrays with shape
+- `SparseMatrix` - COO-format sparse matrices
+- `Quaternion` - 4D numbers for 3D rotations
+
+**Scientific Measurement Types** (`SCIENTIFIC_TYPES`):
+- `Unit` - Values with physical units (e.g., meters, seconds)
+- `Interval` - Interval arithmetic with low/high bounds
+- `Uncertainty` - Values with error bounds (value ± uncertainty)
+- `Range` - Numeric ranges with start/end/step
+- `Polynomial` - Polynomials as coefficient arrays
+
+**Parallel/Concurrent Types** (`PARALLEL_TYPES`):
+- `Future` - Promise-like async computation results
+- `Stream` - Lazy/infinite iterator sequences
+- `Channel` - CSP-style send/receive communication
+- `SharedArray` - SharedArrayBuffer-backed arrays
+- `AtomicNumber` - Thread-safe numeric values
+
+**TypedArray Types** (`TYPED_ARRAY_TYPES`):
+- `TypedArray` - Any typed array variant
+- `Int8Array`, `Int16Array`, `Int32Array`
+- `Uint8Array`, `Uint16Array`, `Uint32Array`
+- `Float32Array`, `Float64Array`
+- `BigInt64Array`, `BigUint64Array`
+
+**GPU/Accelerator Types** (`GPU_TYPES`):
+- `GPUBuffer` - WebGPU buffer interface
+- `GPUTensor` - GPU-accelerated tensor
+
+**Factory Functions**:
+- `complex(re, im)` - Create Complex numbers
+- `fraction(num, denom)` - Create Fractions
+- `bigDecimal(value, scale)` - Create BigDecimals
+- `vector(data)` - Create Vectors
+- `matrix(data, rows, cols)` - Create Matrices
+- `tensor(data, shape)` - Create Tensors
+- `quaternion(w, x, y, z)` - Create Quaternions
+- `unit(value, unit)` - Create Unit values
+- `interval(low, high)` - Create Intervals
+- `uncertainty(value, error)` - Create Uncertainty values
+- `range(start, end, step?)` - Create Ranges
+- `polynomial(coefficients, variable?)` - Create Polynomials
+
+**Type Test Functions**:
+- `isComplex()`, `isFraction()`, `isBigDecimal()`
+- `isInt8()`, `isInt16()`, `isInt32()`, `isInt64()`
+- `isUInt8()`, `isUInt16()`, `isUInt32()`, `isUInt64()`
+- `isFloat32()`, `isFloat64()`
+- `isVector()`, `isMatrix()`, `isTensor()`, `isSparseMatrix()`, `isQuaternion()`
+- `isUnit()`, `isInterval()`, `isUncertainty()`, `isRange()`, `isPolynomial()`
+- `isFuture()`, `isStream()`, `isChannel()`, `isSharedArray()`, `isAtomicNumber()`
+- `isTypedArray()`, `isFloat32Array()`, `isFloat64Array()`, etc.
+- `isGPUBuffer()`, `isGPUTensor()`
+
+**Combined Type Array**:
+- `ADVANCED_TYPES` - All scientific/advanced types combined for easy registration
+
+#### Testing
+- Added `test/scientific-types.test.ts` - 96 tests for scientific types
+- Total tests: 1542 passing
+- Test coverage: 97.12% statements, 91.29% branches
+
 #### Modern JavaScript Types (ES6+)
 - Added 6 new built-in types for modern JavaScript:
   - `BigInt` - ES2020 BigInt primitive type
