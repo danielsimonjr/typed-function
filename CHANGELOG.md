@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.0-alpha.1] - 2025-12-13
+
 ### Added
 
 #### Scientific and Advanced Computing Types
@@ -130,10 +132,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Total tests: 1195 passing
 
 ### Changed
+- Package renamed to `@danielsimonjr/typed-function` (scoped package)
 - Custom type bit positions now start at bit 16 (previously 10)
 - Built-in type count increased from 11 to 17 (including 'any')
+- Repository URL updated to `https://github.com/danielsimonjr/typed-function`
 
-## [5.0.0-alpha.1] - 2025-12-04
+### Fixed
+- Widened performance test thresholds for CI stability on slower machines
+
+## [5.0.0-alpha.0] - 2025-12-04
 
 ### Overview
 
