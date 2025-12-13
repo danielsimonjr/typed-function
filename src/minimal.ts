@@ -125,6 +125,7 @@ export {
   SCIENTIFIC_TYPES,
   MEASUREMENT_TYPES,
   PARALLEL_TYPES,
+  ARRAY_TYPES,
   TYPED_ARRAY_TYPES,
   GPU_TYPES,
   DECIMAL_TYPES,
@@ -203,7 +204,7 @@ export {
   money,
   fixedDecimal,
   rational,
-} from './core/advanced-types.js';
+} from './core/export-types.js';
 
 export type {
   Complex,
@@ -236,7 +237,7 @@ export type {
   Money,
   FixedDecimal,
   Rational,
-} from './core/advanced-types.js';
+} from './core/export-types.js';
 
 // Import the default typed instance
 import typedInstance from './factory.js';
