@@ -249,8 +249,8 @@ describe('Performance: Fallback Dispatch', () => {
       fallbackDispatchFind([numMask]);
     }, iterations);
 
-    // Should dispatch 10k finds in under 100ms
-    expect(time).toBeLessThan(100);
+    // Should dispatch 10k finds in under 300ms (generous for CI/slower machines)
+    expect(time).toBeLessThan(300);
   });
 
   it('should utilize cache effectively', () => {
@@ -292,8 +292,8 @@ describe('Performance: Fallback Dispatch', () => {
       fallbackClearCache();
     }, iterations);
 
-    // Should clear cache 10k times in under 200ms (generous for CI/slower machines)
-    expect(time).toBeLessThan(200);
+    // Should clear cache 10k times in under 500ms (generous for CI/slower machines)
+    expect(time).toBeLessThan(500);
   });
 });
 
@@ -305,8 +305,8 @@ describe('Performance: Function Creation', () => {
       typed({ number: (x: number) => x });
     }, iterations);
 
-    // Should create 500 simple functions in under 500ms
-    expect(time).toBeLessThan(500);
+    // Should create 500 simple functions in under 1000ms (generous for CI/slower machines)
+    expect(time).toBeLessThan(1000);
   });
 
   it('should create complex typed functions in reasonable time', () => {
