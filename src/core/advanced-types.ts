@@ -7,14 +7,35 @@
 
 import type { TypeDef } from './types.js';
 
-// Re-export all numeric types
+// Re-export complex types
 export {
   type Complex,
-  type Fraction,
-  type BigDecimal,
   isComplex,
+  COMPLEX_TYPES,
+  complex,
+} from './complex-types.js';
+
+// Re-export fraction types
+export {
+  type Fraction,
   isFraction,
+  FRACTION_TYPES,
+  fraction,
+} from './fraction-types.js';
+
+// Re-export bigdouble types
+export {
+  type BigDouble,
+  type BigDecimal,
+  isBigDouble,
   isBigDecimal,
+  BIGDOUBLE_TYPES,
+  bigDouble,
+  bigDecimal,
+} from './bigdouble-types.js';
+
+// Re-export all numeric types (integers and floats)
+export {
   isInt8,
   isInt16,
   isInt32,
@@ -26,9 +47,6 @@ export {
   isFloat32,
   isFloat64,
   NUMERIC_TYPES,
-  complex,
-  fraction,
-  bigDecimal,
 } from './numeric-types.js';
 
 // Re-export all linear algebra types
@@ -139,6 +157,9 @@ export {
 } from './decimal-types.js';
 
 // Import arrays for combining
+import { COMPLEX_TYPES } from './complex-types.js';
+import { FRACTION_TYPES } from './fraction-types.js';
+import { BIGDOUBLE_TYPES } from './bigdouble-types.js';
 import { NUMERIC_TYPES } from './numeric-types.js';
 import { LINEAR_ALGEBRA_TYPES } from './linear-algebra-types.js';
 import { MEASUREMENT_TYPES } from './measurement-types.js';
@@ -156,6 +177,9 @@ export const SCIENTIFIC_TYPES: TypeDef[] = MEASUREMENT_TYPES;
  * All advanced types combined
  */
 export const ADVANCED_TYPES: TypeDef[] = [
+  ...COMPLEX_TYPES,
+  ...FRACTION_TYPES,
+  ...BIGDOUBLE_TYPES,
   ...NUMERIC_TYPES,
   ...LINEAR_ALGEBRA_TYPES,
   ...MEASUREMENT_TYPES,
