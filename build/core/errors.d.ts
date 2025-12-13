@@ -6,12 +6,74 @@
  */
 import type { Signature, TypedErrorData } from './types.js';
 /**
+ * Error codes for typed-function errors
+ *
+ * Use these codes for programmatic error handling:
+ * - TF1xx: Type definition errors
+ * - TF2xx: Signature errors
+ * - TF3xx: Dispatch/argument errors
+ * - TF4xx: Conversion errors
+ * - TF5xx: Reference errors
+ * - TF6xx: WASM errors
+ * - TF9xx: General errors
+ */
+export declare enum ErrorCode {
+    /** Unknown type name */
+    UNKNOWN_TYPE = "TF101",
+    /** Duplicate type name */
+    DUPLICATE_TYPE = "TF102",
+    /** Invalid type definition */
+    INVALID_TYPE_DEFINITION = "TF103",
+    /** No signatures provided */
+    NO_SIGNATURES = "TF201",
+    /** Conflicting signatures */
+    CONFLICTING_SIGNATURES = "TF202",
+    /** Invalid signature syntax */
+    INVALID_SIGNATURE = "TF203",
+    /** Duplicate signature */
+    DUPLICATE_SIGNATURE = "TF204",
+    /** Signature not found */
+    SIGNATURE_NOT_FOUND = "TF205",
+    /** Type mismatch */
+    TYPE_MISMATCH = "TF301",
+    /** Too few arguments */
+    TOO_FEW_ARGUMENTS = "TF302",
+    /** Too many arguments */
+    TOO_MANY_ARGUMENTS = "TF303",
+    /** No matching signature */
+    NO_MATCHING_SIGNATURE = "TF304",
+    /** Conversion not found */
+    CONVERSION_NOT_FOUND = "TF401",
+    /** Duplicate conversion */
+    DUPLICATE_CONVERSION = "TF402",
+    /** Conversion failed */
+    CONVERSION_FAILED = "TF403",
+    /** Invalid conversion definition */
+    INVALID_CONVERSION = "TF404",
+    /** Circular reference in referTo */
+    CIRCULAR_REFERENCE = "TF501",
+    /** Unresolved reference */
+    UNRESOLVED_REFERENCE = "TF502",
+    /** WASM not initialized */
+    WASM_NOT_INITIALIZED = "TF601",
+    /** WASM load failed */
+    WASM_LOAD_FAILED = "TF602",
+    /** WASM not supported */
+    WASM_NOT_SUPPORTED = "TF603",
+    /** Not a typed function */
+    NOT_A_TYPED_FUNCTION = "TF901",
+    /** Internal error */
+    INTERNAL_ERROR = "TF999"
+}
+/**
  * Base class for all typed-function errors
  */
 export declare class TypedFunctionError extends TypeError {
     /** Error data with category and details */
     readonly data: TypedErrorData;
-    constructor(message: string, data: TypedErrorData);
+    /** Error code for programmatic handling */
+    readonly code: ErrorCode;
+    constructor(message: string, data: TypedErrorData, code?: ErrorCode);
 }
 /**
  * Error thrown when an argument has an unexpected type
@@ -117,4 +179,23 @@ export declare function isTooManyArgumentsError(error: unknown): error is TooMan
  * Type guard to check if an error is a WasmNotAvailableError
  */
 export declare function isWasmNotAvailableError(error: unknown): error is WasmNotAvailableError;
+/**
+ * Check if an error has a specific error code
+ *
+ * @example
+ * ```ts
+ * try {
+ *   fn(wrongArg);
+ * } catch (e) {
+ *   if (hasErrorCode(e, ErrorCode.TYPE_MISMATCH)) {
+ *     // Handle type mismatch specifically
+ *   }
+ * }
+ * ```
+ */
+export declare function hasErrorCode(error: unknown, code: ErrorCode): boolean;
+/**
+ * Get the error code from an error, if it's a TypedFunctionError
+ */
+export declare function getErrorCode(error: unknown): ErrorCode | undefined;
 //# sourceMappingURL=errors.d.ts.map

@@ -46,7 +46,7 @@
             /** Map from type name to bit position for WASM dispatch */
             this.typeIdMap = new Map();
             /** Next available bit position for custom types */
-            this.nextTypeBit = 10;
+            this.nextTypeBit = 16;
             // Initialize with empty state - call clear() to add default types
         }
         /**
@@ -179,6 +179,13 @@
             const DATE_BIT = 5;
             const REGEXP_BIT = 6;
             const OBJECT_BIT = 7;
+            // Modern types (ES6+)
+            const BIGINT_BIT = 10;
+            const SYMBOL_BIT = 11;
+            const MAP_BIT = 12;
+            const SET_BIT = 13;
+            const WEAKMAP_BIT = 14;
+            const WEAKSET_BIT = 15;
             if (value === null)
                 return 1 << NULL_BIT;
             if (value === undefined)
@@ -192,6 +199,10 @@
                     return 1 << BOOLEAN_BIT;
                 case 'function':
                     return 1 << FUNCTION_BIT;
+                case 'bigint':
+                    return 1 << BIGINT_BIT;
+                case 'symbol':
+                    return 1 << SYMBOL_BIT;
                 case 'object': {
                     if (Array.isArray(value))
                         return 1 << ARRAY_BIT;
@@ -199,6 +210,14 @@
                         return 1 << DATE_BIT;
                     if (value instanceof RegExp)
                         return 1 << REGEXP_BIT;
+                    if (value instanceof Map)
+                        return 1 << MAP_BIT;
+                    if (value instanceof Set)
+                        return 1 << SET_BIT;
+                    if (value instanceof WeakMap)
+                        return 1 << WEAKMAP_BIT;
+                    if (value instanceof WeakSet)
+                        return 1 << WEAKSET_BIT;
                     // Check custom types by iterating through registered types
                     for (const [name, type] of this.typeMap) {
                         if (!type.isAny && name !== 'Object' && type.test(value)) {
@@ -250,7 +269,7 @@
             this.typeMap = new Map();
             this.typeList = [];
             this.typeIdMap = new Map();
-            this.nextTypeBit = 10;
+            this.nextTypeBit = 16;
             // Add the 'any' type which matches everything
             const anyType = {
                 name: 'any',
@@ -303,6 +322,13 @@
         Object: 7,
         null: 8,
         undefined: 9,
+        // Modern types (ES6+)
+        BigInt: 10,
+        Symbol: 11,
+        Map: 12,
+        Set: 13,
+        WeakMap: 14,
+        WeakSet: 15,
     };
     /**
      * Default built-in types for initialization
@@ -321,6 +347,13 @@
         },
         { name: 'null', test: (x) => x === null },
         { name: 'undefined', test: (x) => x === undefined },
+        // Modern types (ES6+)
+        { name: 'BigInt', test: (x) => typeof x === 'bigint' },
+        { name: 'Symbol', test: (x) => typeof x === 'symbol' },
+        { name: 'Map', test: (x) => x instanceof Map },
+        { name: 'Set', test: (x) => x instanceof Set },
+        { name: 'WeakMap', test: (x) => x instanceof WeakMap },
+        { name: 'WeakSet', test: (x) => x instanceof WeakSet },
     ];
     /**
      * Create and initialize a new TypeRegistry with default types
@@ -670,13 +703,82 @@
      * and type-safe error catching in TypeScript.
      */
     /**
+     * Error codes for typed-function errors
+     *
+     * Use these codes for programmatic error handling:
+     * - TF1xx: Type definition errors
+     * - TF2xx: Signature errors
+     * - TF3xx: Dispatch/argument errors
+     * - TF4xx: Conversion errors
+     * - TF5xx: Reference errors
+     * - TF6xx: WASM errors
+     * - TF9xx: General errors
+     */
+    var ErrorCode;
+    (function (ErrorCode) {
+        // Type errors (1xx)
+        /** Unknown type name */
+        ErrorCode["UNKNOWN_TYPE"] = "TF101";
+        /** Duplicate type name */
+        ErrorCode["DUPLICATE_TYPE"] = "TF102";
+        /** Invalid type definition */
+        ErrorCode["INVALID_TYPE_DEFINITION"] = "TF103";
+        // Signature errors (2xx)
+        /** No signatures provided */
+        ErrorCode["NO_SIGNATURES"] = "TF201";
+        /** Conflicting signatures */
+        ErrorCode["CONFLICTING_SIGNATURES"] = "TF202";
+        /** Invalid signature syntax */
+        ErrorCode["INVALID_SIGNATURE"] = "TF203";
+        /** Duplicate signature */
+        ErrorCode["DUPLICATE_SIGNATURE"] = "TF204";
+        /** Signature not found */
+        ErrorCode["SIGNATURE_NOT_FOUND"] = "TF205";
+        // Dispatch errors (3xx)
+        /** Type mismatch */
+        ErrorCode["TYPE_MISMATCH"] = "TF301";
+        /** Too few arguments */
+        ErrorCode["TOO_FEW_ARGUMENTS"] = "TF302";
+        /** Too many arguments */
+        ErrorCode["TOO_MANY_ARGUMENTS"] = "TF303";
+        /** No matching signature */
+        ErrorCode["NO_MATCHING_SIGNATURE"] = "TF304";
+        // Conversion errors (4xx)
+        /** Conversion not found */
+        ErrorCode["CONVERSION_NOT_FOUND"] = "TF401";
+        /** Duplicate conversion */
+        ErrorCode["DUPLICATE_CONVERSION"] = "TF402";
+        /** Conversion failed */
+        ErrorCode["CONVERSION_FAILED"] = "TF403";
+        /** Invalid conversion definition */
+        ErrorCode["INVALID_CONVERSION"] = "TF404";
+        // Reference errors (5xx)
+        /** Circular reference in referTo */
+        ErrorCode["CIRCULAR_REFERENCE"] = "TF501";
+        /** Unresolved reference */
+        ErrorCode["UNRESOLVED_REFERENCE"] = "TF502";
+        // WASM errors (6xx)
+        /** WASM not initialized */
+        ErrorCode["WASM_NOT_INITIALIZED"] = "TF601";
+        /** WASM load failed */
+        ErrorCode["WASM_LOAD_FAILED"] = "TF602";
+        /** WASM not supported */
+        ErrorCode["WASM_NOT_SUPPORTED"] = "TF603";
+        // General errors (9xx)
+        /** Not a typed function */
+        ErrorCode["NOT_A_TYPED_FUNCTION"] = "TF901";
+        /** Internal error */
+        ErrorCode["INTERNAL_ERROR"] = "TF999";
+    })(ErrorCode || (ErrorCode = {}));
+    /**
      * Base class for all typed-function errors
      */
     class TypedFunctionError extends TypeError {
-        constructor(message, data) {
+        constructor(message, data, code = ErrorCode.INTERNAL_ERROR) {
             super(message);
             this.name = 'TypedFunctionError';
             this.data = data;
+            this.code = code;
             // Maintain proper stack trace in V8 environments
             if (Error.captureStackTrace) {
                 Error.captureStackTrace(this, this.constructor);
@@ -697,7 +799,7 @@
                 index,
                 actual: actualTypes,
                 expected: expectedTypes,
-            });
+            }, ErrorCode.TYPE_MISMATCH);
             this.name = 'TypeMismatchError';
             this.index = index;
             this.actualTypes = actualTypes;
@@ -716,7 +818,7 @@
                 fn: fnName,
                 index: providedCount,
                 expected: expectedTypes,
-            });
+            }, ErrorCode.TOO_FEW_ARGUMENTS);
             this.name = 'TooFewArgumentsError';
             this.providedCount = providedCount;
             this.expectedTypes = expectedTypes;
@@ -734,7 +836,7 @@
                 fn: fnName,
                 index: providedCount,
                 expectedLength: expectedCount,
-            });
+            }, ErrorCode.TOO_MANY_ARGUMENTS);
             this.name = 'TooManyArgumentsError';
             this.providedCount = providedCount;
             this.expectedCount = expectedCount;
@@ -751,7 +853,7 @@
                 category: 'mismatch',
                 fn: fnName,
                 actual: argumentTypes,
-            });
+            }, ErrorCode.NO_MATCHING_SIGNATURE);
             this.name = 'SignatureMismatchError';
             this.argumentTypes = argumentTypes;
             this.signatures = signatures;
@@ -766,7 +868,7 @@
             super(message, {
                 category: 'mismatch',
                 fn: fnName,
-            });
+            }, ErrorCode.SIGNATURE_NOT_FOUND);
             this.name = 'SignatureNotFoundError';
             this.signature = signature;
         }
@@ -2931,10 +3033,23 @@
     const TYPE_NULL = 8;
     /** Type ID for undefined */
     const TYPE_UNDEFINED = 9;
+    // === Modern Type IDs (ES6+) ===
+    /** Type ID for BigInt */
+    const TYPE_BIGINT = 10;
+    /** Type ID for Symbol */
+    const TYPE_SYMBOL = 11;
+    /** Type ID for Map */
+    const TYPE_MAP = 12;
+    /** Type ID for Set */
+    const TYPE_SET = 13;
+    /** Type ID for WeakMap */
+    const TYPE_WEAKMAP = 14;
+    /** Type ID for WeakSet */
+    const TYPE_WEAKSET = 15;
     /** Mask for any type (matches all) */
     const TYPE_ANY_MASK = 0xffffffff;
     /** Next available custom type ID */
-    let nextCustomTypeId = 10;
+    let nextCustomTypeId = 16;
     /** Map from type name to bit */
     const typeNameToBit = new Map([
         ['number', TYPE_NUMBER],
@@ -2947,6 +3062,13 @@
         ['Object', TYPE_OBJECT],
         ['null', TYPE_NULL],
         ['undefined', TYPE_UNDEFINED],
+        // Modern types (ES6+)
+        ['BigInt', TYPE_BIGINT],
+        ['Symbol', TYPE_SYMBOL],
+        ['Map', TYPE_MAP],
+        ['Set', TYPE_SET],
+        ['WeakMap', TYPE_WEAKMAP],
+        ['WeakSet', TYPE_WEAKSET],
         ['any', -1], // Special marker for any
     ]);
     /**
@@ -3074,6 +3196,29 @@
         ANY_OBJECT: (1 << TYPE_OBJECT) | (1 << TYPE_ARRAY) | (1 << TYPE_DATE) | (1 << TYPE_REGEXP) | (1 << TYPE_FUNCTION),
         /** Matches all types (same as any) */
         ANY: TYPE_ANY_MASK,
+        // === Modern Types (ES6+) ===
+        /** Matches BigInt only */
+        BIGINT: 1 << TYPE_BIGINT,
+        /** Matches Symbol only */
+        SYMBOL: 1 << TYPE_SYMBOL,
+        /** Matches Map only */
+        MAP: 1 << TYPE_MAP,
+        /** Matches Set only */
+        SET: 1 << TYPE_SET,
+        /** Matches WeakMap only */
+        WEAKMAP: 1 << TYPE_WEAKMAP,
+        /** Matches WeakSet only */
+        WEAKSET: 1 << TYPE_WEAKSET,
+        /** Matches number | BigInt (numeric types) */
+        NUMERIC: (1 << TYPE_NUMBER) | (1 << TYPE_BIGINT),
+        /** Matches Map | Set (collection types) */
+        COLLECTION: (1 << TYPE_MAP) | (1 << TYPE_SET),
+        /** Matches WeakMap | WeakSet (weak collection types) */
+        WEAK_COLLECTION: (1 << TYPE_WEAKMAP) | (1 << TYPE_WEAKSET),
+        /** Matches all collection types: Array | Map | Set */
+        ANY_COLLECTION: (1 << TYPE_ARRAY) | (1 << TYPE_MAP) | (1 << TYPE_SET),
+        /** Matches all iterable types: Array | Map | Set | string */
+        ALL_ITERABLE: (1 << TYPE_ARRAY) | (1 << TYPE_MAP) | (1 << TYPE_SET) | (1 << TYPE_STRING),
     };
     /**
      * Create a custom type mask by combining type names
@@ -3695,6 +3840,1024 @@
     }
 
     /**
+     * Complex Number Types
+     *
+     * This module provides type definitions for complex numbers
+     * with real and imaginary components.
+     */
+    // =============================================================================
+    // Type Test Functions
+    // =============================================================================
+    /**
+     * Test if value is a Complex number
+     */
+    function isComplex(x) {
+        return (x !== null &&
+            typeof x === 'object' &&
+            're' in x &&
+            'im' in x &&
+            typeof x.re === 'number' &&
+            typeof x.im === 'number');
+    }
+    // =============================================================================
+    // Type Definitions for Registration
+    // =============================================================================
+    /**
+     * Complex number types
+     */
+    const COMPLEX_TYPES = [{ name: 'Complex', test: isComplex }];
+    // =============================================================================
+    // Factory Functions
+    // =============================================================================
+    /**
+     * Create a Complex number
+     */
+    function complex(re, im = 0) {
+        return { re, im };
+    }
+
+    /**
+     * Fraction Types
+     *
+     * This module provides type definitions for fractions (rational numbers)
+     * with numerator and denominator components.
+     */
+    // =============================================================================
+    // Type Test Functions
+    // =============================================================================
+    /**
+     * Test if value is a Fraction
+     */
+    function isFraction(x) {
+        if (x === null || typeof x !== 'object')
+            return false;
+        const f = x;
+        return ('numerator' in f &&
+            'denominator' in f &&
+            (typeof f.numerator === 'number' || typeof f.numerator === 'bigint') &&
+            (typeof f.denominator === 'number' || typeof f.denominator === 'bigint'));
+    }
+    // =============================================================================
+    // Type Definitions for Registration
+    // =============================================================================
+    /**
+     * Fraction types
+     */
+    const FRACTION_TYPES = [{ name: 'Fraction', test: isFraction }];
+    // =============================================================================
+    // Factory Functions
+    // =============================================================================
+    /**
+     * Create a Fraction
+     */
+    function fraction(numerator, denominator = 1) {
+        return { numerator, denominator };
+    }
+
+    /**
+     * BigDouble Types
+     *
+     * This module provides type definitions for arbitrary precision
+     * double-precision floating point numbers using bigint and scale.
+     */
+    // =============================================================================
+    // Type Test Functions
+    // =============================================================================
+    /**
+     * Test if value is a BigDouble
+     */
+    function isBigDouble(x) {
+        if (x === null || typeof x !== 'object')
+            return false;
+        const bd = x;
+        return 'value' in bd && 'scale' in bd && typeof bd.value === 'bigint' && typeof bd.scale === 'number';
+    }
+    /**
+     * @deprecated Use isBigDouble instead
+     */
+    const isBigDecimal = isBigDouble;
+    // =============================================================================
+    // Type Definitions for Registration
+    // =============================================================================
+    /**
+     * BigDouble types
+     */
+    const BIGDOUBLE_TYPES = [{ name: 'BigDouble', test: isBigDouble }];
+    // =============================================================================
+    // Factory Functions
+    // =============================================================================
+    /**
+     * Create a BigDouble
+     * @param value The integer value
+     * @param scale The number of decimal places (value * 10^(-scale))
+     */
+    function bigDouble(value, scale = 0) {
+        return { value, scale };
+    }
+    /**
+     * @deprecated Use bigDouble instead
+     */
+    const bigDecimal = bigDouble;
+
+    /**
+     * Numeric Types for Scientific Computing
+     *
+     * This module provides type definitions for fixed-width integer
+     * and floating-point types.
+     */
+    // =============================================================================
+    // Type Test Functions
+    // =============================================================================
+    /**
+     * Test if value is an Int8
+     */
+    function isInt8(x) {
+        return typeof x === 'number' && Number.isInteger(x) && x >= -128 && x <= 127;
+    }
+    /**
+     * Test if value is an Int16
+     */
+    function isInt16(x) {
+        return typeof x === 'number' && Number.isInteger(x) && x >= -32768 && x <= 32767;
+    }
+    /**
+     * Test if value is an Int32
+     */
+    function isInt32(x) {
+        return typeof x === 'number' && Number.isInteger(x) && x >= -2147483648 && x <= 2147483647;
+    }
+    /**
+     * Test if value is an Int64 (using BigInt)
+     */
+    function isInt64(x) {
+        if (typeof x !== 'bigint')
+            return false;
+        const MIN = BigInt('-9223372036854775808');
+        const MAX = BigInt('9223372036854775807');
+        return x >= MIN && x <= MAX;
+    }
+    /**
+     * Test if value is a UInt8
+     */
+    function isUInt8(x) {
+        return typeof x === 'number' && Number.isInteger(x) && x >= 0 && x <= 255;
+    }
+    /**
+     * Test if value is a UInt16
+     */
+    function isUInt16(x) {
+        return typeof x === 'number' && Number.isInteger(x) && x >= 0 && x <= 65535;
+    }
+    /**
+     * Test if value is a UInt32
+     */
+    function isUInt32(x) {
+        return typeof x === 'number' && Number.isInteger(x) && x >= 0 && x <= 4294967295;
+    }
+    /**
+     * Test if value is a UInt64 (using BigInt)
+     */
+    function isUInt64(x) {
+        if (typeof x !== 'bigint')
+            return false;
+        const MAX = BigInt('18446744073709551615');
+        return x >= BigInt(0) && x <= MAX;
+    }
+    /**
+     * Test if value is a Float32 (any number, conceptually 32-bit)
+     */
+    function isFloat32(x) {
+        return typeof x === 'number' && !Number.isNaN(x);
+    }
+    /**
+     * Test if value is a Float64 (any number)
+     */
+    function isFloat64(x) {
+        return typeof x === 'number';
+    }
+    // =============================================================================
+    // Type Definitions for Registration
+    // =============================================================================
+    /**
+     * Numeric types for scientific computing (integers and floats)
+     */
+    const NUMERIC_TYPES = [
+        { name: 'Int8', test: isInt8 },
+        { name: 'Int16', test: isInt16 },
+        { name: 'Int32', test: isInt32 },
+        { name: 'Int64', test: isInt64 },
+        { name: 'UInt8', test: isUInt8 },
+        { name: 'UInt16', test: isUInt16 },
+        { name: 'UInt32', test: isUInt32 },
+        { name: 'UInt64', test: isUInt64 },
+        { name: 'Float32', test: isFloat32 },
+        { name: 'Float64', test: isFloat64 },
+    ];
+
+    /**
+     * Vector Types
+     *
+     * This module provides type definitions for vectors in linear algebra.
+     */
+    // =============================================================================
+    // Type Test Functions
+    // =============================================================================
+    /**
+     * Test if value is a Vector
+     */
+    function isVector(x) {
+        if (x === null || typeof x !== 'object')
+            return false;
+        const v = x;
+        return ('data' in v &&
+            'length' in v &&
+            typeof v.length === 'number' &&
+            (Array.isArray(v.data) || v.data instanceof Float32Array || v.data instanceof Float64Array));
+    }
+    // =============================================================================
+    // Type Definitions for Registration
+    // =============================================================================
+    /**
+     * Vector types
+     */
+    const VECTOR_TYPES = [{ name: 'Vector', test: isVector }];
+    // =============================================================================
+    // Factory Functions
+    // =============================================================================
+    /**
+     * Create a Vector
+     */
+    function vector(data) {
+        return { data, length: data.length };
+    }
+
+    /**
+     * Matrix Types
+     *
+     * This module provides type definitions for matrices in linear algebra.
+     */
+    // =============================================================================
+    // Type Test Functions
+    // =============================================================================
+    /**
+     * Test if value is a Matrix
+     */
+    function isMatrix(x) {
+        if (x === null || typeof x !== 'object')
+            return false;
+        const m = x;
+        return ('data' in m &&
+            'rows' in m &&
+            'cols' in m &&
+            typeof m.rows === 'number' &&
+            typeof m.cols === 'number' &&
+            (Array.isArray(m.data) || m.data instanceof Float32Array || m.data instanceof Float64Array));
+    }
+    // =============================================================================
+    // Type Definitions for Registration
+    // =============================================================================
+    /**
+     * Matrix types
+     */
+    const MATRIX_TYPES = [{ name: 'Matrix', test: isMatrix }];
+    // =============================================================================
+    // Factory Functions
+    // =============================================================================
+    /**
+     * Create a Matrix
+     */
+    function matrix(data, rows, cols) {
+        return { data, rows, cols };
+    }
+
+    /**
+     * Tensor Types
+     *
+     * This module provides type definitions for N-dimensional tensors.
+     */
+    // =============================================================================
+    // Type Test Functions
+    // =============================================================================
+    /**
+     * Test if value is a Tensor
+     */
+    function isTensor(x) {
+        if (x === null || typeof x !== 'object')
+            return false;
+        const t = x;
+        return ('data' in t &&
+            'shape' in t &&
+            Array.isArray(t.shape) &&
+            (Array.isArray(t.data) || t.data instanceof Float32Array || t.data instanceof Float64Array));
+    }
+    // =============================================================================
+    // Type Definitions for Registration
+    // =============================================================================
+    /**
+     * Tensor types
+     */
+    const TENSOR_TYPES = [{ name: 'Tensor', test: isTensor }];
+    // =============================================================================
+    // Factory Functions
+    // =============================================================================
+    /**
+     * Create a Tensor
+     */
+    function tensor(data, shape) {
+        return { data, shape };
+    }
+
+    /**
+     * Sparse Matrix Types
+     *
+     * This module provides type definitions for sparse matrices in COO format.
+     */
+    // =============================================================================
+    // Type Test Functions
+    // =============================================================================
+    /**
+     * Test if value is a SparseMatrix
+     */
+    function isSparseMatrix(x) {
+        if (x === null || typeof x !== 'object')
+            return false;
+        const s = x;
+        return ('rows' in s &&
+            'cols' in s &&
+            'values' in s &&
+            'shape' in s &&
+            Array.isArray(s.rows) &&
+            Array.isArray(s.cols) &&
+            Array.isArray(s.values) &&
+            Array.isArray(s.shape) &&
+            s.shape.length === 2);
+    }
+    // =============================================================================
+    // Type Definitions for Registration
+    // =============================================================================
+    /**
+     * Sparse matrix types
+     */
+    const SPARSE_MATRIX_TYPES = [{ name: 'SparseMatrix', test: isSparseMatrix }];
+
+    /**
+     * Quaternion Types
+     *
+     * This module provides type definitions for quaternions used in 3D rotations.
+     */
+    // =============================================================================
+    // Type Test Functions
+    // =============================================================================
+    /**
+     * Test if value is a Quaternion
+     */
+    function isQuaternion(x) {
+        if (x === null || typeof x !== 'object')
+            return false;
+        const q = x;
+        return ('w' in q &&
+            'x' in q &&
+            'y' in q &&
+            'z' in q &&
+            typeof q.w === 'number' &&
+            typeof q.x === 'number' &&
+            typeof q.y === 'number' &&
+            typeof q.z === 'number');
+    }
+    // =============================================================================
+    // Type Definitions for Registration
+    // =============================================================================
+    /**
+     * Quaternion types
+     */
+    const QUATERNION_TYPES = [{ name: 'Quaternion', test: isQuaternion }];
+    // =============================================================================
+    // Factory Functions
+    // =============================================================================
+    /**
+     * Create a Quaternion
+     */
+    function quaternion(w, x, y, z) {
+        return { w, x, y, z };
+    }
+
+    /**
+     * Unit Types
+     *
+     * This module provides type definitions for values with physical units.
+     */
+    // =============================================================================
+    // Type Test Functions
+    // =============================================================================
+    /**
+     * Test if value is a Unit
+     */
+    function isUnit(x) {
+        if (x === null || typeof x !== 'object')
+            return false;
+        const u = x;
+        return 'value' in u && 'unit' in u && typeof u.unit === 'string';
+    }
+    // =============================================================================
+    // Type Definitions for Registration
+    // =============================================================================
+    /**
+     * Unit types
+     */
+    const UNIT_TYPES = [{ name: 'Unit', test: isUnit }];
+    // =============================================================================
+    // Factory Functions
+    // =============================================================================
+    /**
+     * Create a Unit value
+     */
+    function unit(value, unitStr) {
+        return { value, unit: unitStr };
+    }
+
+    /**
+     * Interval Types
+     *
+     * This module provides type definitions for numeric intervals.
+     */
+    // =============================================================================
+    // Type Test Functions
+    // =============================================================================
+    /**
+     * Test if value is an Interval
+     */
+    function isInterval(x) {
+        if (x === null || typeof x !== 'object')
+            return false;
+        const i = x;
+        return 'low' in i && 'high' in i && typeof i.low === 'number' && typeof i.high === 'number';
+    }
+    // =============================================================================
+    // Type Definitions for Registration
+    // =============================================================================
+    /**
+     * Interval types
+     */
+    const INTERVAL_TYPES = [{ name: 'Interval', test: isInterval }];
+    // =============================================================================
+    // Factory Functions
+    // =============================================================================
+    /**
+     * Create an Interval
+     */
+    function interval(low, high) {
+        return { low, high };
+    }
+
+    /**
+     * Uncertainty Types
+     *
+     * This module provides type definitions for values with uncertainty/error bounds.
+     */
+    // =============================================================================
+    // Type Test Functions
+    // =============================================================================
+    /**
+     * Test if value is an Uncertainty
+     */
+    function isUncertainty(x) {
+        if (x === null || typeof x !== 'object')
+            return false;
+        const u = x;
+        return ('value' in u && 'uncertainty' in u && typeof u.value === 'number' && typeof u.uncertainty === 'number');
+    }
+    // =============================================================================
+    // Type Definitions for Registration
+    // =============================================================================
+    /**
+     * Uncertainty types
+     */
+    const UNCERTAINTY_TYPES = [{ name: 'Uncertainty', test: isUncertainty }];
+    // =============================================================================
+    // Factory Functions
+    // =============================================================================
+    /**
+     * Create an Uncertainty value
+     */
+    function uncertainty(value, error) {
+        return { value, uncertainty: error };
+    }
+
+    /**
+     * Range Types
+     *
+     * This module provides type definitions for numeric ranges with optional step.
+     */
+    // =============================================================================
+    // Type Test Functions
+    // =============================================================================
+    /**
+     * Test if value is a Range
+     */
+    function isRange(x) {
+        if (x === null || typeof x !== 'object')
+            return false;
+        const r = x;
+        return 'start' in r && 'end' in r && typeof r.start === 'number' && typeof r.end === 'number';
+    }
+    // =============================================================================
+    // Type Definitions for Registration
+    // =============================================================================
+    /**
+     * Range types
+     */
+    const RANGE_TYPES = [{ name: 'Range', test: isRange }];
+    // =============================================================================
+    // Factory Functions
+    // =============================================================================
+    /**
+     * Create a Range
+     */
+    function range(start, end, step) {
+        if (step !== undefined) {
+            return { start, end, step };
+        }
+        return { start, end };
+    }
+
+    /**
+     * Polynomial Types
+     *
+     * This module provides type definitions for polynomials represented by coefficients.
+     */
+    // =============================================================================
+    // Type Test Functions
+    // =============================================================================
+    /**
+     * Test if value is a Polynomial
+     */
+    function isPolynomial(x) {
+        if (x === null || typeof x !== 'object')
+            return false;
+        const p = x;
+        return 'coefficients' in p && Array.isArray(p.coefficients);
+    }
+    // =============================================================================
+    // Type Definitions for Registration
+    // =============================================================================
+    /**
+     * Polynomial types
+     */
+    const POLYNOMIAL_TYPES = [{ name: 'Polynomial', test: isPolynomial }];
+    // =============================================================================
+    // Factory Functions
+    // =============================================================================
+    /**
+     * Create a Polynomial from coefficients
+     */
+    function polynomial(coefficients, variable = 'x') {
+        return { coefficients, variable };
+    }
+
+    /**
+     * Parallel and Concurrent Computing Types
+     *
+     * This module provides type definitions for parallel computing including
+     * futures, streams, channels, shared arrays, and atomic numbers.
+     */
+    // =============================================================================
+    // Type Test Functions
+    // =============================================================================
+    /**
+     * Test if value is a Future/Promise-like
+     */
+    function isFuture(x) {
+        return x !== null && typeof x === 'object' && 'then' in x && typeof x.then === 'function';
+    }
+    /**
+     * Test if value is a Stream
+     */
+    function isStream(x) {
+        return x !== null && typeof x === 'object' && 'next' in x && typeof x.next === 'function';
+    }
+    /**
+     * Test if value is a Channel
+     */
+    function isChannel(x) {
+        if (x === null || typeof x !== 'object')
+            return false;
+        const c = x;
+        return 'send' in c && 'receive' in c && typeof c.send === 'function' && typeof c.receive === 'function';
+    }
+    /**
+     * Test if value is a SharedArray
+     */
+    function isSharedArray(x) {
+        if (x === null || typeof x !== 'object')
+            return false;
+        const s = x;
+        return ('buffer' in s &&
+            'length' in s &&
+            typeof s.length === 'number' &&
+            typeof SharedArrayBuffer !== 'undefined' &&
+            s.buffer instanceof SharedArrayBuffer);
+    }
+    /**
+     * Test if value is an AtomicNumber
+     */
+    function isAtomicNumber(x) {
+        if (x === null || typeof x !== 'object')
+            return false;
+        const a = x;
+        return ('value' in a &&
+            'buffer' in a &&
+            (typeof a.value === 'number' || typeof a.value === 'bigint') &&
+            typeof SharedArrayBuffer !== 'undefined' &&
+            a.buffer instanceof SharedArrayBuffer);
+    }
+    // =============================================================================
+    // Type Definitions for Registration
+    // =============================================================================
+    /**
+     * Parallel/concurrent computing types
+     */
+    const PARALLEL_TYPES = [
+        { name: 'Future', test: isFuture },
+        { name: 'Stream', test: isStream },
+        { name: 'Channel', test: isChannel },
+        { name: 'SharedArray', test: isSharedArray },
+        { name: 'AtomicNumber', test: isAtomicNumber },
+    ];
+
+    /**
+     * TypedArray Types
+     *
+     * This module provides type definitions for JavaScript TypedArrays
+     * including all standard variants.
+     */
+    // =============================================================================
+    // Type Test Functions
+    // =============================================================================
+    /**
+     * Test if value is a TypedArray (any variant)
+     */
+    function isTypedArray(x) {
+        return (x instanceof Int8Array ||
+            x instanceof Uint8Array ||
+            x instanceof Int16Array ||
+            x instanceof Uint16Array ||
+            x instanceof Int32Array ||
+            x instanceof Uint32Array ||
+            x instanceof Float32Array ||
+            x instanceof Float64Array ||
+            x instanceof BigInt64Array ||
+            x instanceof BigUint64Array);
+    }
+    /**
+     * Test if value is a Float32Array
+     */
+    function isFloat32Array(x) {
+        return x instanceof Float32Array;
+    }
+    /**
+     * Test if value is a Float64Array
+     */
+    function isFloat64Array(x) {
+        return x instanceof Float64Array;
+    }
+    /**
+     * Test if value is an Int8Array
+     */
+    function isInt8Array(x) {
+        return x instanceof Int8Array;
+    }
+    /**
+     * Test if value is an Int16Array
+     */
+    function isInt16Array(x) {
+        return x instanceof Int16Array;
+    }
+    /**
+     * Test if value is an Int32Array
+     */
+    function isInt32Array(x) {
+        return x instanceof Int32Array;
+    }
+    /**
+     * Test if value is a Uint8Array
+     */
+    function isUint8Array(x) {
+        return x instanceof Uint8Array;
+    }
+    /**
+     * Test if value is a Uint16Array
+     */
+    function isUint16Array(x) {
+        return x instanceof Uint16Array;
+    }
+    /**
+     * Test if value is a Uint32Array
+     */
+    function isUint32Array(x) {
+        return x instanceof Uint32Array;
+    }
+    /**
+     * Test if value is a BigInt64Array
+     */
+    function isBigInt64Array(x) {
+        return x instanceof BigInt64Array;
+    }
+    /**
+     * Test if value is a BigUint64Array
+     */
+    function isBigUint64Array(x) {
+        return x instanceof BigUint64Array;
+    }
+    // =============================================================================
+    // Type Definitions for Registration
+    // =============================================================================
+    /**
+     * Array types
+     */
+    const ARRAY_TYPES = [
+        { name: 'TypedArray', test: isTypedArray },
+        { name: 'Int8Array', test: isInt8Array },
+        { name: 'Int16Array', test: isInt16Array },
+        { name: 'Int32Array', test: isInt32Array },
+        { name: 'Uint8Array', test: isUint8Array },
+        { name: 'Uint16Array', test: isUint16Array },
+        { name: 'Uint32Array', test: isUint32Array },
+        { name: 'Float32Array', test: isFloat32Array },
+        { name: 'Float64Array', test: isFloat64Array },
+        { name: 'BigInt64Array', test: isBigInt64Array },
+        { name: 'BigUint64Array', test: isBigUint64Array },
+    ];
+
+    /**
+     * GPU and Accelerator Types
+     *
+     * This module provides type definitions for GPU-accelerated computing
+     * including WebGPU buffers and GPU tensors.
+     */
+    // =============================================================================
+    // Type Test Functions
+    // =============================================================================
+    /**
+     * Test if value is a GPUBuffer (WebGPU)
+     */
+    function isGPUBuffer(x) {
+        if (x === null || typeof x !== 'object')
+            return false;
+        const b = x;
+        return 'size' in b && 'usage' in b && typeof b.size === 'number' && typeof b.usage === 'number';
+    }
+    /**
+     * Test if value is a GPUTensor
+     */
+    function isGPUTensor(x) {
+        if (x === null || typeof x !== 'object')
+            return false;
+        const t = x;
+        return ('shape' in t &&
+            'dtype' in t &&
+            'device' in t &&
+            Array.isArray(t.shape) &&
+            typeof t.dtype === 'string' &&
+            typeof t.device === 'string');
+    }
+    // =============================================================================
+    // Type Definitions for Registration
+    // =============================================================================
+    /**
+     * GPU/Accelerator types
+     */
+    const GPU_TYPES = [
+        { name: 'GPUBuffer', test: isGPUBuffer },
+        { name: 'GPUTensor', test: isGPUTensor },
+    ];
+
+    /**
+     * Decimal and Arbitrary Precision Types
+     *
+     * This module provides type definitions for arbitrary precision decimals,
+     * IEEE 754 decimal formats, and currency-aware numeric types.
+     */
+    // =============================================================================
+    // Type Test Functions
+    // =============================================================================
+    /**
+     * Test if value is a Decimal (arbitrary precision)
+     */
+    function isDecimal(x) {
+        if (x === null || typeof x !== 'object')
+            return false;
+        const d = x;
+        return typeof d.toString === 'function' && typeof d.toNumber === 'function';
+    }
+    /**
+     * Test if value is a BigFloat
+     */
+    function isBigFloat(x) {
+        if (x === null || typeof x !== 'object')
+            return false;
+        const bf = x;
+        return ('mantissa' in bf &&
+            'exponent' in bf &&
+            'precision' in bf &&
+            typeof bf.mantissa === 'bigint' &&
+            typeof bf.exponent === 'number' &&
+            typeof bf.precision === 'number');
+    }
+    /**
+     * Test if value is a Decimal32
+     */
+    function isDecimal32(x) {
+        if (x === null || typeof x !== 'object')
+            return false;
+        const d = x;
+        return ('_decimal32' in d &&
+            d._decimal32 === true &&
+            typeof d.coefficient === 'number' &&
+            typeof d.exponent === 'number' &&
+            typeof d.sign === 'boolean');
+    }
+    /**
+     * Test if value is a Decimal64
+     */
+    function isDecimal64(x) {
+        if (x === null || typeof x !== 'object')
+            return false;
+        const d = x;
+        return ('_decimal64' in d &&
+            d._decimal64 === true &&
+            typeof d.coefficient === 'bigint' &&
+            typeof d.exponent === 'number' &&
+            typeof d.sign === 'boolean');
+    }
+    /**
+     * Test if value is a Decimal128
+     */
+    function isDecimal128(x) {
+        if (x === null || typeof x !== 'object')
+            return false;
+        const d = x;
+        return ('_decimal128' in d &&
+            d._decimal128 === true &&
+            typeof d.coefficient === 'bigint' &&
+            typeof d.exponent === 'number' &&
+            typeof d.sign === 'boolean');
+    }
+    /**
+     * Test if value is a Money type
+     */
+    function isMoney(x) {
+        if (x === null || typeof x !== 'object')
+            return false;
+        const m = x;
+        return ('amount' in m &&
+            'currency' in m &&
+            'decimals' in m &&
+            typeof m.amount === 'bigint' &&
+            typeof m.currency === 'string' &&
+            typeof m.decimals === 'number');
+    }
+    /**
+     * Test if value is a FixedDecimal
+     */
+    function isFixedDecimal(x) {
+        if (x === null || typeof x !== 'object')
+            return false;
+        const fd = x;
+        return ('value' in fd && 'scale' in fd && typeof fd.value === 'bigint' && typeof fd.scale === 'number');
+    }
+    /**
+     * Test if value is a Rational
+     */
+    function isRational(x) {
+        if (x === null || typeof x !== 'object')
+            return false;
+        const r = x;
+        return 'num' in r && 'den' in r && typeof r.num === 'bigint' && typeof r.den === 'bigint';
+    }
+    // =============================================================================
+    // Type Definitions for Registration
+    // =============================================================================
+    /**
+     * Decimal types for arbitrary precision arithmetic
+     */
+    const DECIMAL_TYPES = [
+        { name: 'Decimal', test: isDecimal },
+        { name: 'BigFloat', test: isBigFloat },
+        { name: 'Decimal32', test: isDecimal32 },
+        { name: 'Decimal64', test: isDecimal64 },
+        { name: 'Decimal128', test: isDecimal128 },
+        { name: 'Money', test: isMoney },
+        { name: 'FixedDecimal', test: isFixedDecimal },
+        { name: 'Rational', test: isRational },
+    ];
+    // =============================================================================
+    // Factory Functions
+    // =============================================================================
+    /**
+     * Create a BigFloat
+     */
+    function bigFloat(mantissa, exponent, precision = 53) {
+        return { mantissa, exponent, precision };
+    }
+    /**
+     * Create a Decimal32
+     */
+    function decimal32(coefficient, exponent, sign = false) {
+        return { coefficient, exponent, sign, _decimal32: true };
+    }
+    /**
+     * Create a Decimal64
+     */
+    function decimal64(coefficient, exponent, sign = false) {
+        return { coefficient, exponent, sign, _decimal64: true };
+    }
+    /**
+     * Create a Decimal128
+     */
+    function decimal128(coefficient, exponent, sign = false) {
+        return { coefficient, exponent, sign, _decimal128: true };
+    }
+    /**
+     * Create a Money value
+     * @param amount Amount in smallest unit (e.g., cents)
+     * @param currency ISO 4217 currency code
+     * @param decimals Number of decimal places (default 2)
+     */
+    function money(amount, currency, decimals = 2) {
+        return { amount, currency, decimals };
+    }
+    /**
+     * Create a FixedDecimal
+     * @param value The scaled integer value
+     * @param scale Number of decimal places
+     */
+    function fixedDecimal(value, scale) {
+        return { value, scale };
+    }
+    /**
+     * Create a Rational number
+     * @param num Numerator
+     * @param den Denominator (must not be zero)
+     */
+    function rational(num, den) {
+        if (den === BigInt(0)) {
+            throw new Error('Denominator cannot be zero');
+        }
+        return { num, den };
+    }
+
+    /**
+     * Export Types - Central Re-export Module
+     *
+     * This module re-exports all type definitions from their
+     * respective modules for convenience.
+     */
+    // Re-export complex types
+    /**
+     * Combined linear algebra types for backwards compatibility
+     */
+    const LINEAR_ALGEBRA_TYPES = [
+        ...VECTOR_TYPES,
+        ...MATRIX_TYPES,
+        ...TENSOR_TYPES,
+        ...SPARSE_MATRIX_TYPES,
+        ...QUATERNION_TYPES,
+    ];
+    /**
+     * Combined measurement types for backwards compatibility
+     */
+    const MEASUREMENT_TYPES = [
+        ...UNIT_TYPES,
+        ...INTERVAL_TYPES,
+        ...UNCERTAINTY_TYPES,
+        ...RANGE_TYPES,
+        ...POLYNOMIAL_TYPES,
+    ];
+    /**
+     * Alias for MEASUREMENT_TYPES for backwards compatibility
+     */
+    const SCIENTIFIC_TYPES = MEASUREMENT_TYPES;
+    /**
+     * Alias for ARRAY_TYPES for backwards compatibility
+     */
+    const TYPED_ARRAY_TYPES = ARRAY_TYPES;
+    /**
+     * All advanced types combined
+     */
+    const ADVANCED_TYPES = [
+        ...COMPLEX_TYPES,
+        ...FRACTION_TYPES,
+        ...BIGDOUBLE_TYPES,
+        ...NUMERIC_TYPES,
+        ...LINEAR_ALGEBRA_TYPES,
+        ...MEASUREMENT_TYPES,
+        ...PARALLEL_TYPES,
+        ...ARRAY_TYPES,
+        ...GPU_TYPES,
+        ...DECIMAL_TYPES,
+    ];
+
+    /**
      * typed-function v5.0
      *
      * Type checking for JavaScript functions
@@ -3708,12 +4871,25 @@
         return entity !== null && typeof entity === 'function' && '_typedFunctionData' in entity;
     }
 
+    exports.ADVANCED_TYPES = ADVANCED_TYPES;
+    exports.ARRAY_TYPES = ARRAY_TYPES;
+    exports.BIGDOUBLE_TYPES = BIGDOUBLE_TYPES;
     exports.BUILTIN_TYPES = BUILTIN_TYPES;
+    exports.COMPLEX_TYPES = COMPLEX_TYPES;
     exports.ConversionManager = ConversionManager;
+    exports.DECIMAL_TYPES = DECIMAL_TYPES;
     exports.DuplicateTypeError = DuplicateTypeError;
+    exports.FRACTION_TYPES = FRACTION_TYPES;
+    exports.GPU_TYPES = GPU_TYPES;
+    exports.LINEAR_ALGEBRA_TYPES = LINEAR_ALGEBRA_TYPES;
+    exports.MEASUREMENT_TYPES = MEASUREMENT_TYPES;
     exports.NOT_TYPED_FUNCTION = NOT_TYPED_FUNCTION;
+    exports.NUMERIC_TYPES = NUMERIC_TYPES;
+    exports.PARALLEL_TYPES = PARALLEL_TYPES;
+    exports.SCIENTIFIC_TYPES = SCIENTIFIC_TYPES;
     exports.SignatureMismatchError = SignatureMismatchError;
     exports.SignatureNotFoundError = SignatureNotFoundError;
+    exports.TYPED_ARRAY_TYPES = TYPED_ARRAY_TYPES;
     exports.TooFewArgumentsError = TooFewArgumentsError;
     exports.TooManyArgumentsError = TooManyArgumentsError;
     exports.TypeMasks = TypeMasks;
@@ -3726,6 +4902,9 @@
     exports.addDebugHandler = addDebugHandler;
     exports.arraysEqual = arraysEqual;
     exports.availableConversions = availableConversions;
+    exports.bigDecimal = bigDecimal;
+    exports.bigDouble = bigDouble;
+    exports.bigFloat = bigFloat;
     exports.checkName = checkName;
     exports.clearResolutions = clearResolutions;
     exports.collectResolutions = collectResolutions;
@@ -3737,6 +4916,7 @@
     exports.compileSignatureTests = compileSignatureTests;
     exports.compileTest = compileTest;
     exports.compileTests = compileTests;
+    exports.complex = complex;
     exports.configureDebug = configureDebug;
     exports.conflicting = conflicting;
     exports.create = create;
@@ -3754,6 +4934,9 @@
     exports.createSimpleDispatcher = createSimpleDispatcher;
     exports.createTypeRegistry = createTypeRegistry;
     exports.createTypedFunction = createTypedFunction;
+    exports.decimal128 = decimal128;
+    exports.decimal32 = decimal32;
+    exports.decimal64 = decimal64;
     exports.default = typedInstance;
     exports.defaultOnMismatch = defaultOnMismatch;
     exports.disableDebug = disableDebug;
@@ -3761,10 +4944,12 @@
     exports.enableDebug = enableDebug;
     exports.expandParam = expandParam;
     exports.findInArray = findInArray;
+    exports.fixedDecimal = fixedDecimal;
     exports.flatMap = flatMap;
     exports.formatArgs = formatArgs;
     exports.formatParam = formatParam;
     exports.formatSignature = formatSignature;
+    exports.fraction = fraction;
     exports.getDebugLevel = getDebugLevel;
     exports.getLowestConversionIndex = getLowestConversionIndex;
     exports.getLowestTypeIndex = getLowestTypeIndex;
@@ -3779,26 +4964,79 @@
     exports.hasRestParam = hasRestParam;
     exports.hasRestParamError = hasRestParam$2;
     exports.initial = initial;
+    exports.interval = interval;
+    exports.isAtomicNumber = isAtomicNumber;
+    exports.isBigDecimal = isBigDecimal;
+    exports.isBigDouble = isBigDouble;
+    exports.isBigFloat = isBigFloat;
+    exports.isBigInt64Array = isBigInt64Array;
+    exports.isBigUint64Array = isBigUint64Array;
+    exports.isChannel = isChannel;
+    exports.isComplex = isComplex;
     exports.isDebugEnabled = isDebugEnabled;
+    exports.isDecimal = isDecimal;
+    exports.isDecimal128 = isDecimal128;
+    exports.isDecimal32 = isDecimal32;
+    exports.isDecimal64 = isDecimal64;
     exports.isEmptyObject = isEmptyObject;
     exports.isExactType = isExactType$1;
     exports.isFastPathEligible = isFastPathEligible;
+    exports.isFixedDecimal = isFixedDecimal;
+    exports.isFloat32 = isFloat32;
+    exports.isFloat32Array = isFloat32Array;
+    exports.isFloat64 = isFloat64;
+    exports.isFloat64Array = isFloat64Array;
+    exports.isFraction = isFraction;
+    exports.isFuture = isFuture;
+    exports.isGPUBuffer = isGPUBuffer;
+    exports.isGPUTensor = isGPUTensor;
+    exports.isInt16 = isInt16;
+    exports.isInt16Array = isInt16Array;
+    exports.isInt32 = isInt32;
+    exports.isInt32Array = isInt32Array;
+    exports.isInt64 = isInt64;
+    exports.isInt8 = isInt8;
+    exports.isInt8Array = isInt8Array;
+    exports.isInterval = isInterval;
+    exports.isMatrix = isMatrix;
+    exports.isMoney = isMoney;
     exports.isPlainObject = isPlainObject;
+    exports.isPolynomial = isPolynomial;
+    exports.isQuaternion = isQuaternion;
+    exports.isRange = isRange;
+    exports.isRational = isRational;
     exports.isReferTo = isReferTo;
     exports.isReferToSelf = isReferToSelf;
+    exports.isSharedArray = isSharedArray;
+    exports.isSparseMatrix = isSparseMatrix;
+    exports.isStream = isStream;
+    exports.isTensor = isTensor;
     exports.isTooFewArgumentsError = isTooFewArgumentsError;
     exports.isTooManyArgumentsError = isTooManyArgumentsError;
     exports.isTypeMismatchError = isTypeMismatchError;
+    exports.isTypedArray = isTypedArray;
     exports.isTypedFunction = isTypedFunction;
     exports.isTypedFunctionError = isTypedFunctionError;
+    exports.isUInt16 = isUInt16;
+    exports.isUInt32 = isUInt32;
+    exports.isUInt64 = isUInt64;
+    exports.isUInt8 = isUInt8;
+    exports.isUint16Array = isUint16Array;
+    exports.isUint32Array = isUint32Array;
+    exports.isUint8Array = isUint8Array;
+    exports.isUncertainty = isUncertainty;
+    exports.isUnit = isUnit;
+    exports.isVector = isVector;
     exports.isWasmNotAvailableError = isWasmNotAvailableError;
     exports.last = last;
     exports.makeReferTo = makeReferTo;
     exports.makeReferToSelf = makeReferToSelf;
     exports.mapObject = mapObject;
+    exports.matrix = matrix;
     exports.mergeExpectedParams = mergeExpectedParams;
     exports.mergeObjects = mergeObjects;
     exports.mergeSignatures = mergeSignatures;
+    exports.money = money;
     exports.nullableMask = nullableMask;
     exports.objectSize = objectSize;
     exports.omit = omit;
@@ -3807,6 +5045,10 @@
     exports.parseParam = parseParam;
     exports.parseSignature = parseSignature;
     exports.pick = pick;
+    exports.polynomial = polynomial;
+    exports.quaternion = quaternion;
+    exports.range = range;
+    exports.rational = rational;
     exports.resetDebug = resetDebug;
     exports.resolveReferences = resolveReferences;
     exports.shallowCopy = shallowCopy;
@@ -3814,7 +5056,11 @@
     exports.splitParams = splitParams;
     exports.stringifyParams = stringifyParams;
     exports.stringifyParamsError = stringifyParams$1;
+    exports.tensor = tensor;
+    exports.uncertainty = uncertainty;
+    exports.unit = unit;
     exports.validateDeprecatedThis = validateDeprecatedThis;
+    exports.vector = vector;
     exports.wrapWithDebug = wrapWithDebug;
 
     Object.defineProperty(exports, '__esModule', { value: true });

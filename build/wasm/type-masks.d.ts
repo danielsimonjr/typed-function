@@ -23,6 +23,18 @@ export declare const TYPE_OBJECT = 7;
 export declare const TYPE_NULL = 8;
 /** Type ID for undefined */
 export declare const TYPE_UNDEFINED = 9;
+/** Type ID for BigInt */
+export declare const TYPE_BIGINT = 10;
+/** Type ID for Symbol */
+export declare const TYPE_SYMBOL = 11;
+/** Type ID for Map */
+export declare const TYPE_MAP = 12;
+/** Type ID for Set */
+export declare const TYPE_SET = 13;
+/** Type ID for WeakMap */
+export declare const TYPE_WEAKMAP = 14;
+/** Type ID for WeakSet */
+export declare const TYPE_WEAKSET = 15;
 /** Mask for any type (matches all) */
 export declare const TYPE_ANY_MASK = 4294967295;
 /**
@@ -144,6 +156,28 @@ export declare const TypeMasks: {
     readonly ANY_OBJECT: number;
     /** Matches all types (same as any) */
     readonly ANY: 4294967295;
+    /** Matches BigInt only */
+    readonly BIGINT: number;
+    /** Matches Symbol only */
+    readonly SYMBOL: number;
+    /** Matches Map only */
+    readonly MAP: number;
+    /** Matches Set only */
+    readonly SET: number;
+    /** Matches WeakMap only */
+    readonly WEAKMAP: number;
+    /** Matches WeakSet only */
+    readonly WEAKSET: number;
+    /** Matches number | BigInt (numeric types) */
+    readonly NUMERIC: number;
+    /** Matches Map | Set (collection types) */
+    readonly COLLECTION: number;
+    /** Matches WeakMap | WeakSet (weak collection types) */
+    readonly WEAK_COLLECTION: number;
+    /** Matches all collection types: Array | Map | Set */
+    readonly ANY_COLLECTION: number;
+    /** Matches all iterable types: Array | Map | Set | string */
+    readonly ALL_ITERABLE: number;
 };
 /**
  * Create a custom type mask by combining type names
