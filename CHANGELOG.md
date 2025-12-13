@@ -348,6 +348,118 @@ See [MIGRATION_GUIDE.md](./docs/MIGRATION_GUIDE.md) for detailed upgrade instruc
 
 ---
 
-## [4.x and earlier]
+## [4.2.2] - 2025-11-26
 
-See [HISTORY.md](./HISTORY.md) for changes in previous versions.
+### Fixed
+- Choose lowest-index type conversion, sort signatures transitively (#170, #171)
+
+### Changed
+- Revert to `del-cli` to maintain Node.js 18 support
+
+## [4.2.1] - 2024-06-05
+
+### Fixed
+- Bug in the `override` option of `addConversion`
+
+## [4.2.0] - 2024-06-05
+
+### Added
+- New option `{ override: boolean }` for `addConversion` and `addConversions` methods to allow overriding existing conversions
+
+### Changed
+- Minimum Node.js version updated to 18 (others reached EOL)
+- Updated GitHub Actions to test on Node.js 22
+
+## [4.1.1] - 2023-09-13
+
+### Fixed
+- Add `"license": "MIT"` field to package.json (#168)
+- Browser examples using ESM file
+
+### Changed
+- Test on Node.js 18 and 20
+
+## [4.1.0] - 2022-08-22
+
+### Changed
+- Rename ESM file extension to `.mjs`
+- Create UMD build in addition to ESM
+
+## [4.0.0] - 2022-08-22
+
+### Changed
+- Convert all source files to ES modules
+- Set up Babel transpilation for broader compatibility
+- Add ESLint with `standard` code style
+- Create build-and-test script
+
+## [3.0.1] - 2022-08-16
+
+### Fixed
+- Minor maintenance release
+
+## [3.0.0] - 2022-05-12
+
+### Added
+- `typed.referTo()` for referencing specific signatures within a typed function
+- `typed.referToSelf()` for recursive calls with full dispatch
+- Allow removal of conversions
+- More flexible type ignoring
+
+### Changed
+- **Breaking**: Deprecated `this(...)` self-reference pattern in favor of `typed.referTo()` and `typed.referToSelf()`
+- **Breaking**: Dropped official support for Node.js 12
+- Eliminate direct access to types and conversions (use API methods instead)
+
+### Fixed
+- Prefer type conversion over type `any` in signature comparison
+
+## [2.1.0] - 2021-01-01
+
+### Changed
+- Update devDependencies
+- Update package-lock.json to lockfileVersion 2 (npm@7)
+- Test on Node.js 14, set minimum Node.js version to 10
+
+## [2.0.0] - 2020-03-01
+
+### Changed
+- **Breaking**: Major internal refactoring
+- Updated build tooling
+
+## [1.1.1] - Previous
+
+### Fixed
+- Various bug fixes and improvements
+
+## [1.1.0] - Previous
+
+### Added
+- Feature enhancements
+
+## [1.0.0] - Initial Release
+
+### Added
+- Runtime type-checking of input arguments
+- Automatic type conversion of arguments
+- Compose typed functions with multiple signatures
+- Union types, any type, and variable arguments
+- Detailed error messaging
+
+---
+
+[Unreleased]: https://github.com/josdejong/typed-function/compare/v4.2.2...HEAD
+[5.0.0-alpha.1]: https://github.com/josdejong/typed-function/compare/v4.2.2...v5.0.0-alpha.1
+[4.2.2]: https://github.com/josdejong/typed-function/compare/v4.2.1...v4.2.2
+[4.2.1]: https://github.com/josdejong/typed-function/compare/v4.2.0...v4.2.1
+[4.2.0]: https://github.com/josdejong/typed-function/compare/v4.1.1...v4.2.0
+[4.1.1]: https://github.com/josdejong/typed-function/compare/v4.1.0...v4.1.1
+[4.1.0]: https://github.com/josdejong/typed-function/compare/v4.0.0...v4.1.0
+[4.0.0]: https://github.com/josdejong/typed-function/compare/v3.0.1...v4.0.0
+[3.0.1]: https://github.com/josdejong/typed-function/compare/v3.0.0...v3.0.1
+[3.0.0]: https://github.com/josdejong/typed-function/compare/v2.1.0...v3.0.0
+[2.1.0]: https://github.com/josdejong/typed-function/compare/v2.0.0...v2.1.0
+[2.0.0]: https://github.com/josdejong/typed-function/compare/v1.1.1...v2.0.0
+[1.1.1]: https://github.com/josdejong/typed-function/compare/v1.1.0...v1.1.1
+[1.1.0]: https://github.com/josdejong/typed-function/compare/v1.0.0...v1.1.0
+[1.0.0]: https://github.com/josdejong/typed-function/releases/tag/v1.0.0
