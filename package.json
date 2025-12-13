@@ -1,16 +1,17 @@
 {
-  "name": "typed-function",
+  "name": "@danielsimonjr/typed-function",
   "version": "5.0.0-alpha.1",
   "description": "Type checking for JavaScript functions",
   "author": "Jos de Jong <wjosdejong@gmail.com> (https://github.com/josdejong)",
   "contributors": [
     "Glen Whitney (https://github.com/gwhitney)",
-    "Luke Gumbley (https://github.com/luke-gumbley)"
+    "Luke Gumbley (https://github.com/luke-gumbley)",
+    "Daniel Simon Jr (https://github.com/danielsimonjr)"
   ],
-  "homepage": "https://github.com/josdejong/typed-function",
+  "homepage": "https://github.com/danielsimonjr/typed-function",
   "repository": {
     "type": "git",
-    "url": "https://github.com/josdejong/typed-function.git"
+    "url": "https://github.com/danielsimonjr/typed-function.git"
   },
   "keywords": [
     "typed",
