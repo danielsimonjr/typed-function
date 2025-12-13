@@ -4,7 +4,7 @@
   "title": "Modern Types & Extended Fast Path",
   "week": "Week 2",
   "effort": "12-14 hours",
-  "status": "in_progress",
+  "status": "completed",
   "tasks": [
     {
       "id": 1,
@@ -46,7 +46,7 @@
       "id": 5,
       "category": "Fast Path",
       "description": "Extend fast-path from 6 to 10 signature slots - Increase inline dispatch capacity",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 2,
       "files": ["src/dispatch/fast-path.ts"],
       "lines": "varies"
@@ -55,7 +55,7 @@
       "id": 6,
       "category": "Fast Path",
       "description": "Support 3 parameters in fast-path - Extend from 2-param to 3-param inline tests",
-      "status": "pending",
+      "status": "completed",
       "estimatedHours": 2,
       "files": ["src/dispatch/fast-path.ts"],
       "lines": "varies"
