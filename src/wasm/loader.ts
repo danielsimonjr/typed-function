@@ -6,6 +6,7 @@
 
 import type { WasmExports } from './bindings.js';
 import { initWasm, isWasmAvailable } from './bindings.js';
+import { WasmNotAvailableError, WasmInitializationError } from '../core/errors.js';
 
 /** Loading state */
 let loadingPromise: Promise<boolean> | null = null;
@@ -42,13 +43,13 @@ async function doLoadWasm(wasmPath?: string): Promise<boolean> {
 
     // Check for WebAssembly support
     if (typeof WebAssembly === 'undefined') {
-      throw new Error('WebAssembly not supported');
+      throw new WasmNotAvailableError('WebAssembly not supported in this environment');
     }
 
     // Fetch and instantiate
     const response = await fetch(path);
     if (!response.ok) {
-      throw new Error(`Failed to fetch WASM: ${response.status}`);
+      throw new WasmInitializationError(`Failed to fetch WASM: HTTP ${response.status}`);
     }
 
     const wasmBuffer = await response.arrayBuffer();
@@ -56,7 +57,7 @@ async function doLoadWasm(wasmPath?: string): Promise<boolean> {
     const instance = await WebAssembly.instantiate(wasmModule, {
       env: {
         abort: () => {
-          throw new Error('WASM abort');
+          throw new WasmInitializationError('WASM abort called');
         },
       },
     });
@@ -65,7 +66,14 @@ async function doLoadWasm(wasmPath?: string): Promise<boolean> {
     initWasm(instance.exports as unknown as WasmExports);
     return true;
   } catch (error) {
-    loadError = error instanceof Error ? error : new Error(String(error));
+    if (error instanceof WasmNotAvailableError || error instanceof WasmInitializationError) {
+      loadError = error;
+    } else {
+      loadError = new WasmInitializationError(
+        error instanceof Error ? error.message : String(error),
+        error instanceof Error ? error : undefined
+      );
+    }
     return false;
   }
 }
@@ -82,14 +90,14 @@ async function doLoadWasm(wasmPath?: string): Promise<boolean> {
 export function loadWasmSync(wasmBuffer: ArrayBuffer): boolean {
   try {
     if (typeof WebAssembly === 'undefined') {
-      throw new Error('WebAssembly not supported');
+      throw new WasmNotAvailableError('WebAssembly not supported in this environment');
     }
 
     const wasmModule = new WebAssembly.Module(wasmBuffer);
     const instance = new WebAssembly.Instance(wasmModule, {
       env: {
         abort: () => {
-          throw new Error('WASM abort');
+          throw new WasmInitializationError('WASM abort called');
         },
       },
     });
@@ -97,7 +105,14 @@ export function loadWasmSync(wasmBuffer: ArrayBuffer): boolean {
     initWasm(instance.exports as unknown as WasmExports);
     return true;
   } catch (error) {
-    loadError = error instanceof Error ? error : new Error(String(error));
+    if (error instanceof WasmNotAvailableError || error instanceof WasmInitializationError) {
+      loadError = error;
+    } else {
+      loadError = new WasmInitializationError(
+        error instanceof Error ? error.message : String(error),
+        error instanceof Error ? error : undefined
+      );
+    }
     return false;
   }
 }
@@ -165,7 +180,14 @@ export function loadWasmFromBase64(base64: string): boolean {
     }
     return loadWasmSync(bytes.buffer);
   } catch (error) {
-    loadError = error instanceof Error ? error : new Error(String(error));
+    if (error instanceof WasmNotAvailableError || error instanceof WasmInitializationError) {
+      loadError = error;
+    } else {
+      loadError = new WasmInitializationError(
+        error instanceof Error ? error.message : String(error),
+        error instanceof Error ? error : undefined
+      );
+    }
     return false;
   }
 }

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Extended fast-path dispatcher from 6 to 10 signature slots for improved performance with more signatures
+- Increased fast-path parameter support from 2 to 3 parameters per signature
+- Standardized error handling in WASM files to use proper error classes (`WasmNotAvailableError`, `WasmInitializationError`)
+
 ## [5.0.0-alpha.1] - 2025-12-13
 
 ### Added

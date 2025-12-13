@@ -71,9 +71,20 @@ describe('Fast-Path Dispatcher', () => {
       expect(isFastPathEligible(sig)).toBe(true);
     });
 
-    it('should return false for signatures with 3+ parameters', () => {
+    it('should return true for signatures with 3 parameters', () => {
       const numType = createMockType('number', x => typeof x === 'number');
       const sig = createMockSignature([
+        createMockParam([numType]),
+        createMockParam([numType]),
+        createMockParam([numType]),
+      ]);
+      expect(isFastPathEligible(sig)).toBe(true);
+    });
+
+    it('should return false for signatures with 4+ parameters', () => {
+      const numType = createMockType('number', x => typeof x === 'number');
+      const sig = createMockSignature([
+        createMockParam([numType]),
         createMockParam([numType]),
         createMockParam([numType]),
         createMockParam([numType]),
@@ -170,7 +181,7 @@ describe('Fast-Path Dispatcher', () => {
   });
 
   describe('createFastPathDispatcher', () => {
-    it('should create dispatcher with 6 slots', () => {
+    it('should create dispatcher with 10 slots', () => {
       const numType = createMockType('number', x => typeof x === 'number');
       const signatures = [
         createMockSignature([createMockParam([numType])], (a: number) => a),
@@ -179,7 +190,7 @@ describe('Fast-Path Dispatcher', () => {
 
       const dispatcher = createFastPathDispatcher(signatures);
 
-      expect(dispatcher.slots.length).toBe(6);
+      expect(dispatcher.slots.length).toBe(10);
       expect(dispatcher.slots[0].active).toBe(true);
       expect(dispatcher.slots[1].active).toBe(true);
       expect(dispatcher.slots[2].active).toBe(false);
@@ -187,33 +198,50 @@ describe('Fast-Path Dispatcher', () => {
       expect(dispatcher.genericStartIndex).toBe(0);
     });
 
-    it('should set allActive true when all 6 slots are filled', () => {
+    it('should set allActive true when all 10 slots are filled', () => {
       const numType = createMockType('number', x => typeof x === 'number');
       const fn = () => 'result';
 
-      const signatures = Array(6).fill(null).map(() =>
+      const signatures = Array(10).fill(null).map(() =>
         createMockSignature([createMockParam([numType])], fn)
       );
 
       const dispatcher = createFastPathDispatcher(signatures);
 
       expect(dispatcher.allActive).toBe(true);
-      expect(dispatcher.genericStartIndex).toBe(6);
+      expect(dispatcher.genericStartIndex).toBe(10);
     });
 
     it('should handle empty signatures array', () => {
       const dispatcher = createFastPathDispatcher([]);
 
-      expect(dispatcher.slots.length).toBe(6);
+      expect(dispatcher.slots.length).toBe(10);
       expect(dispatcher.allActive).toBe(false);
       expect(dispatcher.genericStartIndex).toBe(0);
     });
 
-    it('should skip signatures with 3+ parameters', () => {
+    it('should accept signatures with 3 parameters', () => {
       const numType = createMockType('number', x => typeof x === 'number');
       const fn = () => 'result';
       const signatures = [
         createMockSignature([
+          createMockParam([numType]),
+          createMockParam([numType]),
+          createMockParam([numType]),
+        ], fn),
+      ];
+
+      const dispatcher = createFastPathDispatcher(signatures);
+
+      expect(dispatcher.slots[0].active).toBe(true);
+    });
+
+    it('should skip signatures with 4+ parameters', () => {
+      const numType = createMockType('number', x => typeof x === 'number');
+      const fn = () => 'result';
+      const signatures = [
+        createMockSignature([
+          createMockParam([numType]),
           createMockParam([numType]),
           createMockParam([numType]),
           createMockParam([numType]),

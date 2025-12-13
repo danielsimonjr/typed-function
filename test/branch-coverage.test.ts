@@ -90,12 +90,27 @@ describe('Phase 2 Sprint 9: Branch Coverage Completion', () => {
         expect(isFastPathEligible(sig)).toBe(true);
       });
 
-      it('should return false for 3+ param signature', () => {
+      it('should return true for 3-param signature', () => {
         const sig: Signature = {
           params: [
             { types: [], name: 'a', hasAny: false, hasConversion: false, restParam: false },
             { types: [], name: 'b', hasAny: false, hasConversion: false, restParam: false },
             { types: [], name: 'c', hasAny: false, hasConversion: false, restParam: false },
+          ],
+          fn: null,
+          test: null,
+          implementation: () => 42,
+        };
+        expect(isFastPathEligible(sig)).toBe(true);
+      });
+
+      it('should return false for 4+ param signature', () => {
+        const sig: Signature = {
+          params: [
+            { types: [], name: 'a', hasAny: false, hasConversion: false, restParam: false },
+            { types: [], name: 'b', hasAny: false, hasConversion: false, restParam: false },
+            { types: [], name: 'c', hasAny: false, hasConversion: false, restParam: false },
+            { types: [], name: 'd', hasAny: false, hasConversion: false, restParam: false },
           ],
           fn: null,
           test: null,
@@ -220,7 +235,7 @@ describe('Phase 2 Sprint 9: Branch Coverage Completion', () => {
     describe('createFastPathDispatcher', () => {
       it('should create dispatcher with active slots', () => {
         const sigs: Signature[] = [];
-        for (let i = 0; i < 6; i++) {
+        for (let i = 0; i < 10; i++) {
           sigs.push({
             params: [{ types: [{ name: 'number', typeIndex: 0, test: () => true, isAny: false, conversion: null, conversionIndex: -1 }], name: 'n', hasAny: false, hasConversion: false, restParam: false }],
             fn: null,
@@ -229,12 +244,12 @@ describe('Phase 2 Sprint 9: Branch Coverage Completion', () => {
           });
         }
         const fp = createFastPathDispatcher(sigs);
-        expect(fp.slots.length).toBe(6);
+        expect(fp.slots.length).toBe(10);
         expect(fp.allActive).toBe(true);
-        expect(fp.genericStartIndex).toBe(6);
+        expect(fp.genericStartIndex).toBe(10);
       });
 
-      it('should handle less than 6 signatures', () => {
+      it('should handle less than 10 signatures', () => {
         const sigs: Signature[] = [{
           params: [],
           fn: null,
@@ -242,18 +257,19 @@ describe('Phase 2 Sprint 9: Branch Coverage Completion', () => {
           implementation: () => 42,
         }];
         const fp = createFastPathDispatcher(sigs);
-        expect(fp.slots.length).toBe(6);
+        expect(fp.slots.length).toBe(10);
         expect(fp.allActive).toBe(false);
         expect(fp.genericStartIndex).toBe(0);
       });
 
       it('should mark non-eligible signature slots as inactive', () => {
         const sigs: Signature[] = [{
-          // 3 params - not eligible
+          // 4 params - not eligible (max is 3)
           params: [
             { types: [], name: 'a', hasAny: false, hasConversion: false, restParam: false },
             { types: [], name: 'b', hasAny: false, hasConversion: false, restParam: false },
             { types: [], name: 'c', hasAny: false, hasConversion: false, restParam: false },
+            { types: [], name: 'd', hasAny: false, hasConversion: false, restParam: false },
           ],
           fn: null,
           test: null,
@@ -689,7 +705,7 @@ describe('Phase 2 Sprint 9: Branch Coverage Completion', () => {
   });
 
   describe('Integration Branch Coverage', () => {
-    it('should handle all 6 fast-path slots', () => {
+    it('should handle all 10 fast-path slots', () => {
       const fn = typed({
         'number': (n: number) => 1,
         'string': (s: string) => 2,
@@ -697,6 +713,10 @@ describe('Phase 2 Sprint 9: Branch Coverage Completion', () => {
         'Array': (a: unknown[]) => 4,
         'Date': (d: Date) => 5,
         'RegExp': (r: RegExp) => 6,
+        'Function': (f: Function) => 7,
+        'null': () => 8,
+        'undefined': () => 9,
+        'Object': (o: object) => 10,
       });
 
       expect(fn(1)).toBe(1);
@@ -705,9 +725,14 @@ describe('Phase 2 Sprint 9: Branch Coverage Completion', () => {
       expect(fn([])).toBe(4);
       expect(fn(new Date())).toBe(5);
       expect(fn(/test/)).toBe(6);
+      expect(fn(() => {})).toBe(7);
+      expect(fn(null)).toBe(8);
+      expect(fn(undefined)).toBe(9);
+      expect(fn({})).toBe(10);
     });
 
-    it('should fall back to generic path for 7+ signatures', () => {
+    it('should fall back to generic path for 11+ signatures', () => {
+      typed.addType({ name: 'custom1', test: (x) => typeof x === 'symbol' });
       const fn = typed({
         'number': (n: number) => 1,
         'string': (s: string) => 2,
@@ -715,10 +740,14 @@ describe('Phase 2 Sprint 9: Branch Coverage Completion', () => {
         'Array': (a: unknown[]) => 4,
         'Date': (d: Date) => 5,
         'RegExp': (r: RegExp) => 6,
-        'Object': (o: object) => 7,
+        'Function': (f: Function) => 7,
+        'null': () => 8,
+        'undefined': () => 9,
+        'Object': (o: object) => 10,
+        'custom1': () => 11,
       });
 
-      expect(fn({})).toBe(7);
+      expect(fn(Symbol('test'))).toBe(11);
     });
 
     it('should handle conversions in typed functions', () => {

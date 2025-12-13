@@ -20,8 +20,14 @@ import { parseSignature, expandParam, stringifyParams, splitParams } from '../co
 import { compareSignatures, conflicting } from '../core/signature-comparator.js';
 import { compileArgsPreprocessing } from '../core/signature-compiler.js';
 import { resolveReferences, validateDeprecatedThis } from '../core/reference-resolver.js';
-import { compileSignatureTests, createFastPathDispatcher, createInactiveSlot } from './fast-path.js';
+import {
+  compileSignatureTests,
+  createFastPathDispatcher,
+  createInactiveSlot,
+  FAST_PATH_SLOT_COUNT,
+} from './fast-path.js';
 import { createGenericDispatcher } from './generic-path.js';
+import { isWasmAvailable } from '../wasm/bindings.js';
 
 /**
  * Options for creating a typed function
@@ -35,6 +41,8 @@ export interface CreateTypedFunctionOptions {
   onMismatch: MismatchHandler;
   /** Whether to warn against deprecated this usage */
   warnAgainstDeprecatedThis?: boolean;
+  /** Whether to use WASM dispatch when available */
+  useWasm?: boolean;
 }
 
 /**
@@ -50,7 +58,7 @@ export function createTypedFunction(
   rawSignaturesMap: Record<string, SignatureFunction | ReferTo | ReferToSelf>,
   options: CreateTypedFunctionOptions
 ): TypedFunction {
-  const { registry, conversions, warnAgainstDeprecatedThis = true } = options;
+  const { registry, conversions, warnAgainstDeprecatedThis = true, useWasm = false } = options;
   // Create a wrapper that dynamically calls options.onMismatch
   // This allows the handler to be changed after function creation
   const onMismatch: MismatchHandler = (fnName, args, sigs) => options.onMismatch(fnName, args, sigs);
@@ -156,58 +164,97 @@ export function createTypedFunction(
   // The dispatch logic will be set up via closure after reference resolution
   let genericDispatch: ((args: IArguments, context: unknown) => unknown) | null = null;
   let fastPathReady = false;
+  let wasmDispatchEnabled = useWasm && isWasmAvailable();
 
-  // Fast-path slot variables - intentionally use `let` for closure pattern
+  // Fast-path slot variables for 10 slots with 3 params each
   // These are assigned once after theTypedFn is defined, then used via closure
   /* eslint-disable prefer-const */
   let slot0Test0: (x: unknown) => boolean;
   let slot0Test1: (x: unknown) => boolean;
+  let slot0Test2: (x: unknown) => boolean;
   let slot0Len: number;
   let slot0Fn: SignatureFunction;
   let slot1Test0: (x: unknown) => boolean;
   let slot1Test1: (x: unknown) => boolean;
+  let slot1Test2: (x: unknown) => boolean;
   let slot1Len: number;
   let slot1Fn: SignatureFunction;
   let slot2Test0: (x: unknown) => boolean;
   let slot2Test1: (x: unknown) => boolean;
+  let slot2Test2: (x: unknown) => boolean;
   let slot2Len: number;
   let slot2Fn: SignatureFunction;
   let slot3Test0: (x: unknown) => boolean;
   let slot3Test1: (x: unknown) => boolean;
+  let slot3Test2: (x: unknown) => boolean;
   let slot3Len: number;
   let slot3Fn: SignatureFunction;
   let slot4Test0: (x: unknown) => boolean;
   let slot4Test1: (x: unknown) => boolean;
+  let slot4Test2: (x: unknown) => boolean;
   let slot4Len: number;
   let slot4Fn: SignatureFunction;
   let slot5Test0: (x: unknown) => boolean;
   let slot5Test1: (x: unknown) => boolean;
+  let slot5Test2: (x: unknown) => boolean;
   let slot5Len: number;
   let slot5Fn: SignatureFunction;
+  let slot6Test0: (x: unknown) => boolean;
+  let slot6Test1: (x: unknown) => boolean;
+  let slot6Test2: (x: unknown) => boolean;
+  let slot6Len: number;
+  let slot6Fn: SignatureFunction;
+  let slot7Test0: (x: unknown) => boolean;
+  let slot7Test1: (x: unknown) => boolean;
+  let slot7Test2: (x: unknown) => boolean;
+  let slot7Len: number;
+  let slot7Fn: SignatureFunction;
+  let slot8Test0: (x: unknown) => boolean;
+  let slot8Test1: (x: unknown) => boolean;
+  let slot8Test2: (x: unknown) => boolean;
+  let slot8Len: number;
+  let slot8Fn: SignatureFunction;
+  let slot9Test0: (x: unknown) => boolean;
+  let slot9Test1: (x: unknown) => boolean;
+  let slot9Test2: (x: unknown) => boolean;
+  let slot9Len: number;
+  let slot9Fn: SignatureFunction;
   /* eslint-enable prefer-const */
 
-  function theTypedFn(this: unknown, arg0?: unknown, arg1?: unknown): unknown {
+  function theTypedFn(this: unknown, arg0?: unknown, arg1?: unknown, arg2?: unknown): unknown {
     const argc = arguments.length;
 
     if (fastPathReady) {
-      // Fast path checks for first 6 signatures
-      if (argc === slot0Len && slot0Test0(arg0) && slot0Test1(arg1)) {
+      // Fast path checks for first 10 signatures with 3-param support
+      if (argc === slot0Len && slot0Test0(arg0) && slot0Test1(arg1) && slot0Test2(arg2)) {
         return slot0Fn.apply(this, arguments as unknown as unknown[]);
       }
-      if (argc === slot1Len && slot1Test0(arg0) && slot1Test1(arg1)) {
+      if (argc === slot1Len && slot1Test0(arg0) && slot1Test1(arg1) && slot1Test2(arg2)) {
         return slot1Fn.apply(this, arguments as unknown as unknown[]);
       }
-      if (argc === slot2Len && slot2Test0(arg0) && slot2Test1(arg1)) {
+      if (argc === slot2Len && slot2Test0(arg0) && slot2Test1(arg1) && slot2Test2(arg2)) {
         return slot2Fn.apply(this, arguments as unknown as unknown[]);
       }
-      if (argc === slot3Len && slot3Test0(arg0) && slot3Test1(arg1)) {
+      if (argc === slot3Len && slot3Test0(arg0) && slot3Test1(arg1) && slot3Test2(arg2)) {
         return slot3Fn.apply(this, arguments as unknown as unknown[]);
       }
-      if (argc === slot4Len && slot4Test0(arg0) && slot4Test1(arg1)) {
+      if (argc === slot4Len && slot4Test0(arg0) && slot4Test1(arg1) && slot4Test2(arg2)) {
         return slot4Fn.apply(this, arguments as unknown as unknown[]);
       }
-      if (argc === slot5Len && slot5Test0(arg0) && slot5Test1(arg1)) {
+      if (argc === slot5Len && slot5Test0(arg0) && slot5Test1(arg1) && slot5Test2(arg2)) {
         return slot5Fn.apply(this, arguments as unknown as unknown[]);
+      }
+      if (argc === slot6Len && slot6Test0(arg0) && slot6Test1(arg1) && slot6Test2(arg2)) {
+        return slot6Fn.apply(this, arguments as unknown as unknown[]);
+      }
+      if (argc === slot7Len && slot7Test0(arg0) && slot7Test1(arg1) && slot7Test2(arg2)) {
+        return slot7Fn.apply(this, arguments as unknown as unknown[]);
+      }
+      if (argc === slot8Len && slot8Test0(arg0) && slot8Test1(arg1) && slot8Test2(arg2)) {
+        return slot8Fn.apply(this, arguments as unknown as unknown[]);
+      }
+      if (argc === slot9Len && slot9Test0(arg0) && slot9Test1(arg1) && slot9Test2(arg2)) {
+        return slot9Fn.apply(this, arguments as unknown as unknown[]);
       }
     }
 
@@ -274,7 +321,7 @@ export function createTypedFunction(
   // Now set up the fast-path dispatch slots
   const fpData = createFastPathDispatcher(signatures);
 
-  // Initialize slot variables from fast-path data
+  // Initialize slot variables from fast-path data (10 slots)
   const inactiveSlot = createInactiveSlot();
 
   const s0 = fpData.slots[0] || inactiveSlot;
@@ -283,13 +330,21 @@ export function createTypedFunction(
   const s3 = fpData.slots[3] || inactiveSlot;
   const s4 = fpData.slots[4] || inactiveSlot;
   const s5 = fpData.slots[5] || inactiveSlot;
+  const s6 = fpData.slots[6] || inactiveSlot;
+  const s7 = fpData.slots[7] || inactiveSlot;
+  const s8 = fpData.slots[8] || inactiveSlot;
+  const s9 = fpData.slots[9] || inactiveSlot;
 
-  slot0Test0 = s0.test0; slot0Test1 = s0.test1; slot0Len = s0.length; slot0Fn = s0.fn;
-  slot1Test0 = s1.test0; slot1Test1 = s1.test1; slot1Len = s1.length; slot1Fn = s1.fn;
-  slot2Test0 = s2.test0; slot2Test1 = s2.test1; slot2Len = s2.length; slot2Fn = s2.fn;
-  slot3Test0 = s3.test0; slot3Test1 = s3.test1; slot3Len = s3.length; slot3Fn = s3.fn;
-  slot4Test0 = s4.test0; slot4Test1 = s4.test1; slot4Len = s4.length; slot4Fn = s4.fn;
-  slot5Test0 = s5.test0; slot5Test1 = s5.test1; slot5Len = s5.length; slot5Fn = s5.fn;
+  slot0Test0 = s0.test0; slot0Test1 = s0.test1; slot0Test2 = s0.test2; slot0Len = s0.length; slot0Fn = s0.fn;
+  slot1Test0 = s1.test0; slot1Test1 = s1.test1; slot1Test2 = s1.test2; slot1Len = s1.length; slot1Fn = s1.fn;
+  slot2Test0 = s2.test0; slot2Test1 = s2.test1; slot2Test2 = s2.test2; slot2Len = s2.length; slot2Fn = s2.fn;
+  slot3Test0 = s3.test0; slot3Test1 = s3.test1; slot3Test2 = s3.test2; slot3Len = s3.length; slot3Fn = s3.fn;
+  slot4Test0 = s4.test0; slot4Test1 = s4.test1; slot4Test2 = s4.test2; slot4Len = s4.length; slot4Fn = s4.fn;
+  slot5Test0 = s5.test0; slot5Test1 = s5.test1; slot5Test2 = s5.test2; slot5Len = s5.length; slot5Fn = s5.fn;
+  slot6Test0 = s6.test0; slot6Test1 = s6.test1; slot6Test2 = s6.test2; slot6Len = s6.length; slot6Fn = s6.fn;
+  slot7Test0 = s7.test0; slot7Test1 = s7.test1; slot7Test2 = s7.test2; slot7Len = s7.length; slot7Fn = s7.fn;
+  slot8Test0 = s8.test0; slot8Test1 = s8.test1; slot8Test2 = s8.test2; slot8Len = s8.length; slot8Fn = s8.fn;
+  slot9Test0 = s9.test0; slot9Test1 = s9.test1; slot9Test2 = s9.test2; slot9Len = s9.length; slot9Fn = s9.fn;
 
   // Create generic dispatcher
   genericDispatch = createGenericDispatcher(
@@ -301,6 +356,15 @@ export function createTypedFunction(
 
   // Enable fast path
   fastPathReady = true;
+
+  // Store WASM dispatch state on the function for potential future use
+  if (wasmDispatchEnabled) {
+    (typedFn as TypedFunction & { _wasmEnabled?: boolean })._wasmEnabled = true;
+  }
+
+  // Suppress unused variable warning - wasmDispatchEnabled is for future WASM routing
+  void wasmDispatchEnabled;
+  void FAST_PATH_SLOT_COUNT;
 
   return typedFn;
 }

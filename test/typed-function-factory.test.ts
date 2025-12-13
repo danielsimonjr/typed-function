@@ -135,8 +135,13 @@ describe('Fast Path Dispatcher', () => {
       expect(isFastPathEligible(sig)).toBe(true);
     });
 
-    it('should return false for 3+ params', () => {
+    it('should return true for 3 params', () => {
       const sig = createMockSignature([['number'], ['string'], ['boolean']]);
+      expect(isFastPathEligible(sig)).toBe(true);
+    });
+
+    it('should return false for 4+ params', () => {
+      const sig = createMockSignature([['number'], ['string'], ['boolean'], ['Array']]);
       expect(isFastPathEligible(sig)).toBe(false);
     });
   });
@@ -144,7 +149,7 @@ describe('Fast Path Dispatcher', () => {
   describe('createFastPathDispatcher()', () => {
     it('should create dispatcher for empty signatures', () => {
       const fp = createFastPathDispatcher([]);
-      expect(fp.slots.length).toBe(6);
+      expect(fp.slots.length).toBe(10);
       expect(fp.allActive).toBe(false);
     });
 

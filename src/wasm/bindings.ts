@@ -6,6 +6,7 @@
  */
 
 import type { SignatureFunction } from '../core/types.js';
+import { WasmNotAvailableError, WasmInitializationError } from '../core/errors.js';
 
 /**
  * WASM module exports interface
@@ -149,7 +150,7 @@ export function isWasmAvailable(): boolean {
  */
 export function getWasmExports(): WasmExports {
   if (!wasmState.exports) {
-    throw new Error('WASM not initialized');
+    throw new WasmNotAvailableError('WASM module not initialized. Call loadWasm() first.');
   }
   return wasmState.exports;
 }
@@ -182,7 +183,7 @@ export function wasmAddSignature(fn: SignatureFunction, paramMasks: number[]): n
   // Add signature to WASM
   const sigIndex = exports.addSignature(fnIndex, paramMasks.length);
   if (sigIndex === NO_MATCH) {
-    throw new Error('Failed to add signature to WASM');
+    throw new WasmInitializationError('Failed to add signature to WASM dispatch table');
   }
 
   // Set parameter masks
