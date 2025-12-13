@@ -462,3 +462,69 @@ describe('Performance: Memory and Scaling', () => {
     expect(time).toBeLessThan(200);
   });
 });
+
+describe('Performance: WASM Dispatch', () => {
+  it('should add signatures to WASM fallback efficiently', () => {
+    const iterations = 1000;
+
+    const time = measureTime(() => {
+      fallbackClear();
+      for (let i = 0; i < 10; i++) {
+        fallbackAddSignature(() => i, [getTypeMaskForName('number')]);
+      }
+    }, iterations / 10);
+
+    // Should add 1000 signatures in under 500ms
+    expect(time).toBeLessThan(500);
+  });
+
+  it('should dispatch via fallback efficiently', () => {
+    fallbackClear();
+    fallbackAddSignature(() => 'num', [getTypeMaskForName('number')]);
+    fallbackAddSignature(() => 'str', [getTypeMaskForName('string')]);
+    fallbackAddSignature(() => 'bool', [getTypeMaskForName('boolean')]);
+
+    const numMask = getTypeMaskForValue(42);
+    const strMask = getTypeMaskForValue('hello');
+    const boolMask = getTypeMaskForValue(true);
+
+    const iterations = 10000;
+
+    const time = measureTime(() => {
+      fallbackDispatchFind([numMask]);
+      fallbackDispatchFind([strMask]);
+      fallbackDispatchFind([boolMask]);
+    }, iterations / 3);
+
+    // Should dispatch 10k finds in under 500ms
+    expect(time).toBeLessThan(500);
+  });
+
+  it('should compute type masks efficiently', () => {
+    const testValues = [42, 'hello', true, null, undefined, [], {}, new Date()];
+    const iterations = 20000;
+
+    const time = measureTime(() => {
+      for (const val of testValues) {
+        getTypeMaskForValue(val);
+      }
+    }, iterations / testValues.length);
+
+    // Should compute 20k masks in under 300ms
+    expect(time).toBeLessThan(300);
+  });
+
+  it('should look up type masks by name efficiently', () => {
+    const typeNames = ['number', 'string', 'boolean', 'Array', 'Object', 'Date', 'null', 'undefined'];
+    const iterations = 20000;
+
+    const time = measureTime(() => {
+      for (const name of typeNames) {
+        getTypeMaskForName(name);
+      }
+    }, iterations / typeNames.length);
+
+    // Should look up 20k names in under 300ms
+    expect(time).toBeLessThan(300);
+  });
+});

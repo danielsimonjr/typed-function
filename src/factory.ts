@@ -93,6 +93,24 @@ function extractSignaturesWithReferences(
  * creating an isolated "typed universe".
  *
  * @returns A new typed-function instance
+ *
+ * @example
+ * ```ts
+ * import typed from 'typed-function';
+ *
+ * // Create an isolated instance with its own type registry
+ * const typed2 = typed.create();
+ *
+ * // Add a custom type only to this instance
+ * typed2.addType({
+ *   name: 'positive',
+ *   test: (x) => typeof x === 'number' && x > 0,
+ * });
+ *
+ * const fn = typed2({ positive: (x) => x * 2 });
+ * fn(5);  // 10
+ * fn(-1); // Error: no matching signature
+ * ```
  */
 export function create(): TypedInstance {
   // Create type registry (already has 'any' and builtin types from createTypeRegistry)
@@ -113,6 +131,17 @@ export function create(): TypedInstance {
 
   /**
    * Find a specific signature from a typed function
+   *
+   * @example
+   * ```ts
+   * const fn = typed({
+   *   'number, number': (a, b) => a + b,
+   *   'string, string': (a, b) => a + b,
+   * });
+   *
+   * const sig = typed.findSignature(fn, 'number, number');
+   * console.log(sig.params.length); // 2
+   * ```
    */
   function findSignature(
     fn: TypedFunction,
@@ -198,6 +227,18 @@ export function create(): TypedInstance {
 
   /**
    * Find the implementation for a specific signature
+   *
+   * @example
+   * ```ts
+   * const fn = typed({
+   *   'number, number': (a, b) => a + b,
+   *   'string, string': (a, b) => a + b,
+   * });
+   *
+   * // Get the implementation function directly
+   * const addNumbers = typed.find(fn, 'number, number');
+   * addNumbers(1, 2); // 3 (bypasses dispatch)
+   * ```
    */
   function find(
     fn: TypedFunction,
@@ -213,6 +254,17 @@ export function create(): TypedInstance {
 
   /**
    * Convert a value to a specific type
+   *
+   * @example
+   * ```ts
+   * typed.addConversion({
+   *   from: 'string',
+   *   to: 'number',
+   *   convert: (s) => parseFloat(s),
+   * });
+   *
+   * typed.convert('3.14', 'number'); // 3.14
+   * ```
    */
   function convert(value: unknown, typeName: string): unknown {
     return conversions.convert(value, typeName);
@@ -220,6 +272,17 @@ export function create(): TypedInstance {
 
   /**
    * Resolve the matching signature for given arguments
+   *
+   * @example
+   * ```ts
+   * const fn = typed({
+   *   number: (x) => x * 2,
+   *   string: (s) => s.toUpperCase(),
+   * });
+   *
+   * const sig = typed.resolve(fn, [42]);
+   * console.log(sig?.params[0]?.name); // 'number'
+   * ```
    */
   function resolve(fn: TypedFunction, argList: unknown[]): Signature | null {
     if (!isTypedFunction(fn)) {
@@ -238,7 +301,24 @@ export function create(): TypedInstance {
   }
 
   /**
-   * Create a referTo reference
+   * Create a referTo reference to directly call another signature
+   *
+   * @example
+   * ```ts
+   * const fn = typed({
+   *   'number, number': (a, b) => a + b,
+   *   // referTo lets you call another signature directly
+   *   string: typed.referTo('number, number', (add) => {
+   *     return (s) => {
+   *       const nums = s.split(',').map(Number);
+   *       return add(nums[0], nums[1]);
+   *     };
+   *   }),
+   * });
+   *
+   * fn(1, 2);     // 3
+   * fn('3,4');    // 7 (calls number,number signature)
+   * ```
    */
   function referTo(...args: [...string[], (...fns: SignatureFunction[]) => SignatureFunction]): ReferTo {
     const callback = last(args as unknown[]) as (...fns: SignatureFunction[]) => SignatureFunction;
@@ -259,7 +339,21 @@ export function create(): TypedInstance {
   }
 
   /**
-   * Create a referToSelf reference
+   * Create a referToSelf reference for recursive typed function calls
+   *
+   * @example
+   * ```ts
+   * const factorial = typed({
+   *   number: typed.referToSelf((self) => {
+   *     return (n) => {
+   *       if (n <= 1) return 1;
+   *       return n * self(n - 1); // recursive call through dispatch
+   *     };
+   *   }),
+   * });
+   *
+   * factorial(5); // 120
+   * ```
    */
   function referToSelf(callback: (self: TypedFunction) => SignatureFunction): ReferToSelf {
     if (typeof callback !== 'function') {
@@ -271,6 +365,33 @@ export function create(): TypedInstance {
 
   /**
    * The main typed function creator
+   *
+   * @example
+   * ```ts
+   * // Basic usage with signature object
+   * const add = typed({
+   *   'number, number': (a, b) => a + b,
+   *   'string, string': (a, b) => a + b,
+   * });
+   *
+   * // Named typed function
+   * const multiply = typed('multiply', {
+   *   'number, number': (a, b) => a * b,
+   * });
+   *
+   * // Merge multiple typed functions
+   * const math = typed(add, multiply);
+   *
+   * // Union types
+   * const stringify = typed({
+   *   'number | boolean': (x) => String(x),
+   * });
+   *
+   * // Rest parameters
+   * const sum = typed({
+   *   '...number': (nums) => nums.reduce((a, b) => a + b, 0),
+   * });
+   * ```
    */
   function typed(maybeName: string | Record<string, SignatureFunction>, ...items: Array<Record<string, SignatureFunction> | TypedFunction | (SignatureFunction & { signature?: string })>): TypedFunction {
     const named = typeof maybeName === 'string';

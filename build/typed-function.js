@@ -2172,9 +2172,13 @@
     /**
      * Fast-Path Dispatcher for typed-function
      *
-     * Implements optimized dispatch for up to 6 signatures with max 2 arguments.
+     * Implements optimized dispatch for up to 10 signatures with max 3 arguments.
      * Falls back to generic dispatcher for more complex cases.
      */
+    /** Maximum number of fast-path signature slots */
+    const FAST_PATH_SLOT_COUNT = 10;
+    /** Maximum number of parameters supported in fast-path */
+    const FAST_PATH_MAX_PARAMS = 3;
     /**
      * Helper that always returns true (for empty/any param)
      */
@@ -2195,10 +2199,10 @@
     }
     /**
      * Check if a signature is eligible for fast-path dispatch
-     * (max 2 parameters, no rest param)
+     * (max 3 parameters, no rest param)
      */
     function isFastPathEligible(signature) {
-        return signature.params.length <= 2 && !hasRestParam(signature.params);
+        return signature.params.length <= FAST_PATH_MAX_PARAMS && !hasRestParam(signature.params);
     }
     /**
      * Create a simple test function for a parameter (without registry)
@@ -2227,17 +2231,21 @@
         const params = signature.params;
         let test0;
         let test1;
+        let test2;
         if (registry) {
             test0 = params[0] ? compileTest(params[0], registry) : ok;
             test1 = params[1] ? compileTest(params[1], registry) : ok;
+            test2 = params[2] ? compileTest(params[2], registry) : ok;
         }
         else {
             test0 = params[0] ? createSimpleTest(params[0]) : ok;
             test1 = params[1] ? createSimpleTest(params[1]) : ok;
+            test2 = params[2] ? createSimpleTest(params[2]) : ok;
         }
         return {
             test0,
             test1,
+            test2,
             length: params.length,
             fn: signature.implementation,
             active: true,
@@ -2250,6 +2258,7 @@
         return {
             test0: notOk,
             test1: notOk,
+            test2: notOk,
             length: -1,
             fn: undef,
             active: false,
@@ -2264,8 +2273,8 @@
     function createFastPathDispatcher(signatures) {
         const slots = [];
         let allActive = true;
-        // Create slots for first 6 signatures
-        for (let i = 0; i < 6; i++) {
+        // Create slots for first 10 signatures
+        for (let i = 0; i < FAST_PATH_SLOT_COUNT; i++) {
             const sig = signatures[i];
             if (sig && isFastPathEligible(sig) && sig.implementation) {
                 slots.push(createFastPathSlot(sig));
@@ -2278,13 +2287,13 @@
         return {
             slots,
             allActive,
-            genericStartIndex: allActive ? 6 : 0,
+            genericStartIndex: allActive ? FAST_PATH_SLOT_COUNT : 0,
         };
     }
     /**
      * Create the fast-path dispatch function
      *
-     * This returns a function that tries fast-path dispatch for the first 6 signatures,
+     * This returns a function that tries fast-path dispatch for the first 10 signatures,
      * then falls back to the generic dispatcher.
      *
      * @param name - Function name for error messages
@@ -2297,58 +2306,103 @@
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _onMismatch) {
         const fp = createFastPathDispatcher(signatures);
-        // Extract slot data for closure optimization
+        // Extract slot data for closure optimization - 10 slots
         const slot0 = fp.slots[0] || createInactiveSlot();
         const slot1 = fp.slots[1] || createInactiveSlot();
         const slot2 = fp.slots[2] || createInactiveSlot();
         const slot3 = fp.slots[3] || createInactiveSlot();
         const slot4 = fp.slots[4] || createInactiveSlot();
         const slot5 = fp.slots[5] || createInactiveSlot();
+        const slot6 = fp.slots[6] || createInactiveSlot();
+        const slot7 = fp.slots[7] || createInactiveSlot();
+        const slot8 = fp.slots[8] || createInactiveSlot();
+        const slot9 = fp.slots[9] || createInactiveSlot();
+        // Test functions for each slot (3 params each)
         const test00 = slot0.test0;
         const test01 = slot0.test1;
+        const test02 = slot0.test2;
         const test10 = slot1.test0;
         const test11 = slot1.test1;
+        const test12 = slot1.test2;
         const test20 = slot2.test0;
         const test21 = slot2.test1;
+        const test22 = slot2.test2;
         const test30 = slot3.test0;
         const test31 = slot3.test1;
+        const test32 = slot3.test2;
         const test40 = slot4.test0;
         const test41 = slot4.test1;
+        const test42 = slot4.test2;
         const test50 = slot5.test0;
         const test51 = slot5.test1;
+        const test52 = slot5.test2;
+        const test60 = slot6.test0;
+        const test61 = slot6.test1;
+        const test62 = slot6.test2;
+        const test70 = slot7.test0;
+        const test71 = slot7.test1;
+        const test72 = slot7.test2;
+        const test80 = slot8.test0;
+        const test81 = slot8.test1;
+        const test82 = slot8.test2;
+        const test90 = slot9.test0;
+        const test91 = slot9.test1;
+        const test92 = slot9.test2;
+        // Implementation functions
         const fn0 = slot0.fn;
         const fn1 = slot1.fn;
         const fn2 = slot2.fn;
         const fn3 = slot3.fn;
         const fn4 = slot4.fn;
         const fn5 = slot5.fn;
+        const fn6 = slot6.fn;
+        const fn7 = slot7.fn;
+        const fn8 = slot8.fn;
+        const fn9 = slot9.fn;
+        // Expected argument lengths
         const len0 = slot0.length;
         const len1 = slot1.length;
         const len2 = slot2.length;
         const len3 = slot3.length;
         const len4 = slot4.length;
         const len5 = slot5.length;
+        const len6 = slot6.length;
+        const len7 = slot7.length;
+        const len8 = slot8.length;
+        const len9 = slot9.length;
         // Create the typed function with fast-path dispatch
-        function theTypedFn(arg0, arg1) {
+        function theTypedFn(arg0, arg1, arg2) {
             const argc = arguments.length;
-            // Fast path checks for first 6 signatures
-            if (argc === len0 && test00(arg0) && test01(arg1)) {
+            // Fast path checks for first 10 signatures (with 3-param support)
+            if (argc === len0 && test00(arg0) && test01(arg1) && test02(arg2)) {
                 return fn0.apply(this, arguments);
             }
-            if (argc === len1 && test10(arg0) && test11(arg1)) {
+            if (argc === len1 && test10(arg0) && test11(arg1) && test12(arg2)) {
                 return fn1.apply(this, arguments);
             }
-            if (argc === len2 && test20(arg0) && test21(arg1)) {
+            if (argc === len2 && test20(arg0) && test21(arg1) && test22(arg2)) {
                 return fn2.apply(this, arguments);
             }
-            if (argc === len3 && test30(arg0) && test31(arg1)) {
+            if (argc === len3 && test30(arg0) && test31(arg1) && test32(arg2)) {
                 return fn3.apply(this, arguments);
             }
-            if (argc === len4 && test40(arg0) && test41(arg1)) {
+            if (argc === len4 && test40(arg0) && test41(arg1) && test42(arg2)) {
                 return fn4.apply(this, arguments);
             }
-            if (argc === len5 && test50(arg0) && test51(arg1)) {
+            if (argc === len5 && test50(arg0) && test51(arg1) && test52(arg2)) {
                 return fn5.apply(this, arguments);
+            }
+            if (argc === len6 && test60(arg0) && test61(arg1) && test62(arg2)) {
+                return fn6.apply(this, arguments);
+            }
+            if (argc === len7 && test70(arg0) && test71(arg1) && test72(arg2)) {
+                return fn7.apply(this, arguments);
+            }
+            if (argc === len8 && test80(arg0) && test81(arg1) && test82(arg2)) {
+                return fn8.apply(this, arguments);
+            }
+            if (argc === len9 && test90(arg0) && test91(arg1) && test92(arg2)) {
+                return fn9.apply(this, arguments);
             }
             // Fall back to generic dispatch
             return genericDispatch(arguments, this);
@@ -2468,6 +2522,49 @@
     }
 
     /**
+     * JS-WASM Bridge for typed-function dispatch
+     *
+     * TypeScript bindings for the WASM dispatch module.
+     * Provides type-safe access to WASM functions.
+     */
+    /** Global WASM dispatch state */
+    const wasmState = {
+        initialized: false,
+        exports: null,
+        functionTable: [],
+        initError: null,
+    };
+    /**
+     * Initialize WASM module with given exports
+     *
+     * @param exports - WASM module exports
+     */
+    function initWasm(exports$1) {
+        wasmState.exports = exports$1;
+        wasmState.functionTable = [];
+        wasmState.initError = null;
+        wasmState.initialized = true;
+        // Initialize built-in types
+        exports$1.initBuiltinTypes();
+    }
+    /**
+     * Check if WASM is available and initialized
+     */
+    function isWasmAvailable() {
+        return wasmState.initialized && wasmState.exports !== null;
+    }
+    /**
+     * Reset WASM state (for testing)
+     */
+    function resetWasm() {
+        if (wasmState.exports) {
+            wasmState.exports.clearMemory();
+            wasmState.exports.clearCache();
+        }
+        wasmState.functionTable = [];
+    }
+
+    /**
      * Main Typed Function Builder for typed-function
      *
      * Creates typed functions with signature parsing, conflict detection,
@@ -2482,7 +2579,7 @@
      * @returns The created typed function
      */
     function createTypedFunction(name, rawSignaturesMap, options) {
-        const { registry, conversions, warnAgainstDeprecatedThis = true } = options;
+        const { registry, conversions, warnAgainstDeprecatedThis = true, useWasm = false } = options;
         // Create a wrapper that dynamically calls options.onMismatch
         // This allows the handler to be changed after function creation
         const onMismatch = (fnName, args, sigs) => options.onMismatch(fnName, args, sigs);
@@ -2565,55 +2662,94 @@
         // The dispatch logic will be set up via closure after reference resolution
         let genericDispatch = null;
         let fastPathReady = false;
-        // Fast-path slot variables - intentionally use `let` for closure pattern
+        let wasmDispatchEnabled = useWasm && isWasmAvailable();
+        // Fast-path slot variables for 10 slots with 3 params each
         // These are assigned once after theTypedFn is defined, then used via closure
         /* eslint-disable prefer-const */
         let slot0Test0;
         let slot0Test1;
+        let slot0Test2;
         let slot0Len;
         let slot0Fn;
         let slot1Test0;
         let slot1Test1;
+        let slot1Test2;
         let slot1Len;
         let slot1Fn;
         let slot2Test0;
         let slot2Test1;
+        let slot2Test2;
         let slot2Len;
         let slot2Fn;
         let slot3Test0;
         let slot3Test1;
+        let slot3Test2;
         let slot3Len;
         let slot3Fn;
         let slot4Test0;
         let slot4Test1;
+        let slot4Test2;
         let slot4Len;
         let slot4Fn;
         let slot5Test0;
         let slot5Test1;
+        let slot5Test2;
         let slot5Len;
         let slot5Fn;
+        let slot6Test0;
+        let slot6Test1;
+        let slot6Test2;
+        let slot6Len;
+        let slot6Fn;
+        let slot7Test0;
+        let slot7Test1;
+        let slot7Test2;
+        let slot7Len;
+        let slot7Fn;
+        let slot8Test0;
+        let slot8Test1;
+        let slot8Test2;
+        let slot8Len;
+        let slot8Fn;
+        let slot9Test0;
+        let slot9Test1;
+        let slot9Test2;
+        let slot9Len;
+        let slot9Fn;
         /* eslint-enable prefer-const */
-        function theTypedFn(arg0, arg1) {
+        function theTypedFn(arg0, arg1, arg2) {
             const argc = arguments.length;
             if (fastPathReady) {
-                // Fast path checks for first 6 signatures
-                if (argc === slot0Len && slot0Test0(arg0) && slot0Test1(arg1)) {
+                // Fast path checks for first 10 signatures with 3-param support
+                if (argc === slot0Len && slot0Test0(arg0) && slot0Test1(arg1) && slot0Test2(arg2)) {
                     return slot0Fn.apply(this, arguments);
                 }
-                if (argc === slot1Len && slot1Test0(arg0) && slot1Test1(arg1)) {
+                if (argc === slot1Len && slot1Test0(arg0) && slot1Test1(arg1) && slot1Test2(arg2)) {
                     return slot1Fn.apply(this, arguments);
                 }
-                if (argc === slot2Len && slot2Test0(arg0) && slot2Test1(arg1)) {
+                if (argc === slot2Len && slot2Test0(arg0) && slot2Test1(arg1) && slot2Test2(arg2)) {
                     return slot2Fn.apply(this, arguments);
                 }
-                if (argc === slot3Len && slot3Test0(arg0) && slot3Test1(arg1)) {
+                if (argc === slot3Len && slot3Test0(arg0) && slot3Test1(arg1) && slot3Test2(arg2)) {
                     return slot3Fn.apply(this, arguments);
                 }
-                if (argc === slot4Len && slot4Test0(arg0) && slot4Test1(arg1)) {
+                if (argc === slot4Len && slot4Test0(arg0) && slot4Test1(arg1) && slot4Test2(arg2)) {
                     return slot4Fn.apply(this, arguments);
                 }
-                if (argc === slot5Len && slot5Test0(arg0) && slot5Test1(arg1)) {
+                if (argc === slot5Len && slot5Test0(arg0) && slot5Test1(arg1) && slot5Test2(arg2)) {
                     return slot5Fn.apply(this, arguments);
+                }
+                if (argc === slot6Len && slot6Test0(arg0) && slot6Test1(arg1) && slot6Test2(arg2)) {
+                    return slot6Fn.apply(this, arguments);
+                }
+                if (argc === slot7Len && slot7Test0(arg0) && slot7Test1(arg1) && slot7Test2(arg2)) {
+                    return slot7Fn.apply(this, arguments);
+                }
+                if (argc === slot8Len && slot8Test0(arg0) && slot8Test1(arg1) && slot8Test2(arg2)) {
+                    return slot8Fn.apply(this, arguments);
+                }
+                if (argc === slot9Len && slot9Test0(arg0) && slot9Test1(arg1) && slot9Test2(arg2)) {
+                    return slot9Fn.apply(this, arguments);
                 }
             }
             // Fall back to generic dispatch
@@ -2668,7 +2804,7 @@
         }
         // Now set up the fast-path dispatch slots
         const fpData = createFastPathDispatcher(signatures);
-        // Initialize slot variables from fast-path data
+        // Initialize slot variables from fast-path data (10 slots)
         const inactiveSlot = createInactiveSlot();
         const s0 = fpData.slots[0] || inactiveSlot;
         const s1 = fpData.slots[1] || inactiveSlot;
@@ -2676,34 +2812,68 @@
         const s3 = fpData.slots[3] || inactiveSlot;
         const s4 = fpData.slots[4] || inactiveSlot;
         const s5 = fpData.slots[5] || inactiveSlot;
+        const s6 = fpData.slots[6] || inactiveSlot;
+        const s7 = fpData.slots[7] || inactiveSlot;
+        const s8 = fpData.slots[8] || inactiveSlot;
+        const s9 = fpData.slots[9] || inactiveSlot;
         slot0Test0 = s0.test0;
         slot0Test1 = s0.test1;
+        slot0Test2 = s0.test2;
         slot0Len = s0.length;
         slot0Fn = s0.fn;
         slot1Test0 = s1.test0;
         slot1Test1 = s1.test1;
+        slot1Test2 = s1.test2;
         slot1Len = s1.length;
         slot1Fn = s1.fn;
         slot2Test0 = s2.test0;
         slot2Test1 = s2.test1;
+        slot2Test2 = s2.test2;
         slot2Len = s2.length;
         slot2Fn = s2.fn;
         slot3Test0 = s3.test0;
         slot3Test1 = s3.test1;
+        slot3Test2 = s3.test2;
         slot3Len = s3.length;
         slot3Fn = s3.fn;
         slot4Test0 = s4.test0;
         slot4Test1 = s4.test1;
+        slot4Test2 = s4.test2;
         slot4Len = s4.length;
         slot4Fn = s4.fn;
         slot5Test0 = s5.test0;
         slot5Test1 = s5.test1;
+        slot5Test2 = s5.test2;
         slot5Len = s5.length;
         slot5Fn = s5.fn;
+        slot6Test0 = s6.test0;
+        slot6Test1 = s6.test1;
+        slot6Test2 = s6.test2;
+        slot6Len = s6.length;
+        slot6Fn = s6.fn;
+        slot7Test0 = s7.test0;
+        slot7Test1 = s7.test1;
+        slot7Test2 = s7.test2;
+        slot7Len = s7.length;
+        slot7Fn = s7.fn;
+        slot8Test0 = s8.test0;
+        slot8Test1 = s8.test1;
+        slot8Test2 = s8.test2;
+        slot8Len = s8.length;
+        slot8Fn = s8.fn;
+        slot9Test0 = s9.test0;
+        slot9Test1 = s9.test1;
+        slot9Test2 = s9.test2;
+        slot9Len = s9.length;
+        slot9Fn = s9.fn;
         // Create generic dispatcher
         genericDispatch = createGenericDispatcher(name, signatures, fpData.genericStartIndex, onMismatch);
         // Enable fast path
         fastPathReady = true;
+        // Store WASM dispatch state on the function for potential future use
+        if (wasmDispatchEnabled) {
+            typedFn._wasmEnabled = true;
+        }
         return typedFn;
     }
     /**
@@ -2895,49 +3065,6 @@
     }
 
     /**
-     * JS-WASM Bridge for typed-function dispatch
-     *
-     * TypeScript bindings for the WASM dispatch module.
-     * Provides type-safe access to WASM functions.
-     */
-    /** Global WASM dispatch state */
-    const wasmState = {
-        initialized: false,
-        exports: null,
-        functionTable: [],
-        initError: null,
-    };
-    /**
-     * Initialize WASM module with given exports
-     *
-     * @param exports - WASM module exports
-     */
-    function initWasm(exports$1) {
-        wasmState.exports = exports$1;
-        wasmState.functionTable = [];
-        wasmState.initError = null;
-        wasmState.initialized = true;
-        // Initialize built-in types
-        exports$1.initBuiltinTypes();
-    }
-    /**
-     * Check if WASM is available and initialized
-     */
-    function isWasmAvailable() {
-        return wasmState.initialized && wasmState.exports !== null;
-    }
-    /**
-     * Reset WASM state (for testing)
-     */
-    function resetWasm() {
-        if (wasmState.exports) {
-            wasmState.exports.clearMemory();
-            wasmState.exports.clearCache();
-        }
-        wasmState.functionTable = [];
-    }
-
-    /**
      * WASM Loader for typed-function dispatch
      *
      * Handles sync/async loading of WASM module with graceful fallback.
@@ -2971,19 +3098,19 @@
             const path = wasmPath || getDefaultWasmPath();
             // Check for WebAssembly support
             if (typeof WebAssembly === 'undefined') {
-                throw new Error('WebAssembly not supported');
+                throw new WasmNotAvailableError('WebAssembly not supported in this environment');
             }
             // Fetch and instantiate
             const response = await fetch(path);
             if (!response.ok) {
-                throw new Error(`Failed to fetch WASM: ${response.status}`);
+                throw new WasmInitializationError(`Failed to fetch WASM: HTTP ${response.status}`);
             }
             const wasmBuffer = await response.arrayBuffer();
             const wasmModule = await WebAssembly.compile(wasmBuffer);
             const instance = await WebAssembly.instantiate(wasmModule, {
                 env: {
                     abort: () => {
-                        throw new Error('WASM abort');
+                        throw new WasmInitializationError('WASM abort called');
                     },
                 },
             });
@@ -2992,6 +3119,10 @@
             return true;
         }
         catch (error) {
+            if (error instanceof WasmNotAvailableError || error instanceof WasmInitializationError) ;
+            else {
+                new WasmInitializationError(error instanceof Error ? error.message : String(error), error instanceof Error ? error : undefined);
+            }
             return false;
         }
     }

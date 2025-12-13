@@ -19,6 +19,8 @@ export interface CreateTypedFunctionOptions {
     onMismatch: MismatchHandler;
     /** Whether to warn against deprecated this usage */
     warnAgainstDeprecatedThis?: boolean;
+    /** Whether to use WASM dispatch when available */
+    useWasm?: boolean;
 }
 /**
  * Create a typed function from a signature map

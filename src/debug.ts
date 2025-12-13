@@ -338,3 +338,169 @@ export function enableDebug(level: DebugLevel = 'info'): void {
 export function disableDebug(): void {
   configureDebug({ enabled: false });
 }
+
+// =============================================================================
+// EventEmitter-style API
+// =============================================================================
+
+/**
+ * Map of event type to handlers for that type
+ */
+const typeHandlers: Map<DebugEventType, Set<DebugHandler>> = new Map();
+
+/**
+ * Subscribe to a specific event type
+ *
+ * @param eventType - The event type to subscribe to
+ * @param handler - The handler function
+ * @returns A function to unsubscribe
+ *
+ * @example
+ * ```ts
+ * import { on } from 'typed-function/debug';
+ *
+ * // Subscribe to dispatch matches
+ * const off = on('dispatch:match', (event) => {
+ *   console.log(`Matched: ${event.data?.signature}`);
+ * });
+ *
+ * // Later, unsubscribe
+ * off();
+ * ```
+ */
+export function on(eventType: DebugEventType, handler: DebugHandler): () => void {
+  if (!typeHandlers.has(eventType)) {
+    typeHandlers.set(eventType, new Set());
+  }
+  typeHandlers.get(eventType)!.add(handler);
+
+  // Also add to global handlers so emitDebugEvent triggers it
+  const wrappedHandler: DebugHandler = (event) => {
+    if (event.type === eventType) {
+      handler(event);
+    }
+  };
+  handlers.add(wrappedHandler);
+
+  return () => {
+    typeHandlers.get(eventType)?.delete(handler);
+    handlers.delete(wrappedHandler);
+  };
+}
+
+/**
+ * Subscribe to an event type for a single occurrence
+ *
+ * @param eventType - The event type to subscribe to
+ * @param handler - The handler function
+ * @returns A function to unsubscribe early
+ *
+ * @example
+ * ```ts
+ * import { once } from 'typed-function/debug';
+ *
+ * // Subscribe to next function creation only
+ * once('function:create', (event) => {
+ *   console.log(`Created: ${event.fnName}`);
+ * });
+ * ```
+ */
+export function once(eventType: DebugEventType, handler: DebugHandler): () => void {
+  const off = on(eventType, (event) => {
+    off();
+    handler(event);
+  });
+  return off;
+}
+
+/**
+ * Remove all handlers for a specific event type
+ *
+ * @param eventType - The event type to clear handlers for
+ */
+export function off(eventType: DebugEventType): void {
+  const typeSet = typeHandlers.get(eventType);
+  if (typeSet) {
+    typeSet.clear();
+  }
+}
+
+/**
+ * Remove all event handlers
+ */
+export function removeAllListeners(): void {
+  handlers.clear();
+  typeHandlers.clear();
+}
+
+/**
+ * Get the count of handlers for an event type
+ *
+ * @param eventType - The event type (optional, returns total if not provided)
+ * @returns Number of handlers
+ */
+export function listenerCount(eventType?: DebugEventType): number {
+  if (eventType) {
+    return typeHandlers.get(eventType)?.size ?? 0;
+  }
+  return handlers.size;
+}
+
+/**
+ * Create a debug session that tracks events within a scope
+ *
+ * @returns A debug session object
+ *
+ * @example
+ * ```ts
+ * import { createDebugSession } from 'typed-function/debug';
+ *
+ * const session = createDebugSession();
+ * session.start();
+ *
+ * // ... do some typed function operations ...
+ *
+ * const events = session.stop();
+ * console.log(`Captured ${events.length} events`);
+ * ```
+ */
+export function createDebugSession(): {
+  start: () => void;
+  stop: () => DebugEvent[];
+  events: DebugEvent[];
+  isActive: boolean;
+} {
+  const events: DebugEvent[] = [];
+  let unsubscribe: (() => void) | null = null;
+  let isActive = false;
+
+  return {
+    start() {
+      if (isActive) return;
+      isActive = true;
+      events.length = 0;
+      unsubscribe = addDebugHandler((event) => {
+        events.push(event);
+      });
+      // Ensure debug is enabled
+      if (!config.enabled) {
+        configureDebug({ enabled: true });
+      }
+    },
+    stop() {
+      if (!isActive) return events;
+      isActive = false;
+      if (unsubscribe) {
+        unsubscribe();
+        unsubscribe = null;
+      }
+      return [...events];
+    },
+    get events() {
+      return [...events];
+    },
+    get isActive() {
+      return isActive;
+    },
+  };
+}

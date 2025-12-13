@@ -1,14 +1,18 @@
 /**
  * Fast-Path Dispatcher for typed-function
  *
- * Implements optimized dispatch for up to 6 signatures with max 2 arguments.
+ * Implements optimized dispatch for up to 10 signatures with max 3 arguments.
  * Falls back to generic dispatcher for more complex cases.
  */
 import type { Signature, SignatureFunction, MismatchHandler } from '../core/types.js';
 import type { TypeRegistry } from '../core/type-registry.js';
+/** Maximum number of fast-path signature slots */
+export declare const FAST_PATH_SLOT_COUNT = 10;
+/** Maximum number of parameters supported in fast-path */
+export declare const FAST_PATH_MAX_PARAMS = 3;
 /**
  * Check if a signature is eligible for fast-path dispatch
- * (max 2 parameters, no rest param)
+ * (max 3 parameters, no rest param)
  */
 export declare function isFastPathEligible(signature: Signature): boolean;
 /**
@@ -19,6 +23,8 @@ export interface FastPathSlot {
     test0: (x: unknown) => boolean;
     /** Test for second parameter */
     test1: (x: unknown) => boolean;
+    /** Test for third parameter */
+    test2: (x: unknown) => boolean;
     /** Expected argument length */
     length: number;
     /** Implementation function */
@@ -38,9 +44,9 @@ export declare function createInactiveSlot(): FastPathSlot;
  * Fast-path dispatch data structure
  */
 export interface FastPathDispatcher {
-    /** Slots for first 6 signatures */
+    /** Slots for first 10 signatures */
     slots: FastPathSlot[];
-    /** Whether all 6 slots are active (enables full fast-path) */
+    /** Whether all 10 slots are active (enables full fast-path) */
     allActive: boolean;
     /** Index to start generic dispatch from */
     genericStartIndex: number;
@@ -55,7 +61,7 @@ export declare function createFastPathDispatcher(signatures: Signature[]): FastP
 /**
  * Create the fast-path dispatch function
  *
- * This returns a function that tries fast-path dispatch for the first 6 signatures,
+ * This returns a function that tries fast-path dispatch for the first 10 signatures,
  * then falls back to the generic dispatcher.
  *
  * @param name - Function name for error messages

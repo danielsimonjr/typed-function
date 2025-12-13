@@ -27,7 +27,8 @@ import {
   FAST_PATH_SLOT_COUNT,
 } from './fast-path.js';
 import { createGenericDispatcher } from './generic-path.js';
-import { isWasmAvailable } from '../wasm/bindings.js';
+import { isWasmAvailable, wasmAddSignature } from '../wasm/bindings.js';
+import { getTypeMaskForName } from '../wasm/type-masks.js';
 
 /**
  * Options for creating a typed function
@@ -357,13 +358,31 @@ export function createTypedFunction(
   // Enable fast path
   fastPathReady = true;
 
-  // Store WASM dispatch state on the function for potential future use
+  // Register signatures with WASM dispatch if enabled
   if (wasmDispatchEnabled) {
-    (typedFn as TypedFunction & { _wasmEnabled?: boolean })._wasmEnabled = true;
+    try {
+      for (const sig of signatures) {
+        if (sig && sig.implementation) {
+          // Build param masks for WASM
+          const paramMasks = sig.params.map((param) => {
+            // Combine all type masks for this parameter
+            let mask = 0;
+            for (const type of param.types) {
+              mask |= getTypeMaskForName(type.name);
+            }
+            return mask;
+          });
+          wasmAddSignature(sig.implementation, paramMasks);
+        }
+      }
+      (typedFn as TypedFunction & { _wasmEnabled?: boolean })._wasmEnabled = true;
+    } catch {
+      // WASM registration failed, fall back to JS dispatch
+      (typedFn as TypedFunction & { _wasmEnabled?: boolean })._wasmEnabled = false;
+    }
   }
 
-  // Suppress unused variable warning - wasmDispatchEnabled is for future WASM routing
-  void wasmDispatchEnabled;
+  // Suppress unused variable warning - FAST_PATH_SLOT_COUNT used for documentation
   void FAST_PATH_SLOT_COUNT;
 
   return typedFn;

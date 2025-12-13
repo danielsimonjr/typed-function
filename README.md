@@ -595,6 +595,64 @@ Version 5 is a complete TypeScript rewrite with:
 
 See [MIGRATION_GUIDE.md](./docs/MIGRATION_GUIDE.md) for upgrade instructions.
 
+### WASM Acceleration (Experimental)
+
+Version 5 includes experimental WebAssembly support for high-throughput dispatch scenarios. WASM can provide performance improvements for applications that create many typed functions or dispatch millions of calls.
+
+#### Enabling WASM
+
+```typescript
+import typed from 'typed-function';
+
+// Initialize with WASM support
+const wasmEnabled = await typed.init({ preferWasm: true });
+console.log(`WASM enabled: ${wasmEnabled}`);
+
+// Check if WASM is active
+console.log(`WASM active: ${typed.isWasmEnabled()}`);
+
+// Create typed functions as normal - they'll use WASM dispatch when available
+const add = typed({
+  'number, number': (a: number, b: number) => a + b,
+});
+```
+
+#### WASM Initialization Options
+
+```typescript
+interface InitOptions {
+  // Whether to prefer WASM dispatch when available (default: true)
+  preferWasm?: boolean;
+
+  // Custom path to the WASM file (optional)
+  wasmPath?: string;
+}
+```
+
+#### Fallback Behavior
+
+When WASM is not available (e.g., in environments without WebAssembly support), typed-function automatically falls back to pure JavaScript dispatch. The API remains identical - you don't need to change any code.
+
+```typescript
+// Works the same whether WASM is available or not
+const fn = typed({
+  number: (x: number) => x * 2,
+  string: (s: string) => s.toUpperCase(),
+});
+
+fn(5);       // 10
+fn('hello'); // 'HELLO'
+```
+
+#### When to Use WASM
+
+WASM acceleration is most beneficial for:
+- High-throughput applications with millions of typed function calls
+- Applications creating many typed functions dynamically
+- Performance-critical math libraries built on typed-function
+
+For most applications, the pure JavaScript dispatch is already highly optimized and sufficient.
+
 ### Future
 
 - Extend function signatures:

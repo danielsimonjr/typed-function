@@ -10,7 +10,7 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'lcov', 'html'],
       include: ['src/**/*.ts'],
-      exclude: ['src/wasm/assembly/**/*.ts', 'src/wasm/bindings.ts', 'src/wasm/loader.ts'],
+      exclude: ['src/wasm/assembly/**/*.ts'],
       thresholds: {
         statements: 70,
         branches: 65,

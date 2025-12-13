@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+#### WASM Integration
+- Added unified dispatcher routing to WASM dispatch system
+- Added automatic WASM signature registration when creating typed functions
+- Added comprehensive WASM performance benchmarks in test suite
+- Added documentation for WASM opt-in usage in README
+
+#### Developer Experience Improvements
+- **Debug Module Enhancements** (`src/debug.ts`):
+  - EventEmitter-style API with `on()`, `once()`, `off()` methods
+  - `removeAllListeners()` to clear all event handlers
+  - `listenerCount()` to get handler count for event types
+  - `createDebugSession()` for scoped event capture and analysis
+
+- **Signature Introspection Helper** (`src/core/signature-inspector.ts`):
+  - `inspect(fn)` - Get detailed information about a typed function
+  - `summarize(fn)` - Get human-readable function summary
+  - `compare(fn1, fn2)` - Compare signatures between typed functions
+  - `findMatchingSignatures(fn, argTypes)` - Find signatures matching argument types
+  - `formatParam()` and `formatSignature()` utilities
+
+- **Performance Timing Utilities** (`src/utils/performance.ts`):
+  - `time(fn)` - Measure single execution time
+  - `timeAvg(fn, iterations)` - Measure average execution time
+  - `benchmark(fn, options)` - Comprehensive benchmarking with statistics
+  - `compare(fns, iterations)` - Compare performance of multiple functions
+  - `timeCreation(createFn)` - Measure typed function creation time
+  - `timeDispatch(fn, argSets)` - Measure dispatch time for different argument types
+  - `profile(fn, testCases)` - Create performance profile for typed functions
+  - `formatBenchmark(result)` - Format benchmark results for display
+
+- **JSDoc Improvements**:
+  - Added `@example` tags to all key public API methods in `factory.ts`
+  - Examples for `create()`, `findSignature()`, `find()`, `convert()`, `resolve()`, `referTo()`, `referToSelf()`, and the main `typed()` function
+
+### Changed
+- WASM bindings and loader modules now included in test coverage
+- Added WASM-specific tests for bindings.ts and loader.ts
+
+### Fixed
+- Test expectations for WASM error classes to match actual message prefixes
+
 ## [5.0.0-alpha.2] - 2025-12-13
 
 ### Changed
