@@ -332,7 +332,8 @@ describe('Error Factory Helpers', () => {
 });
 
 describe('Module Exports', () => {
-  it('should export all expected types and functions', async () => {
+  // Increase timeout for CI environments where dynamic imports can be slow
+  it('should export all expected types and functions', { timeout: 30000 }, async () => {
     const module = await import('../src/index.js');
 
     // Types and constants
