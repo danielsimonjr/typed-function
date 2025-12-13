@@ -32,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 **Scientific Measurement Types** (`SCIENTIFIC_TYPES`):
 - `Unit` - Values with physical units (e.g., meters, seconds)
 - `Interval` - Interval arithmetic with low/high bounds
-- `Uncertainty` - Values with error bounds (value ± uncertainty)
+- `Uncertainty` - Values with error bounds (value +/- uncertainty)
 - `Range` - Numeric ranges with start/end/step
 - `Polynomial` - Polynomials as coefficient arrays
 
@@ -315,11 +315,11 @@ console.log(add('a', 'b')); // 'ab'
 - Removed legacy Babel scripts and unused dependencies
 - Added coverage thresholds (70% statements, 65% branches)
 - Comprehensive test coverage improvements:
-  - fast-path.ts: 30% → 100%
-  - generic-path.ts: 42% → 100%
-  - array-helpers.ts: 46% → 100%
-  - object-helpers.ts: 9.5% → 100%
-- Overall coverage: 74% → 89% statements
+  - fast-path.ts: 30% -> 100%
+  - generic-path.ts: 42% -> 100%
+  - array-helpers.ts: 46% -> 100%
+  - object-helpers.ts: 9.5% -> 100%
+- Overall coverage: 74% -> 89% statements
 - Fixed referTo/referToSelf re-resolution when merging typed functions
 - Added sideEffects: false for better tree-shaking
 - 552 tests passing (88 new tests added)
@@ -355,108 +355,351 @@ See [MIGRATION_GUIDE.md](./docs/MIGRATION_GUIDE.md) for detailed upgrade instruc
 
 ---
 
-## [4.2.2] - 2025-11-26
+## [4.2.2] - 2024-11-26
 
 ### Fixed
-- Choose lowest-index type conversion, sort signatures transitively (#170, #171)
-
-### Changed
-- Revert to `del-cli` to maintain Node.js 18 support
+- Choose lowest-index type conversion and sort signatures transitively (#170, #171). Thanks @gwhitney.
 
 ## [4.2.1] - 2024-06-05
 
 ### Fixed
-- Bug in the `override` option of `addConversion`
+- Bug in the new `override` option of method `addConversion`.
 
 ## [4.2.0] - 2024-06-05
 
 ### Added
-- New option `{ override: boolean }` for `addConversion` and `addConversions` methods to allow overriding existing conversions
-
-### Changed
-- Minimum Node.js version updated to 18 (others reached EOL)
-- Updated GitHub Actions to test on Node.js 22
+- Extend methods `addConversion` and `addConversions` with a new option `{ override: boolean }` to allow overriding an existing conversion.
 
 ## [4.1.1] - 2023-09-13
 
 ### Fixed
-- Add `"license": "MIT"` field to package.json (#168)
-- Browser examples using ESM file
+- Add a `"license": "MIT"` field to the `package.json` file (#168).
+
+## [4.1.0] - 2022-08-23
 
 ### Changed
-- Test on Node.js 18 and 20
-
-## [4.1.0] - 2022-08-22
-
-### Changed
-- Rename ESM file extension to `.mjs`
-- Create UMD build in addition to ESM
+- Publish an UMD version of the library, like in v3.0.0. It is still necessary. The UMD version can be used in CommonJS applications and in the browser.
 
 ## [4.0.0] - 2022-08-22
 
+**!!! BE CAREFUL: BREAKING CHANGES !!!**
+
 ### Changed
-- Convert all source files to ES modules
-- Set up Babel transpilation for broader compatibility
-- Add ESLint with `standard` code style
-- Create build-and-test script
+- **Breaking**: The code is converted into ES modules, and the library now outputs ES modules only instead of an UMD module.
+  - If you're using `typed-function` inside an ES modules project, all will just keep working like before:
+    ```js
+    import typed from 'typed-function'
+    ```
+  - If you're using `typed-function` in a CommonJS project, you'll have to import the library using a dynamic import:
+    ```js
+    const typed = (await import('typed-function')).default
+    ```
+  - If you're importing `typed-function` straight into a browser page, you can load it as a module there:
+    ```html
+    <script type="module">
+      import typed from 'typed-function/lib/esm/typed-function.mjs'
+    </script>
+    ```
 
 ## [3.0.1] - 2022-08-16
 
 ### Fixed
-- Minor maintenance release
+- `typed()` can enter infinite loop when there is both `referToSelf` and `referTo` functions involved (#157, #158). Thanks @gwhitney.
+- `typed.addType()` fails if there is no `Object` type (#155, #159). Thanks @gwhitney.
 
 ## [3.0.0] - 2022-05-12
 
-### Added
-- `typed.referTo()` for referencing specific signatures within a typed function
-- `typed.referToSelf()` for recursive calls with full dispatch
-- Allow removal of conversions
-- More flexible type ignoring
+**!!! BE CAREFUL: BREAKING CHANGES !!!**
 
 ### Changed
-- **Breaking**: Deprecated `this(...)` self-reference pattern in favor of `typed.referTo()` and `typed.referToSelf()`
-- **Breaking**: Dropped official support for Node.js 12
-- Eliminate direct access to types and conversions (use API methods instead)
+
+#### Breaking Changes:
+
+- **Conversions now have preference over `any`** (#14). Thanks @gwhitney.
+
+- **The properties `typed.types` and `typed.conversions` have been removed.** Instead of adding and removing types and conversions with those arrays, use the methods `addType`, `addTypes`, `addConversion`, `addConversions`, `removeConversion`, `clear`, `clearConversions`.
+
+- **The `this` variable is no longer bound to the typed function itself but is unbound.** Instead, use `typed.referTo(...)` and `typed.referToSelf(...)`.
+
+  By default, all function bodies will be scanned against the deprecated usage pattern of `this`, and an error will be thrown when encountered. To disable this validation step, set `typed.warnAgainstDeprecatedThis = false`.
+
+  Example:
+  ```js
+  // old:
+  const square = typed({
+    'number': x => x * x,
+    'string': x => this(parseFloat(x))
+  })
+
+  // new:
+  const square = typed({
+    'number': x => x * x,
+    'string': typed.referToSelf(function (self) {
+      // using self is not optimal, if possible,
+      // refer to a specific signature instead,
+      // see next example
+      return x => self(parseFloat(x))
+    })
+  })
+
+  // optimized new:
+  const square = typed({
+    'number': x => x * x,
+    'string': typed.referTo('number', function (squareNumber) {
+      return x => sqrtNumber(parseFloat(x))
+    })
+  })
+  ```
+
+- **The property `typed.ignore` is removed.** If you need it, see if you can create a new `typed` instance without the types that you want to ignore, or filter the signatures passed to `typed()` by hand.
+
+- **Drop official support for Node.js 12.**
+
+### Added
+
+Non-breaking changes:
+
+- Implemented new static functions. Thanks @gwhitney:
+  - `typed.referTo(...string, callback: (resolvedFunctions: ...function) => function)`
+  - `typed.referToSelf(callback: (self) => function)`
+  - `typed.isTypedFunction(entity: any): boolean`
+  - `typed.resolve(fn: typed-function, argList: Array<any>): signature-object`
+  - `typed.findSignature(fn: typed-function, signature: string | Array, options: object) : signature-object`
+  - `typed.addType(type: {name: string, test: function, ignored?: boolean} [, beforeObjectTest=true]): void`
+  - `typed.addTypes(types: TypeDef[] [, before = 'any']): void`
+  - `typed.clear(): void`
+  - `typed.addConversions(conversions: ConversionDef[]): void`
+  - `typed.removeConversion(conversion: ConversionDef): void`
+  - `typed.clearConversions(): void`
+- Refactored the `typed` constructor to be more flexible, accepting a combination of multiple typed functions or objects. And internally refactored the constructor to not use typed-function itself (#142). Thanks @gwhitney.
+- Extended the benchmark script and added counting of creation of typed functions (#146).
 
 ### Fixed
-- Prefer type conversion over type `any` in signature comparison
+- Fixes and extensions to `typed.find()` now correctly handling cases with rest or `any` parameters and matches requiring conversions; adds an `options` argument to control whether matches with conversions are allowed. Thanks @gwhitney.
+- Fix to `typed.convert()`: Will now find a conversion even in presence of overlapping types.
+- Reports all matching types in runtime errors, not just the first one.
+- Improved documentation. Thanks @gwhitney.
 
-## [2.1.0] - 2021-01-01
+## [2.1.0] - 2022-03-11
+
+### Added
+- Implemented configurable callbacks `typed.createError` and `typed.onMismatch`. Thanks @gwhitney.
+
+## [2.0.0] - 2020-07-03
 
 ### Changed
-- Update devDependencies
-- Update package-lock.json to lockfileVersion 2 (npm@7)
-- Test on Node.js 14, set minimum Node.js version to 10
+- Drop official support for Node.js 6 and 8, though no breaking changes at this point.
 
-## [2.0.0] - 2020-03-01
+### Added
+- Implemented support for recursion using the `this` keyword. Thanks @nickewing.
 
-### Changed
-- **Breaking**: Major internal refactoring
-- Updated build tooling
-
-## [1.1.1] - Previous
+## [1.1.1] - 2019-08-22
 
 ### Fixed
-- Various bug fixes and improvements
+- Passing `null` to an `Object` parameter throws wrong error (#15).
 
-## [1.1.0] - Previous
-
-### Added
-- Feature enhancements
-
-## [1.0.0] - Initial Release
+## [1.1.0] - 2018-07-28
 
 ### Added
-- Runtime type-checking of input arguments
-- Automatic type conversion of arguments
-- Compose typed functions with multiple signatures
-- Union types, any type, and variable arguments
-- Detailed error messaging
+- Implemented support for creating typed functions from a plain function having a property `signature`.
+- Implemented providing a name when merging multiple typed functions.
+
+## [1.0.4] - 2018-07-04
+
+### Changed
+- By default, `addType` will insert new types before the `Object` test since the `Object` test also matches arrays and classes.
+- Upgraded `devDependencies`.
+
+## [1.0.3] - 2018-03-17
+
+### Changed
+- Dropped usage of ES6 feature `Array.find`, so typed-function is directly usable on any ES5 compatible JavaScript engine (like IE11).
+
+## [1.0.2] - 2018-03-17
+
+### Fixed
+- typed-function not working on browsers that don't allow setting the `name` property of a function.
+
+## [1.0.1] - 2018-02-21
+
+### Changed
+- Upgraded dev dependencies.
+
+## [1.0.0] - 2018-02-20
+
+Version 1.0.0 is rewritten from scratch. The API is the same, though generated error messages may differ slightly.
+
+### Changed
+- Version 1.0.0 no longer uses `eval` under the hood to achieve good performance. This reduces security risks and makes typed-functions easier to debug.
+- Type `Object` is no longer treated specially from other types. This means that the test for `Object` must not give false positives for types like `Array`, `Date`, or class instances.
+- In version 1.0.0, support for browsers like IE9, IE10 is dropped, though typed-function can still work when using es5 and es6 polyfills.
+
+## [0.10.7] - 2018-01-24
+
+### Fixed
+- The field `data.actual` in a `TypeError` message containing the type index instead of the actual type of the argument.
+
+## [0.10.6] - 2017-11-18
+
+### Security
+- Fixed a security issue allowing to execute arbitrary JavaScript code via a specially prepared function name of a typed function. Thanks Masato Kinugawa.
+
+## [0.10.5] - 2016-11-18
+
+### Fixed
+- The use of multi-layered use of `any` type (#8).
+
+## [0.10.4] - 2016-04-09
+
+### Changed
+- Typed functions can only inherit names from other typed functions and no longer from regular JavaScript functions since these names are unreliable: they can be manipulated by minifiers and browsers.
+
+## [0.10.3] - 2015-10-07
+
+### Changed
+- Reverted the fix of v0.10.2 until the introduced issue with variable arguments is fixed too. Added unit test for the latter case.
+
+## [0.10.2] - 2015-10-04
+
+### Fixed
+- Support for using `any` multiple times in a single signature. Thanks @luke-gumbley.
+
+## [0.10.1] - 2015-07-27
+
+### Fixed
+- Functions `addType` and `addConversion` not being robust against replaced arrays `typed.types` and `typed.conversions`.
+
+## [0.10.0] - 2015-07-26
+
+### Changed
+- Dropped support for the following construction signatures in order to simplify the API:
+  - `typed(signature: string, fn: function)`
+  - `typed(name: string, signature: string, fn: function)`
+- Changed the casing of the type `'function'` to `'Function'`. **Breaking change.**
+- `typed.types` is now an ordered Array containing objects `{name: string, test: function}`. **Breaking change.**
+- List with expected types in error messages no longer includes converted types.
+
+### Added
+- Implemented convenience methods `typed.addType` and `typed.addConversion`.
+
+## [0.9.0] - 2015-05-17
+
+### Changed
+- `typed.types` is now an ordered Array containing objects `{type: string, test: function}` instead of an object. **Breaking change.**
+- `typed-function` now allows merging typed functions with duplicate signatures when they point to the same function.
+
+## [0.8.3] - 2015-05-16
+
+### Changed
+- Function `typed.find` now throws an error instead of returning `null` when a signature is not found.
+
+### Fixed
+- The attached signatures no longer contains signatures with conversions.
+
+## [0.8.2] - 2015-05-09
+
+### Fixed
+- Function `typed.convert` not handling the case where the value already has the requested type. Thanks @rjbaucells.
+
+## [0.8.1] - 2015-05-09
+
+### Added
+- Implemented option `typed.ignore` to ignore/filter signatures of a typed function.
+
+## [0.8.0] - 2015-05-09
+
+### Added
+- Implemented function `create` to create a new instance of typed-function.
+- Implemented a utility function `convert(value, type)` (#1).
+- Implemented a simple `typed.find` function to find the implementation of a specific function signature.
+- Extended the error messages to denote the function name, like `"Too many arguments in function foo (...)"`.
+
+## [0.7.0] - 2015-04-17
+
+### Changed
+- Performance improvements.
+
+## [0.6.3] - 2015-03-08
+
+### Fixed
+- Generated internal Signature and Param objects not being cleaned up after the typed function has been generated.
+
+## [0.6.2] - 2015-02-26
+
+### Fixed
+- A bug sometimes not ordering the handling of any type arguments last.
+- A bug sometimes not choosing the signature with the lowest number of conversions.
+
+## [0.6.1] - 2015-02-07
+
+### Changed
+- Large code refactoring.
+
+### Fixed
+- Bugs related to any type parameters.
+
+## [0.6.0] - 2015-01-16
+
+### Changed
+- Removed the configuration option `minify` (it's not clear yet whether minifying really improves the performance).
+- Internal code simplifications.
+- Bug fixes.
+
+## [0.5.0] - 2015-01-07
+
+### Added
+- Implemented support for merging typed functions.
+- Typed functions inherit the name of the function in case of one signature.
+
+### Fixed
+- A regular argument was not matched when there was a signature with variable arguments too.
+- Slightly changed the error messages.
+
+## [0.4.0] - 2014-12-17
+
+### Added
+- Support for multiple types per parameter like `number | string, number'`.
+- Support for variable parameters like `string, ...number'`.
+- Implemented detailed error messages.
+- Implemented option `typed.config.minify`.
+
+### Changed
+- Introduced new constructor options, create a typed function as `typed([name,] signature, fn)` or `typed([name,] signatures)`.
+- Changed any type notation `'*'` to `'any'`.
+
+## [0.3.1] - 2014-11-05
+
+### Changed
+- Renamed module to `typed-function`.
+
+## [0.3.0] - 2014-11-05
+
+### Added
+- Implemented support for any type arguments (denoted with `*`).
+
+## [0.2.0] - 2014-10-23
+
+### Added
+- Implemented support for named functions.
+- Implemented support for type conversions.
+- Implemented support for custom types.
+- Library packaged as UMD, usable with CommonJS (Node.js), AMD, and browser globals.
+
+## [0.1.0] - 2014-10-21
+
+### Added
+- Implemented support for functions with zero, one, or multiple arguments.
+
+## [0.0.1] - 2014-10-19
+
+### Added
+- First release (no functionality yet).
 
 ---
 
-[Unreleased]: https://github.com/josdejong/typed-function/compare/v4.2.2...HEAD
-[5.0.0-alpha.1]: https://github.com/josdejong/typed-function/compare/v4.2.2...v5.0.0-alpha.1
+[Unreleased]: https://github.com/danielsimonjr/typed-function/compare/v5.0.0-alpha.1...HEAD
+[5.0.0-alpha.1]: https://github.com/danielsimonjr/typed-function/compare/v5.0.0-alpha.0...v5.0.0-alpha.1
+[5.0.0-alpha.0]: https://github.com/danielsimonjr/typed-function/compare/v4.2.2...v5.0.0-alpha.0
 [4.2.2]: https://github.com/josdejong/typed-function/compare/v4.2.1...v4.2.2
 [4.2.1]: https://github.com/josdejong/typed-function/compare/v4.2.0...v4.2.1
 [4.2.0]: https://github.com/josdejong/typed-function/compare/v4.1.1...v4.2.0
@@ -468,5 +711,34 @@ See [MIGRATION_GUIDE.md](./docs/MIGRATION_GUIDE.md) for detailed upgrade instruc
 [2.1.0]: https://github.com/josdejong/typed-function/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/josdejong/typed-function/compare/v1.1.1...v2.0.0
 [1.1.1]: https://github.com/josdejong/typed-function/compare/v1.1.0...v1.1.1
-[1.1.0]: https://github.com/josdejong/typed-function/compare/v1.0.0...v1.1.0
-[1.0.0]: https://github.com/josdejong/typed-function/releases/tag/v1.0.0
+[1.1.0]: https://github.com/josdejong/typed-function/compare/v1.0.4...v1.1.0
+[1.0.4]: https://github.com/josdejong/typed-function/compare/v1.0.3...v1.0.4
+[1.0.3]: https://github.com/josdejong/typed-function/compare/v1.0.2...v1.0.3
+[1.0.2]: https://github.com/josdejong/typed-function/compare/v1.0.1...v1.0.2
+[1.0.1]: https://github.com/josdejong/typed-function/compare/v1.0.0...v1.0.1
+[1.0.0]: https://github.com/josdejong/typed-function/compare/v0.10.7...v1.0.0
+[0.10.7]: https://github.com/josdejong/typed-function/compare/v0.10.6...v0.10.7
+[0.10.6]: https://github.com/josdejong/typed-function/compare/v0.10.5...v0.10.6
+[0.10.5]: https://github.com/josdejong/typed-function/compare/v0.10.4...v0.10.5
+[0.10.4]: https://github.com/josdejong/typed-function/compare/v0.10.3...v0.10.4
+[0.10.3]: https://github.com/josdejong/typed-function/compare/v0.10.2...v0.10.3
+[0.10.2]: https://github.com/josdejong/typed-function/compare/v0.10.1...v0.10.2
+[0.10.1]: https://github.com/josdejong/typed-function/compare/v0.10.0...v0.10.1
+[0.10.0]: https://github.com/josdejong/typed-function/compare/v0.9.0...v0.10.0
+[0.9.0]: https://github.com/josdejong/typed-function/compare/v0.8.3...v0.9.0
+[0.8.3]: https://github.com/josdejong/typed-function/compare/v0.8.2...v0.8.3
+[0.8.2]: https://github.com/josdejong/typed-function/compare/v0.8.1...v0.8.2
+[0.8.1]: https://github.com/josdejong/typed-function/compare/v0.8.0...v0.8.1
+[0.8.0]: https://github.com/josdejong/typed-function/compare/v0.7.0...v0.8.0
+[0.7.0]: https://github.com/josdejong/typed-function/compare/v0.6.3...v0.7.0
+[0.6.3]: https://github.com/josdejong/typed-function/compare/v0.6.2...v0.6.3
+[0.6.2]: https://github.com/josdejong/typed-function/compare/v0.6.1...v0.6.2
+[0.6.1]: https://github.com/josdejong/typed-function/compare/v0.6.0...v0.6.1
+[0.6.0]: https://github.com/josdejong/typed-function/compare/v0.5.0...v0.6.0
+[0.5.0]: https://github.com/josdejong/typed-function/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/josdejong/typed-function/compare/v0.3.1...v0.4.0
+[0.3.1]: https://github.com/josdejong/typed-function/compare/v0.3.0...v0.3.1
+[0.3.0]: https://github.com/josdejong/typed-function/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/josdejong/typed-function/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/josdejong/typed-function/compare/v0.0.1...v0.1.0
+[0.0.1]: https://github.com/josdejong/typed-function/releases/tag/v0.0.1
