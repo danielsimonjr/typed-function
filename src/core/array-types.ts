@@ -116,9 +116,9 @@ export function isBigUint64Array(x: unknown): x is BigUint64Array {
 // =============================================================================
 
 /**
- * TypedArray types
+ * Array types
  */
-export const TYPED_ARRAY_TYPES: TypeDef[] = [
+export const ARRAY_TYPES: TypeDef[] = [
   { name: 'TypedArray', test: isTypedArray },
   { name: 'Int8Array', test: isInt8Array },
   { name: 'Int16Array', test: isInt16Array },
