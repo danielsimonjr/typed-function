@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.0-alpha.3] - 2025-12-13
+
 ### Added
 
 #### WASM Integration
@@ -747,7 +749,9 @@ Version 1.0.0 is rewritten from scratch. The API is the same, though generated e
 
 ---
 
-[Unreleased]: https://github.com/danielsimonjr/typed-function/compare/v5.0.0-alpha.1...HEAD
+[Unreleased]: https://github.com/danielsimonjr/typed-function/compare/v5.0.0-alpha.3...HEAD
+[5.0.0-alpha.3]: https://github.com/danielsimonjr/typed-function/compare/v5.0.0-alpha.2...v5.0.0-alpha.3
+[5.0.0-alpha.2]: https://github.com/danielsimonjr/typed-function/compare/v5.0.0-alpha.1...v5.0.0-alpha.2
 [5.0.0-alpha.1]: https://github.com/danielsimonjr/typed-function/compare/v5.0.0-alpha.0...v5.0.0-alpha.1
 [5.0.0-alpha.0]: https://github.com/danielsimonjr/typed-function/compare/v4.2.2...v5.0.0-alpha.0
 [4.2.2]: https://github.com/josdejong/typed-function/compare/v4.2.1...v4.2.2
