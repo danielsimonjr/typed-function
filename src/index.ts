@@ -163,6 +163,39 @@ export {
 export { create } from './factory.js';
 export type { InitOptions } from './factory.js';
 
+// Re-export bundler compatibility utilities
+export {
+  TYPE_SYMBOL,
+  BRAND_SYMBOL,
+  registerConstructor,
+  unregisterConstructor,
+  getTypeByConstructor,
+  isRegisteredType,
+  registerInstance,
+  isRegisteredInstance,
+  clearInstanceRegistry,
+  clearAllInstanceRegistries,
+  getTypeFromSymbol,
+  getBrandFromSymbol,
+  createBundlerSafeTest,
+  createTypedClass,
+  addTypeIdentification,
+  identifyType,
+} from './core/bundler-compat.js';
+export type { TypeIdentificationResult } from './core/bundler-compat.js';
+
+// Re-export type cache utilities
+export {
+  globalTypeCache,
+  createTypeCache,
+  cachedTypeResolve,
+  TypeCache,
+} from './core/type-cache.js';
+export type { TypeCacheEntry } from './core/type-cache.js';
+
+// Re-export configuration types
+export type { TypedConfig, TypedConfigState } from './core/types.js';
+
 // Re-export WASM utilities for advanced usage
 export {
   TypeMasks,
