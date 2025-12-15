@@ -17,6 +17,10 @@ export interface InternalTypeDef {
   isAny: boolean;
   index: number;
   conversionsTo: ConversionDef[];
+  /** Factory function for creating instances (bundler-safe) */
+  factory?: (...args: unknown[]) => unknown;
+  /** Constructor reference for bundler-safe identification */
+  constructor?: Function;
 }
 
 /**
@@ -161,6 +165,14 @@ export class TypeRegistry {
         index: beforeIndex + i,
         conversionsTo: [],
       };
+
+      // Add optional properties only if defined
+      if (typeDef.factory !== undefined) {
+        internalType.factory = typeDef.factory;
+      }
+      if (typeDef.constructor !== undefined) {
+        internalType.constructor = typeDef.constructor;
+      }
 
       this.typeMap.set(typeName, internalType);
 

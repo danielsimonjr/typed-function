@@ -17,8 +17,17 @@ import type {
   ReferToSelf,
   TypedInstance,
   MismatchHandler,
+  TypedConfig,
+  TypedConfigState,
 } from './core/types.js';
 import { NOT_TYPED_FUNCTION } from './core/types.js';
+import {
+  registerConstructor,
+  unregisterConstructor,
+  getTypeByConstructor,
+  createBundlerSafeTest,
+} from './core/bundler-compat.js';
+import { globalTypeCache } from './core/type-cache.js';
 
 import { createTypeRegistry } from './core/type-registry.js';
 import { createConversionManager } from './core/conversion-manager.js';
@@ -121,6 +130,52 @@ export function create(): TypedInstance {
 
   // Track creation count
   let createCount = 0;
+
+  // Configuration state with defaults
+  const configState: TypedConfigState = {
+    warnOnBigIntCoercion: false,
+    enableTypeCache: true,
+    bundlerSafeMode: true,
+    warnHandler: (message: string) => console.warn(message),
+    maxWarnings: 10,
+    warningCount: 0,
+  };
+
+  /**
+   * Emit a warning using the configured handler
+   */
+  function emitWarning(message: string): void {
+    if (configState.maxWarnings === -1 || configState.warningCount < configState.maxWarnings) {
+      configState.warnHandler(message);
+      configState.warningCount++;
+    } else if (configState.warningCount === configState.maxWarnings) {
+      configState.warnHandler(
+        `[typed-function] Warning limit reached (${configState.maxWarnings}). Further warnings will be suppressed.`
+      );
+      configState.warningCount++;
+    }
+  }
+
+  /**
+   * Check if a conversion involves BigInt and emit warning if configured.
+   * This function is exposed for use by conversion managers and custom conversions.
+   */
+  function checkBigIntCoercion(from: string, to: string, value: unknown): void {
+    if (!configState.warnOnBigIntCoercion) return;
+
+    const isBigIntSource = typeof value === 'bigint' || from === 'BigInt' || from === 'Fraction';
+    const isNumberTarget = to === 'number';
+
+    if (isBigIntSource && isNumberTarget) {
+      emitWarning(
+        `[typed-function] BigInt coercion warning: Converting from '${from}' to '${to}'. ` +
+        `This may lose precision for large values. Consider using explicit conversions.`
+      );
+    }
+  }
+
+  // Make checkBigIntCoercion available on the conversion manager for external use
+  (conversions as unknown as { checkBigIntCoercion: typeof checkBigIntCoercion }).checkBigIntCoercion = checkBigIntCoercion;
 
   /**
    * Check if an entity is a typed function
@@ -482,9 +537,13 @@ export function create(): TypedInstance {
 
   typed.addTypes = (types: TypeDef[], before?: string | boolean) => {
     registry.addTypes(types, before);
-    // Auto-register WASM type masks for all new types
+    // Auto-register WASM type masks and constructors for all new types
     for (const type of types) {
       registerCustomType(type.name);
+      // Register constructor for bundler-safe type identification
+      if (type.constructor) {
+        registerConstructor(type.constructor, type.name);
+      }
     }
   };
 
@@ -571,6 +630,75 @@ export function create(): TypedInstance {
   typed.resetWasm = (): void => {
     resetWasm();
     wasmInitialized = false;
+  };
+
+  /**
+   * Configure typed-function behavior
+   */
+  typed.config = (options: TypedConfig): void => {
+    if (options.warnOnBigIntCoercion !== undefined) {
+      configState.warnOnBigIntCoercion = options.warnOnBigIntCoercion;
+    }
+    if (options.enableTypeCache !== undefined) {
+      configState.enableTypeCache = options.enableTypeCache;
+      if (options.enableTypeCache) {
+        globalTypeCache.enable();
+      } else {
+        globalTypeCache.disable();
+      }
+    }
+    if (options.bundlerSafeMode !== undefined) {
+      configState.bundlerSafeMode = options.bundlerSafeMode;
+    }
+    if (options.warnHandler !== undefined) {
+      configState.warnHandler = options.warnHandler;
+    }
+    if (options.maxWarnings !== undefined) {
+      configState.maxWarnings = options.maxWarnings;
+    }
+  };
+
+  /**
+   * Get the current configuration
+   */
+  typed.getConfig = (): TypedConfigState => {
+    return { ...configState };
+  };
+
+  /**
+   * Register a constructor for bundler-safe type identification
+   */
+  typed.registerConstructor = (constructor: Function, typeName: string): void => {
+    registerConstructor(constructor, typeName);
+  };
+
+  /**
+   * Unregister a constructor from the registry
+   */
+  typed.unregisterConstructor = (constructor: Function): boolean => {
+    return unregisterConstructor(constructor);
+  };
+
+  /**
+   * Get the type name for a registered constructor
+   */
+  typed.getTypeByConstructor = (constructor: Function | undefined | null): string | undefined => {
+    return getTypeByConstructor(constructor);
+  };
+
+  /**
+   * Create a bundler-safe type test function
+   */
+  typed.createBundlerSafeTest = (
+    typeName: string,
+    options?: {
+      fallback?: (value: unknown) => boolean;
+      checkConstructor?: boolean;
+      checkInstance?: boolean;
+      checkSymbols?: boolean;
+    }
+  ): ((value: unknown) => boolean) => {
+    return createBundlerSafeTest(typeName, options);
   };
 
   return typed as TypedInstance;
