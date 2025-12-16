@@ -2534,6 +2534,8 @@
         functionTable: [],
         initError: null,
     };
+    /** Sentinel value for no match (must match WASM) */
+    const NO_MATCH = 0xffffffff;
     /**
      * Initialize WASM module with given exports
      *
@@ -2554,6 +2556,15 @@
         return wasmState.initialized && wasmState.exports !== null;
     }
     /**
+     * Get WASM exports (throws if not initialized)
+     */
+    function getWasmExports() {
+        if (!wasmState.exports) {
+            throw new WasmNotAvailableError('WASM module not initialized. Call loadWasm() first.');
+        }
+        return wasmState.exports;
+    }
+    /**
      * Reset WASM state (for testing)
      */
     function resetWasm() {
@@ -2562,6 +2573,291 @@
             wasmState.exports.clearCache();
         }
         wasmState.functionTable = [];
+    }
+    /**
+     * Add a signature to WASM dispatch
+     *
+     * @param fn - The function to dispatch to
+     * @param paramMasks - Array of type masks for each parameter
+     * @returns The signature index
+     */
+    function wasmAddSignature(fn, paramMasks) {
+        const exports$1 = getWasmExports();
+        // Add function to table
+        const fnIndex = wasmState.functionTable.length;
+        wasmState.functionTable.push(fn);
+        // Add signature to WASM
+        const sigIndex = exports$1.addSignature(fnIndex, paramMasks.length);
+        if (sigIndex === NO_MATCH) {
+            throw new WasmInitializationError('Failed to add signature to WASM dispatch table');
+        }
+        // Set parameter masks
+        for (let i = 0; i < paramMasks.length; i++) {
+            const mask = paramMasks[i];
+            if (mask !== undefined) {
+                exports$1.setParamMask(sigIndex, i, mask);
+            }
+        }
+        return sigIndex;
+    }
+
+    /**
+     * Type Mask Assignment for typed-function dispatch
+     *
+     * Maps JavaScript type checks to bit masks for WASM dispatch.
+     */
+    // === Built-in Type IDs (must match WASM) ===
+    /** Type ID for number */
+    const TYPE_NUMBER = 0;
+    /** Type ID for string */
+    const TYPE_STRING = 1;
+    /** Type ID for boolean */
+    const TYPE_BOOLEAN = 2;
+    /** Type ID for Function */
+    const TYPE_FUNCTION = 3;
+    /** Type ID for Array */
+    const TYPE_ARRAY = 4;
+    /** Type ID for Date */
+    const TYPE_DATE = 5;
+    /** Type ID for RegExp */
+    const TYPE_REGEXP = 6;
+    /** Type ID for Object */
+    const TYPE_OBJECT = 7;
+    /** Type ID for null */
+    const TYPE_NULL = 8;
+    /** Type ID for undefined */
+    const TYPE_UNDEFINED = 9;
+    // === Modern Type IDs (ES6+) ===
+    /** Type ID for BigInt */
+    const TYPE_BIGINT = 10;
+    /** Type ID for Symbol */
+    const TYPE_SYMBOL = 11;
+    /** Type ID for Map */
+    const TYPE_MAP = 12;
+    /** Type ID for Set */
+    const TYPE_SET = 13;
+    /** Type ID for WeakMap */
+    const TYPE_WEAKMAP = 14;
+    /** Type ID for WeakSet */
+    const TYPE_WEAKSET = 15;
+    /** Mask for any type (matches all) */
+    const TYPE_ANY_MASK = 0xffffffff;
+    /** Next available custom type ID */
+    let nextCustomTypeId = 16;
+    /** Map from type name to bit */
+    const typeNameToBit = new Map([
+        ['number', TYPE_NUMBER],
+        ['string', TYPE_STRING],
+        ['boolean', TYPE_BOOLEAN],
+        ['Function', TYPE_FUNCTION],
+        ['Array', TYPE_ARRAY],
+        ['Date', TYPE_DATE],
+        ['RegExp', TYPE_REGEXP],
+        ['Object', TYPE_OBJECT],
+        ['null', TYPE_NULL],
+        ['undefined', TYPE_UNDEFINED],
+        // Modern types (ES6+)
+        ['BigInt', TYPE_BIGINT],
+        ['Symbol', TYPE_SYMBOL],
+        ['Map', TYPE_MAP],
+        ['Set', TYPE_SET],
+        ['WeakMap', TYPE_WEAKMAP],
+        ['WeakSet', TYPE_WEAKSET],
+        ['any', -1], // Special marker for any
+    ]);
+    /**
+     * Get the type bit for a type name
+     *
+     * @param typeName - The type name
+     * @returns The type bit position
+     */
+    function getTypeBit(typeName) {
+        const existing = typeNameToBit.get(typeName);
+        if (existing !== undefined) {
+            return existing;
+        }
+        // Assign new bit for custom type
+        const bit = nextCustomTypeId++;
+        typeNameToBit.set(typeName, bit);
+        return bit;
+    }
+    /**
+     * Get the type mask for a type name
+     *
+     * @param typeName - The type name
+     * @returns The type mask (1 << bit for single types, or ANY_MASK for 'any')
+     */
+    function getTypeMaskForName(typeName) {
+        const bit = getTypeBit(typeName);
+        if (bit === -1) {
+            return TYPE_ANY_MASK;
+        }
+        return 1 << bit;
+    }
+    /**
+     * Get combined mask for a parameter's types
+     *
+     * @param typeNames - Array of type names that the parameter accepts
+     * @returns Combined mask (OR of all type masks)
+     */
+    function getParamMask(typeNames) {
+        if (typeNames.length === 0) {
+            return TYPE_ANY_MASK;
+        }
+        let mask = 0;
+        for (const name of typeNames) {
+            const typeMask = getTypeMaskForName(name);
+            if (typeMask === TYPE_ANY_MASK) {
+                return TYPE_ANY_MASK;
+            }
+            mask |= typeMask;
+        }
+        return mask;
+    }
+    /**
+     * Register a custom type with its test function
+     *
+     * @param typeName - The type name
+     * @returns The assigned type bit
+     */
+    function registerCustomType(typeName) {
+        return getTypeBit(typeName);
+    }
+    // =============================================================================
+    // Pre-built Type Masks for Common Patterns
+    // =============================================================================
+    /**
+     * Pre-built type masks for common type patterns
+     * These combine multiple types into a single mask for efficient dispatch
+     */
+    const TypeMasks = {
+        // Numeric types
+        /** Matches number only */
+        NUMBER: 1 << TYPE_NUMBER,
+        /** Matches string only */
+        STRING: 1 << TYPE_STRING,
+        /** Matches boolean only */
+        BOOLEAN: 1 << TYPE_BOOLEAN,
+        /** Matches number | string (common for math operations) */
+        NUMERIC_OR_STRING: (1 << TYPE_NUMBER) | (1 << TYPE_STRING),
+        /** Matches number | boolean (truthy/falsy conversions) */
+        NUMERIC_OR_BOOLEAN: (1 << TYPE_NUMBER) | (1 << TYPE_BOOLEAN),
+        // Collection types
+        /** Matches Array only */
+        ARRAY: 1 << TYPE_ARRAY,
+        /** Matches Object only (plain objects) */
+        OBJECT: 1 << TYPE_OBJECT,
+        /** Matches Array | Object (collection-like) */
+        ARRAY_LIKE: (1 << TYPE_ARRAY) | (1 << TYPE_OBJECT),
+        /** Matches iterable types: Array | string | Object */
+        ITERABLE: (1 << TYPE_ARRAY) | (1 << TYPE_STRING) | (1 << TYPE_OBJECT),
+        // Function types
+        /** Matches Function only */
+        FUNCTION: 1 << TYPE_FUNCTION,
+        /** Matches Function | null (optional callback) */
+        OPTIONAL_FUNCTION: (1 << TYPE_FUNCTION) | (1 << TYPE_NULL),
+        // Special object types
+        /** Matches Date only */
+        DATE: 1 << TYPE_DATE,
+        /** Matches RegExp only */
+        REGEXP: 1 << TYPE_REGEXP,
+        /** Matches Date | string (parseable dates) */
+        DATE_LIKE: (1 << TYPE_DATE) | (1 << TYPE_STRING) | (1 << TYPE_NUMBER),
+        // Nullable patterns
+        /** Matches null only */
+        NULL: 1 << TYPE_NULL,
+        /** Matches undefined only */
+        UNDEFINED: 1 << TYPE_UNDEFINED,
+        /** Matches null | undefined (nullish) */
+        NULLISH: (1 << TYPE_NULL) | (1 << TYPE_UNDEFINED),
+        /** Matches any primitive: number | string | boolean | null | undefined */
+        PRIMITIVE: (1 << TYPE_NUMBER) | (1 << TYPE_STRING) | (1 << TYPE_BOOLEAN) | (1 << TYPE_NULL) | (1 << TYPE_UNDEFINED),
+        /** Matches any scalar: number | string | boolean */
+        SCALAR: (1 << TYPE_NUMBER) | (1 << TYPE_STRING) | (1 << TYPE_BOOLEAN),
+        // Optional patterns (type | null | undefined)
+        /** Optional number */
+        OPTIONAL_NUMBER: (1 << TYPE_NUMBER) | (1 << TYPE_NULL) | (1 << TYPE_UNDEFINED),
+        /** Optional string */
+        OPTIONAL_STRING: (1 << TYPE_STRING) | (1 << TYPE_NULL) | (1 << TYPE_UNDEFINED),
+        /** Optional boolean */
+        OPTIONAL_BOOLEAN: (1 << TYPE_BOOLEAN) | (1 << TYPE_NULL) | (1 << TYPE_UNDEFINED),
+        /** Optional array */
+        OPTIONAL_ARRAY: (1 << TYPE_ARRAY) | (1 << TYPE_NULL) | (1 << TYPE_UNDEFINED),
+        /** Optional object */
+        OPTIONAL_OBJECT: (1 << TYPE_OBJECT) | (1 << TYPE_NULL) | (1 << TYPE_UNDEFINED),
+        // Object type patterns
+        /** Matches any object type: Object | Array | Date | RegExp | Function */
+        ANY_OBJECT: (1 << TYPE_OBJECT) | (1 << TYPE_ARRAY) | (1 << TYPE_DATE) | (1 << TYPE_REGEXP) | (1 << TYPE_FUNCTION),
+        /** Matches all types (same as any) */
+        ANY: TYPE_ANY_MASK,
+        // === Modern Types (ES6+) ===
+        /** Matches BigInt only */
+        BIGINT: 1 << TYPE_BIGINT,
+        /** Matches Symbol only */
+        SYMBOL: 1 << TYPE_SYMBOL,
+        /** Matches Map only */
+        MAP: 1 << TYPE_MAP,
+        /** Matches Set only */
+        SET: 1 << TYPE_SET,
+        /** Matches WeakMap only */
+        WEAKMAP: 1 << TYPE_WEAKMAP,
+        /** Matches WeakSet only */
+        WEAKSET: 1 << TYPE_WEAKSET,
+        /** Matches number | BigInt (numeric types) */
+        NUMERIC: (1 << TYPE_NUMBER) | (1 << TYPE_BIGINT),
+        /** Matches Map | Set (collection types) */
+        COLLECTION: (1 << TYPE_MAP) | (1 << TYPE_SET),
+        /** Matches WeakMap | WeakSet (weak collection types) */
+        WEAK_COLLECTION: (1 << TYPE_WEAKMAP) | (1 << TYPE_WEAKSET),
+        /** Matches all collection types: Array | Map | Set */
+        ANY_COLLECTION: (1 << TYPE_ARRAY) | (1 << TYPE_MAP) | (1 << TYPE_SET),
+        /** Matches all iterable types: Array | Map | Set | string */
+        ALL_ITERABLE: (1 << TYPE_ARRAY) | (1 << TYPE_MAP) | (1 << TYPE_SET) | (1 << TYPE_STRING),
+    };
+    /**
+     * Create a custom type mask by combining type names
+     *
+     * @param typeNames - Array of type names to combine
+     * @returns Combined mask
+     *
+     * @example
+     * ```ts
+     * const numericMask = createMask(['number', 'string', 'boolean']);
+     * ```
+     */
+    function createMask(typeNames) {
+        return getParamMask(typeNames);
+    }
+    /**
+     * Create an optional mask (type | null | undefined)
+     *
+     * @param baseMask - The base type mask
+     * @returns Mask with null and undefined added
+     */
+    function optionalMask(baseMask) {
+        return baseMask | (1 << TYPE_NULL) | (1 << TYPE_UNDEFINED);
+    }
+    /**
+     * Create a nullable mask (type | null)
+     *
+     * @param baseMask - The base type mask
+     * @returns Mask with null added
+     */
+    function nullableMask(baseMask) {
+        return baseMask | (1 << TYPE_NULL);
+    }
+    /**
+     * Combine multiple masks with OR
+     *
+     * @param masks - Masks to combine
+     * @returns Combined mask
+     */
+    function combineMasks(...masks) {
+        let result = 0;
+        for (const mask of masks) {
+            result |= mask;
+        }
+        return result;
     }
 
     /**
@@ -2870,9 +3166,29 @@
         genericDispatch = createGenericDispatcher(name, signatures, fpData.genericStartIndex, onMismatch);
         // Enable fast path
         fastPathReady = true;
-        // Store WASM dispatch state on the function for potential future use
+        // Register signatures with WASM dispatch if enabled
         if (wasmDispatchEnabled) {
-            typedFn._wasmEnabled = true;
+            try {
+                for (const sig of signatures) {
+                    if (sig && sig.implementation) {
+                        // Build param masks for WASM
+                        const paramMasks = sig.params.map((param) => {
+                            // Combine all type masks for this parameter
+                            let mask = 0;
+                            for (const type of param.types) {
+                                mask |= getTypeMaskForName(type.name);
+                            }
+                            return mask;
+                        });
+                        wasmAddSignature(sig.implementation, paramMasks);
+                    }
+                }
+                typedFn._wasmEnabled = true;
+            }
+            catch {
+                // WASM registration failed, fall back to JS dispatch
+                typedFn._wasmEnabled = false;
+            }
         }
         return typedFn;
     }
@@ -3139,265 +3455,6 @@
     }
 
     /**
-     * Type Mask Assignment for typed-function dispatch
-     *
-     * Maps JavaScript type checks to bit masks for WASM dispatch.
-     */
-    // === Built-in Type IDs (must match WASM) ===
-    /** Type ID for number */
-    const TYPE_NUMBER = 0;
-    /** Type ID for string */
-    const TYPE_STRING = 1;
-    /** Type ID for boolean */
-    const TYPE_BOOLEAN = 2;
-    /** Type ID for Function */
-    const TYPE_FUNCTION = 3;
-    /** Type ID for Array */
-    const TYPE_ARRAY = 4;
-    /** Type ID for Date */
-    const TYPE_DATE = 5;
-    /** Type ID for RegExp */
-    const TYPE_REGEXP = 6;
-    /** Type ID for Object */
-    const TYPE_OBJECT = 7;
-    /** Type ID for null */
-    const TYPE_NULL = 8;
-    /** Type ID for undefined */
-    const TYPE_UNDEFINED = 9;
-    // === Modern Type IDs (ES6+) ===
-    /** Type ID for BigInt */
-    const TYPE_BIGINT = 10;
-    /** Type ID for Symbol */
-    const TYPE_SYMBOL = 11;
-    /** Type ID for Map */
-    const TYPE_MAP = 12;
-    /** Type ID for Set */
-    const TYPE_SET = 13;
-    /** Type ID for WeakMap */
-    const TYPE_WEAKMAP = 14;
-    /** Type ID for WeakSet */
-    const TYPE_WEAKSET = 15;
-    /** Mask for any type (matches all) */
-    const TYPE_ANY_MASK = 0xffffffff;
-    /** Next available custom type ID */
-    let nextCustomTypeId = 16;
-    /** Map from type name to bit */
-    const typeNameToBit = new Map([
-        ['number', TYPE_NUMBER],
-        ['string', TYPE_STRING],
-        ['boolean', TYPE_BOOLEAN],
-        ['Function', TYPE_FUNCTION],
-        ['Array', TYPE_ARRAY],
-        ['Date', TYPE_DATE],
-        ['RegExp', TYPE_REGEXP],
-        ['Object', TYPE_OBJECT],
-        ['null', TYPE_NULL],
-        ['undefined', TYPE_UNDEFINED],
-        // Modern types (ES6+)
-        ['BigInt', TYPE_BIGINT],
-        ['Symbol', TYPE_SYMBOL],
-        ['Map', TYPE_MAP],
-        ['Set', TYPE_SET],
-        ['WeakMap', TYPE_WEAKMAP],
-        ['WeakSet', TYPE_WEAKSET],
-        ['any', -1], // Special marker for any
-    ]);
-    /**
-     * Get the type bit for a type name
-     *
-     * @param typeName - The type name
-     * @returns The type bit position
-     */
-    function getTypeBit(typeName) {
-        const existing = typeNameToBit.get(typeName);
-        if (existing !== undefined) {
-            return existing;
-        }
-        // Assign new bit for custom type
-        const bit = nextCustomTypeId++;
-        typeNameToBit.set(typeName, bit);
-        return bit;
-    }
-    /**
-     * Get the type mask for a type name
-     *
-     * @param typeName - The type name
-     * @returns The type mask (1 << bit for single types, or ANY_MASK for 'any')
-     */
-    function getTypeMaskForName(typeName) {
-        const bit = getTypeBit(typeName);
-        if (bit === -1) {
-            return TYPE_ANY_MASK;
-        }
-        return 1 << bit;
-    }
-    /**
-     * Get combined mask for a parameter's types
-     *
-     * @param typeNames - Array of type names that the parameter accepts
-     * @returns Combined mask (OR of all type masks)
-     */
-    function getParamMask(typeNames) {
-        if (typeNames.length === 0) {
-            return TYPE_ANY_MASK;
-        }
-        let mask = 0;
-        for (const name of typeNames) {
-            const typeMask = getTypeMaskForName(name);
-            if (typeMask === TYPE_ANY_MASK) {
-                return TYPE_ANY_MASK;
-            }
-            mask |= typeMask;
-        }
-        return mask;
-    }
-    /**
-     * Register a custom type with its test function
-     *
-     * @param typeName - The type name
-     * @returns The assigned type bit
-     */
-    function registerCustomType(typeName) {
-        return getTypeBit(typeName);
-    }
-    // =============================================================================
-    // Pre-built Type Masks for Common Patterns
-    // =============================================================================
-    /**
-     * Pre-built type masks for common type patterns
-     * These combine multiple types into a single mask for efficient dispatch
-     */
-    const TypeMasks = {
-        // Numeric types
-        /** Matches number only */
-        NUMBER: 1 << TYPE_NUMBER,
-        /** Matches string only */
-        STRING: 1 << TYPE_STRING,
-        /** Matches boolean only */
-        BOOLEAN: 1 << TYPE_BOOLEAN,
-        /** Matches number | string (common for math operations) */
-        NUMERIC_OR_STRING: (1 << TYPE_NUMBER) | (1 << TYPE_STRING),
-        /** Matches number | boolean (truthy/falsy conversions) */
-        NUMERIC_OR_BOOLEAN: (1 << TYPE_NUMBER) | (1 << TYPE_BOOLEAN),
-        // Collection types
-        /** Matches Array only */
-        ARRAY: 1 << TYPE_ARRAY,
-        /** Matches Object only (plain objects) */
-        OBJECT: 1 << TYPE_OBJECT,
-        /** Matches Array | Object (collection-like) */
-        ARRAY_LIKE: (1 << TYPE_ARRAY) | (1 << TYPE_OBJECT),
-        /** Matches iterable types: Array | string | Object */
-        ITERABLE: (1 << TYPE_ARRAY) | (1 << TYPE_STRING) | (1 << TYPE_OBJECT),
-        // Function types
-        /** Matches Function only */
-        FUNCTION: 1 << TYPE_FUNCTION,
-        /** Matches Function | null (optional callback) */
-        OPTIONAL_FUNCTION: (1 << TYPE_FUNCTION) | (1 << TYPE_NULL),
-        // Special object types
-        /** Matches Date only */
-        DATE: 1 << TYPE_DATE,
-        /** Matches RegExp only */
-        REGEXP: 1 << TYPE_REGEXP,
-        /** Matches Date | string (parseable dates) */
-        DATE_LIKE: (1 << TYPE_DATE) | (1 << TYPE_STRING) | (1 << TYPE_NUMBER),
-        // Nullable patterns
-        /** Matches null only */
-        NULL: 1 << TYPE_NULL,
-        /** Matches undefined only */
-        UNDEFINED: 1 << TYPE_UNDEFINED,
-        /** Matches null | undefined (nullish) */
-        NULLISH: (1 << TYPE_NULL) | (1 << TYPE_UNDEFINED),
-        /** Matches any primitive: number | string | boolean | null | undefined */
-        PRIMITIVE: (1 << TYPE_NUMBER) | (1 << TYPE_STRING) | (1 << TYPE_BOOLEAN) | (1 << TYPE_NULL) | (1 << TYPE_UNDEFINED),
-        /** Matches any scalar: number | string | boolean */
-        SCALAR: (1 << TYPE_NUMBER) | (1 << TYPE_STRING) | (1 << TYPE_BOOLEAN),
-        // Optional patterns (type | null | undefined)
-        /** Optional number */
-        OPTIONAL_NUMBER: (1 << TYPE_NUMBER) | (1 << TYPE_NULL) | (1 << TYPE_UNDEFINED),
-        /** Optional string */
-        OPTIONAL_STRING: (1 << TYPE_STRING) | (1 << TYPE_NULL) | (1 << TYPE_UNDEFINED),
-        /** Optional boolean */
-        OPTIONAL_BOOLEAN: (1 << TYPE_BOOLEAN) | (1 << TYPE_NULL) | (1 << TYPE_UNDEFINED),
-        /** Optional array */
-        OPTIONAL_ARRAY: (1 << TYPE_ARRAY) | (1 << TYPE_NULL) | (1 << TYPE_UNDEFINED),
-        /** Optional object */
-        OPTIONAL_OBJECT: (1 << TYPE_OBJECT) | (1 << TYPE_NULL) | (1 << TYPE_UNDEFINED),
-        // Object type patterns
-        /** Matches any object type: Object | Array | Date | RegExp | Function */
-        ANY_OBJECT: (1 << TYPE_OBJECT) | (1 << TYPE_ARRAY) | (1 << TYPE_DATE) | (1 << TYPE_REGEXP) | (1 << TYPE_FUNCTION),
-        /** Matches all types (same as any) */
-        ANY: TYPE_ANY_MASK,
-        // === Modern Types (ES6+) ===
-        /** Matches BigInt only */
-        BIGINT: 1 << TYPE_BIGINT,
-        /** Matches Symbol only */
-        SYMBOL: 1 << TYPE_SYMBOL,
-        /** Matches Map only */
-        MAP: 1 << TYPE_MAP,
-        /** Matches Set only */
-        SET: 1 << TYPE_SET,
-        /** Matches WeakMap only */
-        WEAKMAP: 1 << TYPE_WEAKMAP,
-        /** Matches WeakSet only */
-        WEAKSET: 1 << TYPE_WEAKSET,
-        /** Matches number | BigInt (numeric types) */
-        NUMERIC: (1 << TYPE_NUMBER) | (1 << TYPE_BIGINT),
-        /** Matches Map | Set (collection types) */
-        COLLECTION: (1 << TYPE_MAP) | (1 << TYPE_SET),
-        /** Matches WeakMap | WeakSet (weak collection types) */
-        WEAK_COLLECTION: (1 << TYPE_WEAKMAP) | (1 << TYPE_WEAKSET),
-        /** Matches all collection types: Array | Map | Set */
-        ANY_COLLECTION: (1 << TYPE_ARRAY) | (1 << TYPE_MAP) | (1 << TYPE_SET),
-        /** Matches all iterable types: Array | Map | Set | string */
-        ALL_ITERABLE: (1 << TYPE_ARRAY) | (1 << TYPE_MAP) | (1 << TYPE_SET) | (1 << TYPE_STRING),
-    };
-    /**
-     * Create a custom type mask by combining type names
-     *
-     * @param typeNames - Array of type names to combine
-     * @returns Combined mask
-     *
-     * @example
-     * ```ts
-     * const numericMask = createMask(['number', 'string', 'boolean']);
-     * ```
-     */
-    function createMask(typeNames) {
-        return getParamMask(typeNames);
-    }
-    /**
-     * Create an optional mask (type | null | undefined)
-     *
-     * @param baseMask - The base type mask
-     * @returns Mask with null and undefined added
-     */
-    function optionalMask(baseMask) {
-        return baseMask | (1 << TYPE_NULL) | (1 << TYPE_UNDEFINED);
-    }
-    /**
-     * Create a nullable mask (type | null)
-     *
-     * @param baseMask - The base type mask
-     * @returns Mask with null added
-     */
-    function nullableMask(baseMask) {
-        return baseMask | (1 << TYPE_NULL);
-    }
-    /**
-     * Combine multiple masks with OR
-     *
-     * @param masks - Masks to combine
-     * @returns Combined mask
-     */
-    function combineMasks(...masks) {
-        let result = 0;
-        for (const mask of masks) {
-            result |= mask;
-        }
-        return result;
-    }
-
-    /**
      * Factory Function for typed-function
      *
      * Creates isolated typed universes with independent type registries
@@ -3440,6 +3497,24 @@
      * creating an isolated "typed universe".
      *
      * @returns A new typed-function instance
+     *
+     * @example
+     * ```ts
+     * import typed from 'typed-function';
+     *
+     * // Create an isolated instance with its own type registry
+     * const typed2 = typed.create();
+     *
+     * // Add a custom type only to this instance
+     * typed2.addType({
+     *   name: 'positive',
+     *   test: (x) => typeof x === 'number' && x > 0,
+     * });
+     *
+     * const fn = typed2({ positive: (x) => x * 2 });
+     * fn(5);  // 10
+     * fn(-1); // Error: no matching signature
+     * ```
      */
     function create() {
         // Create type registry (already has 'any' and builtin types from createTypeRegistry)
@@ -3456,6 +3531,17 @@
         }
         /**
          * Find a specific signature from a typed function
+         *
+         * @example
+         * ```ts
+         * const fn = typed({
+         *   'number, number': (a, b) => a + b,
+         *   'string, string': (a, b) => a + b,
+         * });
+         *
+         * const sig = typed.findSignature(fn, 'number, number');
+         * console.log(sig.params.length); // 2
+         * ```
          */
         function findSignature(fn, signature, options) {
             if (!isTypedFunction(fn)) {
@@ -3523,6 +3609,18 @@
         }
         /**
          * Find the implementation for a specific signature
+         *
+         * @example
+         * ```ts
+         * const fn = typed({
+         *   'number, number': (a, b) => a + b,
+         *   'string, string': (a, b) => a + b,
+         * });
+         *
+         * // Get the implementation function directly
+         * const addNumbers = typed.find(fn, 'number, number');
+         * addNumbers(1, 2); // 3 (bypasses dispatch)
+         * ```
          */
         function find(fn, signature, options) {
             const sig = findSignature(fn, signature, options);
@@ -3533,12 +3631,34 @@
         }
         /**
          * Convert a value to a specific type
+         *
+         * @example
+         * ```ts
+         * typed.addConversion({
+         *   from: 'string',
+         *   to: 'number',
+         *   convert: (s) => parseFloat(s),
+         * });
+         *
+         * typed.convert('3.14', 'number'); // 3.14
+         * ```
          */
         function convert(value, typeName) {
             return conversions.convert(value, typeName);
         }
         /**
          * Resolve the matching signature for given arguments
+         *
+         * @example
+         * ```ts
+         * const fn = typed({
+         *   number: (x) => x * 2,
+         *   string: (s) => s.toUpperCase(),
+         * });
+         *
+         * const sig = typed.resolve(fn, [42]);
+         * console.log(sig?.params[0]?.name); // 'number'
+         * ```
          */
         function resolve(fn, argList) {
             if (!isTypedFunction(fn)) {
@@ -3554,7 +3674,24 @@
             return null;
         }
         /**
-         * Create a referTo reference
+         * Create a referTo reference to directly call another signature
+         *
+         * @example
+         * ```ts
+         * const fn = typed({
+         *   'number, number': (a, b) => a + b,
+         *   // referTo lets you call another signature directly
+         *   string: typed.referTo('number, number', (add) => {
+         *     return (s) => {
+         *       const nums = s.split(',').map(Number);
+         *       return add(nums[0], nums[1]);
+         *     };
+         *   }),
+         * });
+         *
+         * fn(1, 2);     // 3
+         * fn('3,4');    // 7 (calls number,number signature)
+         * ```
          */
         function referTo(...args) {
             const callback = last(args);
@@ -3571,7 +3708,21 @@
             return makeReferTo(references, callback);
         }
         /**
-         * Create a referToSelf reference
+         * Create a referToSelf reference for recursive typed function calls
+         *
+         * @example
+         * ```ts
+         * const factorial = typed({
+         *   number: typed.referToSelf((self) => {
+         *     return (n) => {
+         *       if (n <= 1) return 1;
+         *       return n * self(n - 1); // recursive call through dispatch
+         *     };
+         *   }),
+         * });
+         *
+         * factorial(5); // 120
+         * ```
          */
         function referToSelf(callback) {
             if (typeof callback !== 'function') {
@@ -3581,6 +3732,33 @@
         }
         /**
          * The main typed function creator
+         *
+         * @example
+         * ```ts
+         * // Basic usage with signature object
+         * const add = typed({
+         *   'number, number': (a, b) => a + b,
+         *   'string, string': (a, b) => a + b,
+         * });
+         *
+         * // Named typed function
+         * const multiply = typed('multiply', {
+         *   'number, number': (a, b) => a * b,
+         * });
+         *
+         * // Merge multiple typed functions
+         * const math = typed(add, multiply);
+         *
+         * // Union types
+         * const stringify = typed({
+         *   'number | boolean': (x) => String(x),
+         * });
+         *
+         * // Rest parameters
+         * const sum = typed({
+         *   '...number': (nums) => nums.reduce((a, b) => a + b, 0),
+         * });
+         * ```
          */
         function typed(maybeName, ...items) {
             const named = typeof maybeName === 'string';

@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run typecheck:*)",
+      "Bash(npm test:*)",
+      "Bash(npm run build:*)",
+      "Bash(dir \"C:\\Users\\danie\\Dropbox\\Github\\typed-function\\build\")",
+      "Bash(cat:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\ndocs: add CHANGELOG.md with full version history and CLAUDE.md\n\n- Add CHANGELOG.md following Keep a Changelog format\n- Document all releases from v1.0.0 through v5.0.0-alpha.1\n- Add CLAUDE.md with project guidance for Claude Code\n\n🤖 Generated with [Claude Code](https://claude.ai/claude-code)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git push)",
+      "mcp__memory-mcp__search_nodes",
+      "mcp__memory-mcp__create_entities",
+      "mcp__memory-mcp__create_relations",
+      "Bash(git commit:*)",
+      "Bash(npm publish:*)",
+      "Bash(npm whoami:*)",
+      "Bash(npm view:*)",
+      "Bash(findstr:*)",
+      "Bash(npm config set:*)",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebFetch(domain:registry.npmjs.org)",
+      "Bash(npm config delete:*)",
+      "Bash(curl:*)",
+      "mcp__memory-mcp__add_observations",
+      "Bash(node -p:*)",
+      "Bash(npm version:*)"
+    ]
+  }
+}

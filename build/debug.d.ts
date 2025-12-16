@@ -131,4 +131,84 @@ export declare function enableDebug(level?: DebugLevel): void;
  * Convenience function to disable debug mode
  */
 export declare function disableDebug(): void;
+/**
+ * Subscribe to a specific event type
+ *
+ * @param eventType - The event type to subscribe to
+ * @param handler - The handler function
+ * @returns A function to unsubscribe
+ *
+ * @example
+ * ```ts
+ * import { on } from 'typed-function/debug';
+ *
+ * // Subscribe to dispatch matches
+ * const off = on('dispatch:match', (event) => {
+ *   console.log(`Matched: ${event.data?.signature}`);
+ * });
+ *
+ * // Later, unsubscribe
+ * off();
+ * ```
+ */
+export declare function on(eventType: DebugEventType, handler: DebugHandler): () => void;
+/**
+ * Subscribe to an event type for a single occurrence
+ *
+ * @param eventType - The event type to subscribe to
+ * @param handler - The handler function
+ * @returns A function to unsubscribe early
+ *
+ * @example
+ * ```ts
+ * import { once } from 'typed-function/debug';
+ *
+ * // Subscribe to next function creation only
+ * once('function:create', (event) => {
+ *   console.log(`Created: ${event.fnName}`);
+ * });
+ * ```
+ */
+export declare function once(eventType: DebugEventType, handler: DebugHandler): () => void;
+/**
+ * Remove all handlers for a specific event type
+ *
+ * @param eventType - The event type to clear handlers for
+ */
+export declare function off(eventType: DebugEventType): void;
+/**
+ * Remove all event handlers
+ */
+export declare function removeAllListeners(): void;
+/**
+ * Get the count of handlers for an event type
+ *
+ * @param eventType - The event type (optional, returns total if not provided)
+ * @returns Number of handlers
+ */
+export declare function listenerCount(eventType?: DebugEventType): number;
+/**
+ * Create a debug session that tracks events within a scope
+ *
+ * @returns A debug session object
+ *
+ * @example
+ * ```ts
+ * import { createDebugSession } from 'typed-function/debug';
+ *
+ * const session = createDebugSession();
+ * session.start();
+ *
+ * // ... do some typed function operations ...
+ *
+ * const events = session.stop();
+ * console.log(`Captured ${events.length} events`);
+ * ```
+ */
+export declare function createDebugSession(): {
+    start: () => void;
+    stop: () => DebugEvent[];
+    events: DebugEvent[];
+    isActive: boolean;
+};
 //# sourceMappingURL=debug.d.ts.map

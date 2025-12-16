@@ -21,6 +21,24 @@ export interface InitOptions {
  * creating an isolated "typed universe".
  *
  * @returns A new typed-function instance
+ *
+ * @example
+ * ```ts
+ * import typed from 'typed-function';
+ *
+ * // Create an isolated instance with its own type registry
+ * const typed2 = typed.create();
+ *
+ * // Add a custom type only to this instance
+ * typed2.addType({
+ *   name: 'positive',
+ *   test: (x) => typeof x === 'number' && x > 0,
+ * });
+ *
+ * const fn = typed2({ positive: (x) => x * 2 });
+ * fn(5);  // 10
+ * fn(-1); // Error: no matching signature
+ * ```
  */
 export declare function create(): TypedInstance;
 declare const _default: TypedInstance;
