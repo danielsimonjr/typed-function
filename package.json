@@ -97,5 +97,10 @@
     "build",
     "src"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "overrides": {
+    "serialize-javascript": "^7.0.5",
+    "@rollup/plugin-terser": "^1.0.0",
+    "rollup": "^4.60.2"
+  }
 }
