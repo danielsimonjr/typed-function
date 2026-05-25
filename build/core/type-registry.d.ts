@@ -15,6 +15,10 @@ export interface InternalTypeDef {
     isAny: boolean;
     index: number;
     conversionsTo: ConversionDef[];
+    /** Factory function for creating instances (bundler-safe) */
+    factory?: (...args: unknown[]) => unknown;
+    /** Constructor reference for bundler-safe identification */
+    constructor?: Function;
 }
 /**
  * Type Registry class for managing type definitions

@@ -18,6 +18,37 @@ export interface TypeDef {
     index?: number;
     /** Conversions available to this type from other types */
     conversionsTo?: ConversionDef[];
+    /**
+     * Factory function to create new instances of this type.
+     * Used by conversions to ensure proper construction (with 'new').
+     *
+     * This is especially important when classes are compiled by bundlers
+     * like esbuild, which require 'new' for class instantiation.
+     *
+     * @example
+     * ```typescript
+     * typed.addType({
+     *   name: 'Complex',
+     *   test: isComplex,
+     *   factory: (re, im) => new Complex(re, im)
+     * });
+     * ```
+     */
+    factory?: (...args: unknown[]) => unknown;
+    /**
+     * Constructor reference for this type.
+     * Used for bundler-safe type identification via constructor registry.
+     *
+     * @example
+     * ```typescript
+     * typed.addType({
+     *   name: 'DenseMatrix',
+     *   test: isDenseMatrix,
+     *   constructor: DenseMatrix
+     * });
+     * ```
+     */
+    constructor?: Function;
 }
 /**
  * A conversion definition that describes how to convert between types
@@ -31,6 +62,16 @@ export interface ConversionDef {
     convert: (value: unknown) => unknown;
     /** Internal index for conversion priority */
     index?: number;
+    /**
+     * Whether this conversion involves BigInt values.
+     * When true, warnings may be emitted if BigInt coercion warnings are enabled.
+     */
+    involvesBigInt?: boolean;
+    /**
+     * Whether to suppress BigInt coercion warnings for this specific conversion.
+     * Useful when you've handled BigInt safely in your convert function.
+     */
+    suppressBigIntWarning?: boolean;
 }
 /**
  * Represents a single type within a parameter, potentially with conversion info
@@ -266,9 +307,135 @@ export interface TypedInstance {
     isWasmEnabled: () => boolean;
     /** Reset WASM state (for testing) */
     resetWasm: () => void;
+    /**
+     * Configure typed-function behavior.
+     *
+     * @example
+     * ```typescript
+     * typed.config({
+     *   warnOnBigIntCoercion: true,
+     *   enableTypeCache: true,
+     *   bundlerSafeMode: true
+     * });
+     * ```
+     */
+    config: (options: TypedConfig) => void;
+    /**
+     * Get the current configuration.
+     */
+    getConfig: () => TypedConfigState;
+    /**
+     * Register a constructor for bundler-safe type identification.
+     *
+     * This allows type identification even when constructor names are minified.
+     *
+     * @example
+     * ```typescript
+     * typed.registerConstructor(DenseMatrix, 'DenseMatrix');
+     * ```
+     */
+    registerConstructor: (constructor: Function, typeName: string) => void;
+    /**
+     * Unregister a constructor from the registry.
+     *
+     * @returns true if the constructor was registered and removed
+     */
+    unregisterConstructor: (constructor: Function) => boolean;
+    /**
+     * Get the type name for a registered constructor.
+     *
+     * @returns The type name, or undefined if not registered
+     */
+    getTypeByConstructor: (constructor: Function | undefined | null) => string | undefined;
+    /**
+     * Create a bundler-safe type test function.
+     *
+     * This function creates a type test that uses multiple identification strategies:
+     * 1. Symbol-based identification (TYPE_SYMBOL)
+     * 2. Brand-based identification (BRAND_SYMBOL)
+     * 3. Constructor registry lookup
+     * 4. Instance registry lookup
+     * 5. Fallback custom test function
+     *
+     * @example
+     * ```typescript
+     * typed.addType({
+     *   name: 'DenseMatrix',
+     *   test: typed.createBundlerSafeTest('DenseMatrix', {
+     *     fallback: (x) => x && typeof x.get === 'function'
+     *   })
+     * });
+     * ```
+     */
+    createBundlerSafeTest: (typeName: string, options?: {
+        fallback?: (value: unknown) => boolean;
+        checkConstructor?: boolean;
+        checkInstance?: boolean;
+        checkSymbols?: boolean;
+    }) => (value: unknown) => boolean;
 }
 /**
  * Constant error message for non-typed-function arguments
  */
 export declare const NOT_TYPED_FUNCTION = "Argument is not a typed-function.";
+/**
+ * Configuration options for typed-function behavior
+ */
+export interface TypedConfig {
+    /**
+     * Whether to warn when BigInt values are implicitly coerced.
+     * Default: false
+     *
+     * @example
+     * ```typescript
+     * typed.config({ warnOnBigIntCoercion: true });
+     * // Now warnings are logged when BigInt is converted to number
+     * ```
+     */
+    warnOnBigIntCoercion?: boolean;
+    /**
+     * Whether to enable type caching for performance.
+     * Default: true
+     *
+     * When enabled, type resolution results are cached using WeakMap
+     * for repeated calls with the same object arguments.
+     */
+    enableTypeCache?: boolean;
+    /**
+     * Whether to use bundler-safe type identification (symbol/constructor registry).
+     * Default: true
+     *
+     * When enabled, type tests will also check for TYPE_SYMBOL and
+     * registered constructors in addition to the test function.
+     */
+    bundlerSafeMode?: boolean;
+    /**
+     * Custom warning handler function.
+     * Default: console.warn
+     *
+     * @example
+     * ```typescript
+     * typed.config({
+     *   warnHandler: (message) => {
+     *     myLogger.warn(message);
+     *   }
+     * });
+     * ```
+     */
+    warnHandler?: (message: string) => void;
+    /**
+     * Maximum number of warnings to emit before suppressing.
+     * Default: 10
+     *
+     * Set to -1 for unlimited warnings.
+     */
+    maxWarnings?: number;
+}
+/**
+ * Internal state for configuration
+ */
+export interface TypedConfigState extends Required<TypedConfig> {
+    /** Counter for emitted warnings */
+    warningCount: number;
+}
 //# sourceMappingURL=types.d.ts.map

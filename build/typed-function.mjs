@@ -124,6 +124,13 @@ class TypeRegistry {
                 index: beforeIndex + i,
                 conversionsTo: [],
             };
+            // Add optional properties only if defined
+            if (typeDef.factory !== undefined) {
+                internalType.factory = typeDef.factory;
+            }
+            if (typeDef.constructor !== undefined) {
+                internalType.constructor = typeDef.constructor;
+            }
             this.typeMap.set(typeName, internalType);
             // Assign bit position for WASM dispatch
             const builtinBit = TypeRegistry.BUILTIN_TYPE_BITS[typeName];
@@ -2534,13 +2541,13 @@ const NO_MATCH = 0xffffffff;
  *
  * @param exports - WASM module exports
  */
-function initWasm(exports$1) {
-    wasmState.exports = exports$1;
+function initWasm(exports) {
+    wasmState.exports = exports;
     wasmState.functionTable = [];
     wasmState.initError = null;
     wasmState.initialized = true;
     // Initialize built-in types
-    exports$1.initBuiltinTypes();
+    exports.initBuiltinTypes();
 }
 /**
  * Check if WASM is available and initialized
@@ -2575,12 +2582,12 @@ function resetWasm() {
  * @returns The signature index
  */
 function wasmAddSignature(fn, paramMasks) {
-    const exports$1 = getWasmExports();
+    const exports = getWasmExports();
     // Add function to table
     const fnIndex = wasmState.functionTable.length;
     wasmState.functionTable.push(fn);
     // Add signature to WASM
-    const sigIndex = exports$1.addSignature(fnIndex, paramMasks.length);
+    const sigIndex = exports.addSignature(fnIndex, paramMasks.length);
     if (sigIndex === NO_MATCH) {
         throw new WasmInitializationError('Failed to add signature to WASM dispatch table');
     }
@@ -2588,7 +2595,7 @@ function wasmAddSignature(fn, paramMasks) {
     for (let i = 0; i < paramMasks.length; i++) {
         const mask = paramMasks[i];
         if (mask !== undefined) {
-            exports$1.setParamMask(sigIndex, i, mask);
+            exports.setParamMask(sigIndex, i, mask);
         }
     }
     return sigIndex;
@@ -2624,7 +2631,7 @@ const TYPE_UNDEFINED = 9;
 /** Type ID for BigInt */
 const TYPE_BIGINT = 10;
 /** Type ID for Symbol */
-const TYPE_SYMBOL = 11;
+const TYPE_SYMBOL$1 = 11;
 /** Type ID for Map */
 const TYPE_MAP = 12;
 /** Type ID for Set */
@@ -2651,7 +2658,7 @@ const typeNameToBit = new Map([
     ['undefined', TYPE_UNDEFINED],
     // Modern types (ES6+)
     ['BigInt', TYPE_BIGINT],
-    ['Symbol', TYPE_SYMBOL],
+    ['Symbol', TYPE_SYMBOL$1],
     ['Map', TYPE_MAP],
     ['Set', TYPE_SET],
     ['WeakMap', TYPE_WEAKMAP],
@@ -2787,7 +2794,7 @@ const TypeMasks = {
     /** Matches BigInt only */
     BIGINT: 1 << TYPE_BIGINT,
     /** Matches Symbol only */
-    SYMBOL: 1 << TYPE_SYMBOL,
+    SYMBOL: 1 << TYPE_SYMBOL$1,
     /** Matches Map only */
     MAP: 1 << TYPE_MAP,
     /** Matches Set only */
@@ -3374,6 +3381,585 @@ function omit(obj, keys) {
 }
 
 /**
+ * Bundler Compatibility Module for typed-function
+ *
+ * This module provides robust type identification mechanisms that survive
+ * bundler transformations (esbuild, webpack, rollup, etc.) including:
+ *
+ * - Symbol-based type identification
+ * - Constructor registry using WeakMap
+ * - Brand checking patterns
+ *
+ * These mechanisms address issues where class instances are not recognized
+ * after compilation due to prototype chain breakage or constructor renaming.
+ *
+ * @see docs/TYPED_FUNCTION_IMPROVEMENTS.md
+ */
+/**
+ * Well-known symbol for typed-function type identification.
+ *
+ * Classes can implement this to ensure type recognition survives bundling:
+ *
+ * @example
+ * ```typescript
+ * import { TYPE_SYMBOL } from 'typed-function';
+ *
+ * class DenseMatrix {
+ *   [TYPE_SYMBOL] = 'DenseMatrix';
+ * }
+ *
+ * // Type test becomes bundler-safe:
+ * typed.addType({
+ *   name: 'DenseMatrix',
+ *   test: (x) => x && x[TYPE_SYMBOL] === 'DenseMatrix'
+ * });
+ * ```
+ */
+const TYPE_SYMBOL = Symbol.for('typed-function:type');
+/**
+ * Symbol for brand-based type checking (TypeScript branded types pattern).
+ *
+ * This provides an alternative to TYPE_SYMBOL for cases where you want
+ * TypeScript-style branded types.
+ *
+ * @example
+ * ```typescript
+ * import { BRAND_SYMBOL } from 'typed-function';
+ *
+ * interface Branded<T extends string> {
+ *   readonly [BRAND_SYMBOL]: T;
+ * }
+ *
+ * class Complex implements Branded<'Complex'> {
+ *   readonly [BRAND_SYMBOL] = 'Complex' as const;
+ * }
+ * ```
+ */
+const BRAND_SYMBOL = Symbol.for('typed-function:brand');
+/**
+ * Constructor registry - maps constructors to type names.
+ *
+ * This WeakMap allows type identification even when:
+ * - Classes are compiled/transpiled
+ * - Constructor names are minified
+ * - Multiple bundle versions exist
+ */
+const constructorRegistry = new WeakMap();
+/**
+ * Instance registry - for WeakSet-based instance tracking.
+ *
+ * Maps type names to WeakSets of instances.
+ */
+const instanceRegistry = new Map();
+/**
+ * Register a constructor with a type name.
+ *
+ * This allows type identification by constructor reference rather than name.
+ *
+ * @example
+ * ```typescript
+ * import { registerConstructor, getTypeByConstructor } from 'typed-function';
+ *
+ * class DenseMatrix { }
+ * registerConstructor(DenseMatrix, 'DenseMatrix');
+ *
+ * // Later, in type test:
+ * test: (x) => getTypeByConstructor(x?.constructor) === 'DenseMatrix'
+ * ```
+ *
+ * @param constructor - The constructor function to register
+ * @param typeName - The type name to associate with this constructor
+ */
+function registerConstructor(constructor, typeName) {
+    constructorRegistry.set(constructor, typeName);
+}
+/**
+ * Unregister a constructor from the registry.
+ *
+ * @param constructor - The constructor to unregister
+ * @returns true if the constructor was registered and removed, false otherwise
+ */
+function unregisterConstructor(constructor) {
+    return constructorRegistry.delete(constructor);
+}
+/**
+ * Get the type name for a registered constructor.
+ *
+ * @param constructor - The constructor to look up
+ * @returns The type name, or undefined if not registered
+ */
+function getTypeByConstructor(constructor) {
+    if (!constructor)
+        return undefined;
+    return constructorRegistry.get(constructor);
+}
+/**
+ * Check if a value is an instance of a registered type by constructor lookup.
+ *
+ * @param value - The value to check
+ * @param typeName - The expected type name
+ * @returns true if the value's constructor is registered with the given type name
+ */
+function isRegisteredType(value, typeName) {
+    if (value === null || value === undefined)
+        return false;
+    if (typeof value !== 'object' && typeof value !== 'function')
+        return false;
+    const constructor = value.constructor;
+    return constructorRegistry.get(constructor) === typeName;
+}
+/**
+ * Register an instance with a type name using WeakSet tracking.
+ *
+ * This is useful for cases where constructor-based identification doesn't work,
+ * such as objects created with Object.create() or cross-realm objects.
+ *
+ * @example
+ * ```typescript
+ * import { registerInstance, isRegisteredInstance } from 'typed-function';
+ *
+ * class Matrix {
+ *   constructor() {
+ *     registerInstance(this, 'Matrix');
+ *   }
+ * }
+ *
+ * // Type test:
+ * test: (x) => isRegisteredInstance(x, 'Matrix')
+ * ```
+ *
+ * @param instance - The instance to register
+ * @param typeName - The type name to associate with this instance
+ */
+function registerInstance(instance, typeName) {
+    let weakSet = instanceRegistry.get(typeName);
+    if (!weakSet) {
+        weakSet = new WeakSet();
+        instanceRegistry.set(typeName, weakSet);
+    }
+    weakSet.add(instance);
+}
+/**
+ * Check if an instance is registered with a specific type name.
+ *
+ * @param instance - The instance to check
+ * @param typeName - The expected type name
+ * @returns true if the instance is registered with the given type name
+ */
+function isRegisteredInstance(instance, typeName) {
+    if (instance === null || instance === undefined)
+        return false;
+    if (typeof instance !== 'object')
+        return false;
+    const weakSet = instanceRegistry.get(typeName);
+    return weakSet ? weakSet.has(instance) : false;
+}
+/**
+ * Clear all registered instances for a type name.
+ *
+ * Note: This creates a new WeakSet, existing instances will no longer be tracked.
+ *
+ * @param typeName - The type name to clear instances for
+ */
+function clearInstanceRegistry(typeName) {
+    instanceRegistry.delete(typeName);
+}
+/**
+ * Clear all instance registries.
+ */
+function clearAllInstanceRegistries() {
+    instanceRegistry.clear();
+}
+/**
+ * Check if a value has a typed-function type symbol.
+ *
+ * @param value - The value to check
+ * @returns The type name from the symbol, or undefined if not present
+ */
+function getTypeFromSymbol(value) {
+    if (value === null || value === undefined)
+        return undefined;
+    if (typeof value !== 'object' && typeof value !== 'function')
+        return undefined;
+    const typeValue = value[TYPE_SYMBOL];
+    return typeof typeValue === 'string' ? typeValue : undefined;
+}
+/**
+ * Check if a value has a brand symbol.
+ *
+ * @param value - The value to check
+ * @returns The brand name from the symbol, or undefined if not present
+ */
+function getBrandFromSymbol(value) {
+    if (value === null || value === undefined)
+        return undefined;
+    if (typeof value !== 'object' && typeof value !== 'function')
+        return undefined;
+    const brandValue = value[BRAND_SYMBOL];
+    return typeof brandValue === 'string' ? brandValue : undefined;
+}
+/**
+ * Create a bundler-safe type test function.
+ *
+ * This function creates a type test that uses multiple identification strategies
+ * in order of reliability:
+ * 1. Symbol-based identification (TYPE_SYMBOL)
+ * 2. Brand-based identification (BRAND_SYMBOL)
+ * 3. Constructor registry lookup
+ * 4. Instance registry lookup
+ * 5. Fallback custom test function
+ *
+ * @example
+ * ```typescript
+ * import { createBundlerSafeTest } from 'typed-function';
+ *
+ * typed.addType({
+ *   name: 'DenseMatrix',
+ *   test: createBundlerSafeTest('DenseMatrix', {
+ *     fallback: (x) => x && typeof x.get === 'function' && Array.isArray(x._size)
+ *   })
+ * });
+ * ```
+ *
+ * @param typeName - The type name to check for
+ * @param options - Optional configuration
+ * @returns A type test function
+ */
+function createBundlerSafeTest(typeName, options) {
+    const { fallback, checkConstructor = true, checkInstance = true, checkSymbols = true, } = options || {};
+    return function bundlerSafeTest(value) {
+        if (value === null || value === undefined)
+            return false;
+        // Check symbol-based identification first (most reliable)
+        if (checkSymbols) {
+            if (getTypeFromSymbol(value) === typeName)
+                return true;
+            if (getBrandFromSymbol(value) === typeName)
+                return true;
+        }
+        // Check constructor registry
+        if (checkConstructor && typeof value === 'object') {
+            if (isRegisteredType(value, typeName))
+                return true;
+        }
+        // Check instance registry
+        if (checkInstance) {
+            if (isRegisteredInstance(value, typeName))
+                return true;
+        }
+        // Fall back to custom test
+        if (fallback) {
+            return fallback(value);
+        }
+        return false;
+    };
+}
+/**
+ * Helper to create a class that is automatically registered with typed-function.
+ *
+ * @example
+ * ```typescript
+ * import { createTypedClass, TYPE_SYMBOL } from 'typed-function';
+ *
+ * const DenseMatrix = createTypedClass('DenseMatrix', class {
+ *   constructor(public data: number[][]) {}
+ * });
+ *
+ * const m = new DenseMatrix([[1, 2], [3, 4]]);
+ * m[TYPE_SYMBOL] // 'DenseMatrix'
+ * ```
+ *
+ * @param typeName - The type name for this class
+ * @param BaseClass - The base class to extend
+ * @returns A new class with type identification built in
+ */
+function createTypedClass(typeName, BaseClass) {
+    var _a, _b;
+    // Create a new class that extends the base and adds type identification
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const TypedClass = (_b = class extends BaseClass {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            constructor(...args) {
+                super(...args);
+                this[_a] = typeName;
+                // Also register the instance for WeakSet-based lookup
+                registerInstance(this, typeName);
+            }
+        },
+        _a = TYPE_SYMBOL,
+        _b);
+    // Register the constructor
+    registerConstructor(TypedClass, typeName);
+    // Try to preserve the class name
+    try {
+        Object.defineProperty(TypedClass, 'name', {
+            value: typeName,
+            configurable: true,
+        });
+    }
+    catch {
+        // Some environments don't allow setting Function.name
+    }
+    return TypedClass;
+}
+/**
+ * Decorator-style function to add type identification to an existing class.
+ *
+ * @example
+ * ```typescript
+ * import { addTypeIdentification, TYPE_SYMBOL } from 'typed-function';
+ *
+ * class MyMatrix {
+ *   constructor(public data: number[][]) {}
+ * }
+ *
+ * // Add type identification
+ * addTypeIdentification(MyMatrix, 'Matrix');
+ *
+ * // Now instances have TYPE_SYMBOL
+ * const m = new MyMatrix([[1, 2]]);
+ * m[TYPE_SYMBOL] // 'Matrix'
+ * ```
+ *
+ * @param Class - The class to modify
+ * @param typeName - The type name to assign
+ */
+function addTypeIdentification(Class, typeName) {
+    // Register the constructor
+    registerConstructor(Class, typeName);
+    // Add TYPE_SYMBOL to the prototype
+    Object.defineProperty(Class.prototype, TYPE_SYMBOL, {
+        value: typeName,
+        writable: false,
+        enumerable: false,
+        configurable: false,
+    });
+}
+/**
+ * Identify a value's type using all available methods, returning details.
+ *
+ * This is useful for debugging type identification issues.
+ *
+ * @param value - The value to identify
+ * @param expectedType - Optional expected type name to check
+ * @returns Details about type identification
+ */
+function identifyType(value, expectedType) {
+    if (value === null || value === undefined) {
+        return { typeName: null, method: 'none' };
+    }
+    // Check TYPE_SYMBOL
+    const symbolType = getTypeFromSymbol(value);
+    if (symbolType) {
+        if (!expectedType || symbolType === expectedType) {
+            return { typeName: symbolType, method: 'symbol' };
+        }
+    }
+    // Check BRAND_SYMBOL
+    const brandType = getBrandFromSymbol(value);
+    if (brandType) {
+        if (!expectedType || brandType === expectedType) {
+            return { typeName: brandType, method: 'brand' };
+        }
+    }
+    // Check constructor registry
+    if (typeof value === 'object' || typeof value === 'function') {
+        const constructorType = getTypeByConstructor(value.constructor);
+        if (constructorType) {
+            if (!expectedType || constructorType === expectedType) {
+                return { typeName: constructorType, method: 'constructor' };
+            }
+        }
+        // Check instance registry (only if we have an expected type)
+        if (expectedType && isRegisteredInstance(value, expectedType)) {
+            return { typeName: expectedType, method: 'instance' };
+        }
+    }
+    return { typeName: null, method: 'none' };
+}
+
+/**
+ * Type Cache Module for typed-function
+ *
+ * Provides caching for type resolution results to improve performance
+ * when repeatedly checking the same objects.
+ *
+ * Uses WeakMap to allow garbage collection of cached objects.
+ *
+ * @see docs/TYPED_FUNCTION_IMPROVEMENTS.md - Issue 6
+ */
+/**
+ * Type cache using WeakMap for object-based caching.
+ *
+ * This allows type resolution results to be cached for repeated calls
+ * with the same object, while still allowing garbage collection when
+ * objects are no longer referenced.
+ */
+class TypeCache {
+    constructor() {
+        /** WeakMap storing type names by object reference */
+        this.cache = new WeakMap();
+        /** Counter for cache hits (for debugging/metrics) */
+        this.hits = 0;
+        /** Counter for cache misses (for debugging/metrics) */
+        this.misses = 0;
+        /** Whether caching is enabled */
+        this.enabled = true;
+    }
+    /**
+     * Get a cached type name for an object.
+     *
+     * @param value - The value to look up
+     * @returns The cached type name, or undefined if not cached
+     */
+    get(value) {
+        if (!this.enabled)
+            return undefined;
+        if (value === null || value === undefined)
+            return undefined;
+        if (typeof value !== 'object' && typeof value !== 'function')
+            return undefined;
+        const result = this.cache.get(value);
+        if (result !== undefined) {
+            this.hits++;
+        }
+        else {
+            this.misses++;
+        }
+        return result;
+    }
+    /**
+     * Cache a type name for an object.
+     *
+     * @param value - The value to cache
+     * @param typeName - The type name to associate
+     */
+    set(value, typeName) {
+        if (!this.enabled)
+            return;
+        if (value === null || value === undefined)
+            return;
+        if (typeof value !== 'object' && typeof value !== 'function')
+            return;
+        this.cache.set(value, typeName);
+    }
+    /**
+     * Check if a value is cached.
+     *
+     * @param value - The value to check
+     * @returns true if the value is cached
+     */
+    has(value) {
+        if (!this.enabled)
+            return false;
+        if (value === null || value === undefined)
+            return false;
+        if (typeof value !== 'object' && typeof value !== 'function')
+            return false;
+        return this.cache.has(value);
+    }
+    /**
+     * Remove a value from the cache.
+     *
+     * @param value - The value to remove
+     * @returns true if the value was cached and removed
+     */
+    delete(value) {
+        if (value === null || value === undefined)
+            return false;
+        if (typeof value !== 'object' && typeof value !== 'function')
+            return false;
+        return this.cache.delete(value);
+    }
+    /**
+     * Clear all cached entries.
+     *
+     * Note: This creates a new WeakMap. Existing entries will be
+     * garbage collected when their keys are no longer referenced.
+     */
+    clear() {
+        this.cache = new WeakMap();
+        this.hits = 0;
+        this.misses = 0;
+    }
+    /**
+     * Enable caching.
+     */
+    enable() {
+        this.enabled = true;
+    }
+    /**
+     * Disable caching.
+     */
+    disable() {
+        this.enabled = false;
+    }
+    /**
+     * Check if caching is enabled.
+     */
+    isEnabled() {
+        return this.enabled;
+    }
+    /**
+     * Get cache statistics.
+     *
+     * @returns Object with hit and miss counts
+     */
+    getStats() {
+        const total = this.hits + this.misses;
+        return {
+            hits: this.hits,
+            misses: this.misses,
+            hitRate: total > 0 ? this.hits / total : 0,
+        };
+    }
+    /**
+     * Reset cache statistics.
+     */
+    resetStats() {
+        this.hits = 0;
+        this.misses = 0;
+    }
+}
+/**
+ * Global type cache instance.
+ *
+ * This is shared across all typed-function instances for maximum efficiency,
+ * since type identification is global (same object = same type).
+ */
+const globalTypeCache = new TypeCache();
+/**
+ * Create a new isolated type cache.
+ *
+ * Use this if you need separate caching for different typed-function instances.
+ *
+ * @returns A new TypeCache instance
+ */
+function createTypeCache() {
+    return new TypeCache();
+}
+/**
+ * Helper function to get or compute a type name with caching.
+ *
+ * @param value - The value to resolve
+ * @param compute - Function to compute the type name if not cached
+ * @param cache - Optional cache to use (defaults to global cache)
+ * @returns The type name
+ */
+function cachedTypeResolve(value, compute, cache = globalTypeCache) {
+    // Check cache first
+    const cached = cache.get(value);
+    if (cached !== undefined) {
+        return cached;
+    }
+    // Compute the type
+    const typeName = compute(value);
+    // Cache the result
+    cache.set(value, typeName);
+    return typeName;
+}
+
+/**
  * WASM Loader for typed-function dispatch
  *
  * Handles sync/async loading of WASM module with graceful fallback.
@@ -3516,6 +4102,44 @@ function create() {
     const conversions = createConversionManager(registry);
     // Track creation count
     let createCount = 0;
+    // Configuration state with defaults
+    const configState = {
+        warnOnBigIntCoercion: false,
+        enableTypeCache: true,
+        bundlerSafeMode: true,
+        warnHandler: (message) => console.warn(message),
+        maxWarnings: 10,
+        warningCount: 0,
+    };
+    /**
+     * Emit a warning using the configured handler
+     */
+    function emitWarning(message) {
+        if (configState.maxWarnings === -1 || configState.warningCount < configState.maxWarnings) {
+            configState.warnHandler(message);
+            configState.warningCount++;
+        }
+        else if (configState.warningCount === configState.maxWarnings) {
+            configState.warnHandler(`[typed-function] Warning limit reached (${configState.maxWarnings}). Further warnings will be suppressed.`);
+            configState.warningCount++;
+        }
+    }
+    /**
+     * Check if a conversion involves BigInt and emit warning if configured.
+     * This function is exposed for use by conversion managers and custom conversions.
+     */
+    function checkBigIntCoercion(from, to, value) {
+        if (!configState.warnOnBigIntCoercion)
+            return;
+        const isBigIntSource = typeof value === 'bigint' || from === 'BigInt' || from === 'Fraction';
+        const isNumberTarget = to === 'number';
+        if (isBigIntSource && isNumberTarget) {
+            emitWarning(`[typed-function] BigInt coercion warning: Converting from '${from}' to '${to}'. ` +
+                `This may lose precision for large values. Consider using explicit conversions.`);
+        }
+    }
+    // Make checkBigIntCoercion available on the conversion manager for external use
+    conversions.checkBigIntCoercion = checkBigIntCoercion;
     /**
      * Check if an entity is a typed function
      */
@@ -3827,9 +4451,13 @@ function create() {
     typed.clearConversions = () => conversions.clearConversions();
     typed.addTypes = (types, before) => {
         registry.addTypes(types, before);
-        // Auto-register WASM type masks for all new types
+        // Auto-register WASM type masks and constructors for all new types
         for (const type of types) {
             registerCustomType(type.name);
+            // Register constructor for bundler-safe type identification
+            if (type.constructor) {
+                registerConstructor(type.constructor, type.name);
+            }
         }
     };
     typed.addType = (type, beforeObjectTest) => {
@@ -3902,6 +4530,62 @@ function create() {
     typed.resetWasm = () => {
         resetWasm();
         wasmInitialized = false;
+    };
+    /**
+     * Configure typed-function behavior
+     */
+    typed.config = (options) => {
+        if (options.warnOnBigIntCoercion !== undefined) {
+            configState.warnOnBigIntCoercion = options.warnOnBigIntCoercion;
+        }
+        if (options.enableTypeCache !== undefined) {
+            configState.enableTypeCache = options.enableTypeCache;
+            if (options.enableTypeCache) {
+                globalTypeCache.enable();
+            }
+            else {
+                globalTypeCache.disable();
+            }
+        }
+        if (options.bundlerSafeMode !== undefined) {
+            configState.bundlerSafeMode = options.bundlerSafeMode;
+        }
+        if (options.warnHandler !== undefined) {
+            configState.warnHandler = options.warnHandler;
+        }
+        if (options.maxWarnings !== undefined) {
+            configState.maxWarnings = options.maxWarnings;
+        }
+    };
+    /**
+     * Get the current configuration
+     */
+    typed.getConfig = () => {
+        return { ...configState };
+    };
+    /**
+     * Register a constructor for bundler-safe type identification
+     */
+    typed.registerConstructor = (constructor, typeName) => {
+        registerConstructor(constructor, typeName);
+    };
+    /**
+     * Unregister a constructor from the registry
+     */
+    typed.unregisterConstructor = (constructor) => {
+        return unregisterConstructor(constructor);
+    };
+    /**
+     * Get the type name for a registered constructor
+     */
+    typed.getTypeByConstructor = (constructor) => {
+        return getTypeByConstructor(constructor);
+    };
+    /**
+     * Create a bundler-safe type test function
+     */
+    typed.createBundlerSafeTest = (typeName, options) => {
+        return createBundlerSafeTest(typeName, options);
     };
     return typed;
 }
@@ -5173,5 +5857,5 @@ function isTypedFunction(entity) {
     return entity !== null && typeof entity === 'function' && '_typedFunctionData' in entity;
 }
 
-export { ADVANCED_TYPES, ARRAY_TYPES, BIGDOUBLE_TYPES, BUILTIN_TYPES, COMPLEX_TYPES, ConversionManager, DECIMAL_TYPES, DuplicateTypeError, FRACTION_TYPES, GPU_TYPES, LINEAR_ALGEBRA_TYPES, MEASUREMENT_TYPES, NOT_TYPED_FUNCTION, NUMERIC_TYPES, PARALLEL_TYPES, SCIENTIFIC_TYPES, SignatureMismatchError, SignatureNotFoundError, TYPED_ARRAY_TYPES, TooFewArgumentsError, TooManyArgumentsError, TypeMasks, TypeMismatchError, TypeNotFoundError, TypeRegistry, TypedFunctionError, WasmInitializationError, WasmNotAvailableError, addDebugHandler, arraysEqual, availableConversions, bigDecimal, bigDouble, bigFloat, checkName, clearResolutions, collectResolutions, combineMasks, compareParams, compareSignatures, compileArgConversion, compileArgsPreprocessing, compileSignatureTests, compileTest, compileTests, complex, configureDebug, conflicting, create, createArray, createConversionManager, createDispatcher, createError, createFastPathDispatcher, createFastPathSlot, createGenericDispatcher, createInactiveSlot, createMask, createParamTest, createSignatureComparator, createSimpleDispatcher, createTypeRegistry, createTypedFunction, decimal128, decimal32, decimal64, typedInstance as default, defaultOnMismatch, disableDebug, emitDebugEvent, enableDebug, expandParam, findInArray, fixedDecimal, flatMap, formatArgs, formatParam, formatSignature, fraction, getDebugLevel, getLowestConversionIndex, getLowestTypeIndex, getObjectName, getParamAtIndex, getProperty, getTypeSetAtIndex$1 as getTypeSetAtIndex, hasCompiledTests, hasImplementations, hasItem, hasOwnProperty, hasRestParam, hasRestParam$2 as hasRestParamError, initial, interval, isAtomicNumber, isBigDecimal, isBigDouble, isBigFloat, isBigInt64Array, isBigUint64Array, isChannel, isComplex, isDebugEnabled, isDecimal, isDecimal128, isDecimal32, isDecimal64, isEmptyObject, isExactType$1 as isExactType, isFastPathEligible, isFixedDecimal, isFloat32, isFloat32Array, isFloat64, isFloat64Array, isFraction, isFuture, isGPUBuffer, isGPUTensor, isInt16, isInt16Array, isInt32, isInt32Array, isInt64, isInt8, isInt8Array, isInterval, isMatrix, isMoney, isPlainObject, isPolynomial, isQuaternion, isRange, isRational, isReferTo, isReferToSelf, isSharedArray, isSparseMatrix, isStream, isTensor, isTooFewArgumentsError, isTooManyArgumentsError, isTypeMismatchError, isTypedArray, isTypedFunction, isTypedFunctionError, isUInt16, isUInt32, isUInt64, isUInt8, isUint16Array, isUint32Array, isUint8Array, isUncertainty, isUnit, isVector, isWasmNotAvailableError, last, makeReferTo, makeReferToSelf, mapObject, matrix, mergeExpectedParams, mergeObjects, mergeSignatures, money, nullableMask, objectSize, omit, optionalMask, paramTypeSet, parseParam, parseSignature, pick, polynomial, quaternion, range, rational, resetDebug, resolveReferences, shallowCopy, slice, splitParams, stringifyParams, stringifyParams$1 as stringifyParamsError, tensor, uncertainty, unit, validateDeprecatedThis, vector, wrapWithDebug };
+export { ADVANCED_TYPES, ARRAY_TYPES, BIGDOUBLE_TYPES, BRAND_SYMBOL, BUILTIN_TYPES, COMPLEX_TYPES, ConversionManager, DECIMAL_TYPES, DuplicateTypeError, FRACTION_TYPES, GPU_TYPES, LINEAR_ALGEBRA_TYPES, MEASUREMENT_TYPES, NOT_TYPED_FUNCTION, NUMERIC_TYPES, PARALLEL_TYPES, SCIENTIFIC_TYPES, SignatureMismatchError, SignatureNotFoundError, TYPED_ARRAY_TYPES, TYPE_SYMBOL, TooFewArgumentsError, TooManyArgumentsError, TypeCache, TypeMasks, TypeMismatchError, TypeNotFoundError, TypeRegistry, TypedFunctionError, WasmInitializationError, WasmNotAvailableError, addDebugHandler, addTypeIdentification, arraysEqual, availableConversions, bigDecimal, bigDouble, bigFloat, cachedTypeResolve, checkName, clearAllInstanceRegistries, clearInstanceRegistry, clearResolutions, collectResolutions, combineMasks, compareParams, compareSignatures, compileArgConversion, compileArgsPreprocessing, compileSignatureTests, compileTest, compileTests, complex, configureDebug, conflicting, create, createArray, createBundlerSafeTest, createConversionManager, createDispatcher, createError, createFastPathDispatcher, createFastPathSlot, createGenericDispatcher, createInactiveSlot, createMask, createParamTest, createSignatureComparator, createSimpleDispatcher, createTypeCache, createTypeRegistry, createTypedClass, createTypedFunction, decimal128, decimal32, decimal64, typedInstance as default, defaultOnMismatch, disableDebug, emitDebugEvent, enableDebug, expandParam, findInArray, fixedDecimal, flatMap, formatArgs, formatParam, formatSignature, fraction, getBrandFromSymbol, getDebugLevel, getLowestConversionIndex, getLowestTypeIndex, getObjectName, getParamAtIndex, getProperty, getTypeByConstructor, getTypeFromSymbol, getTypeSetAtIndex$1 as getTypeSetAtIndex, globalTypeCache, hasCompiledTests, hasImplementations, hasItem, hasOwnProperty, hasRestParam, hasRestParam$2 as hasRestParamError, identifyType, initial, interval, isAtomicNumber, isBigDecimal, isBigDouble, isBigFloat, isBigInt64Array, isBigUint64Array, isChannel, isComplex, isDebugEnabled, isDecimal, isDecimal128, isDecimal32, isDecimal64, isEmptyObject, isExactType$1 as isExactType, isFastPathEligible, isFixedDecimal, isFloat32, isFloat32Array, isFloat64, isFloat64Array, isFraction, isFuture, isGPUBuffer, isGPUTensor, isInt16, isInt16Array, isInt32, isInt32Array, isInt64, isInt8, isInt8Array, isInterval, isMatrix, isMoney, isPlainObject, isPolynomial, isQuaternion, isRange, isRational, isReferTo, isReferToSelf, isRegisteredInstance, isRegisteredType, isSharedArray, isSparseMatrix, isStream, isTensor, isTooFewArgumentsError, isTooManyArgumentsError, isTypeMismatchError, isTypedArray, isTypedFunction, isTypedFunctionError, isUInt16, isUInt32, isUInt64, isUInt8, isUint16Array, isUint32Array, isUint8Array, isUncertainty, isUnit, isVector, isWasmNotAvailableError, last, makeReferTo, makeReferToSelf, mapObject, matrix, mergeExpectedParams, mergeObjects, mergeSignatures, money, nullableMask, objectSize, omit, optionalMask, paramTypeSet, parseParam, parseSignature, pick, polynomial, quaternion, range, rational, registerConstructor, registerInstance, resetDebug, resolveReferences, shallowCopy, slice, splitParams, stringifyParams, stringifyParams$1 as stringifyParamsError, tensor, uncertainty, unit, unregisterConstructor, validateDeprecatedThis, vector, wrapWithDebug };
 //# sourceMappingURL=typed-function.mjs.map

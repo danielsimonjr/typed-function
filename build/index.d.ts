@@ -26,6 +26,11 @@ export { last, initial, slice, flatMap, findInArray, hasItem, createArray, array
 export { isPlainObject, hasOwnProperty, getProperty, shallowCopy, mapObject, objectSize, isEmptyObject, mergeObjects, pick, omit, } from './utils/object-helpers.js';
 export { create } from './factory.js';
 export type { InitOptions } from './factory.js';
+export { TYPE_SYMBOL, BRAND_SYMBOL, registerConstructor, unregisterConstructor, getTypeByConstructor, isRegisteredType, registerInstance, isRegisteredInstance, clearInstanceRegistry, clearAllInstanceRegistries, getTypeFromSymbol, getBrandFromSymbol, createBundlerSafeTest, createTypedClass, addTypeIdentification, identifyType, } from './core/bundler-compat.js';
+export type { TypeIdentificationResult } from './core/bundler-compat.js';
+export { globalTypeCache, createTypeCache, cachedTypeResolve, TypeCache, } from './core/type-cache.js';
+export type { TypeCacheEntry } from './core/type-cache.js';
+export type { TypedConfig, TypedConfigState } from './core/types.js';
 export { TypeMasks, createMask, optionalMask, nullableMask, combineMasks, } from './wasm/type-masks.js';
 export { configureDebug, resetDebug, isDebugEnabled, getDebugLevel, addDebugHandler, emitDebugEvent, formatSignature, formatParam, formatArgs, wrapWithDebug, enableDebug, disableDebug, } from './debug.js';
 export type { DebugLevel, DebugEventType, DebugEvent, DebugHandler, DebugConfig } from './debug.js';
