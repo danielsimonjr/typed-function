@@ -53,6 +53,7 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:legacy": "vitest run .legacy.test",
     "test:coverage": "vitest run --coverage",
     "build": "npm-run-all build:clean build:wasm build:ts",
     "build:clean": "del-cli build",
@@ -67,7 +68,7 @@
     "prepublishOnly": "npm run build-and-test"
   },
   "engines": {
-    "node": ">= 18"
+    "node": ">= 20"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^29.0.0",
