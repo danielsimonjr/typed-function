@@ -175,7 +175,7 @@ describe('math.js Patterns: Function Chaining', () => {
   it('should support referTo for signature references', () => {
     const fn = math({
       'number, number': (a: number, b: number) => a + b,
-      'string': math.referTo('number, number', (addNums) => {
+      string: math.referTo('number, number', (addNums) => {
         return (s: string) => {
           const parts = s.split(',').map(Number);
           return addNums(parts[0]!, parts[1]!);

@@ -5,7 +5,7 @@
  * ensuring that the TypeScript refactor maintains backward compatibility.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import typed from '../src/index.js';
 
 describe('API Compatibility', () => {
@@ -26,16 +26,16 @@ describe('API Compatibility', () => {
 
     it('should accept multiple signature objects (merge)', () => {
       const fn = typed(
-        { number: (x: number) => 'number' },
-        { string: (x: string) => 'string' }
+        { number: (_x: number) => 'number' },
+        { string: (_x: string) => 'string' }
       );
       expect(fn(1)).toBe('number');
       expect(fn('a')).toBe('string');
     });
 
     it('should accept typed functions (merge)', () => {
-      const fn1 = typed({ number: (x: number) => 'number' });
-      const fn2 = typed({ string: (x: string) => 'string' });
+      const fn1 = typed({ number: (_x: number) => 'number' });
+      const fn2 = typed({ string: (_x: string) => 'string' });
       const fn3 = typed(fn1, fn2);
 
       expect(fn3(1)).toBe('number');
@@ -436,7 +436,7 @@ describe('Typed Function Properties', () => {
       const numFn = (x: number) => x;
       const fn = typed({ number: numFn });
 
-      expect(fn.signatures['number']).toBe(numFn);
+      expect(fn.signatures.number).toBe(numFn);
     });
 
     it('should have keys matching signature strings', () => {

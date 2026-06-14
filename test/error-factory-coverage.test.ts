@@ -801,7 +801,7 @@ describe('Error Factory Coverage (Sprint 3)', () => {
     it('should handle tooManyArgs correctly', () => {
       const typed = create();
       const fn = typed('single', {
-        'number': (x: number) => x,
+        number: (x: number) => x,
       });
 
       try {

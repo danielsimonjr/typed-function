@@ -487,7 +487,7 @@ describe('debug module', () => {
 
     it('should preserve function properties', () => {
       const fn = typed('myFunc', {
-        'number': (n: number) => n * 2,
+        number: (n: number) => n * 2,
       });
 
       const wrapped = wrapWithDebug(fn);
@@ -502,7 +502,7 @@ describe('debug module', () => {
       const handler: DebugHandler = (event) => events.push(event);
 
       const fn = typed({
-        'number': (n: number) => n * 2,
+        number: (n: number) => n * 2,
       });
 
       const wrapped = wrapWithDebug(fn);
@@ -518,7 +518,7 @@ describe('debug module', () => {
       const obj = {
         value: 10,
         add: typed('add', {
-          'number': function(this: { value: number }, n: number) {
+          number: function(this: { value: number }, n: number) {
             return this.value + n;
           },
         }),

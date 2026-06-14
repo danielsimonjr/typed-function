@@ -31,9 +31,9 @@ import { globalTypeCache } from './core/type-cache.js';
 
 import { createTypeRegistry } from './core/type-registry.js';
 import { createConversionManager } from './core/conversion-manager.js';
-import { createError } from './core/error-factory.js';
+import { createError, getParamAtIndex, paramTypeSet } from './core/error-factory.js';
 import { parseSignature, stringifyParams } from './core/signature-parser.js';
-import { getParamAtIndex, paramTypeSet } from './core/error-factory.js';
+
 import { createTypedFunction, checkName, getObjectName, mergeSignatures } from './dispatch/dispatcher.js';
 import { makeReferTo, makeReferToSelf } from './core/reference-resolver.js';
 import { initial, last } from './utils/array-helpers.js';
@@ -76,16 +76,14 @@ function extractSignaturesWithReferences(
     if (Object.prototype.hasOwnProperty.call(signatures, key)) {
       const fn = signatures[key] as FunctionWithReference | undefined;
       if (fn) {
-        // Check if the function has preserved referTo info
         if (fn.referTo) {
+          // The function has preserved referTo info
           result[key] = makeReferTo(fn.referTo.references, fn.referTo.callback);
-        }
-        // Check if the function has preserved referToSelf info
-        else if (fn.referToSelf) {
+        } else if (fn.referToSelf) {
+          // The function has preserved referToSelf info
           result[key] = makeReferToSelf(fn.referToSelf.callback);
-        }
-        // Otherwise, use the function directly
-        else {
+        } else {
+          // Otherwise, use the function directly
           result[key] = fn;
         }
       }
@@ -169,7 +167,7 @@ export function create(): TypedInstance {
     if (isBigIntSource && isNumberTarget) {
       emitWarning(
         `[typed-function] BigInt coercion warning: Converting from '${from}' to '${to}'. ` +
-        `This may lose precision for large values. Consider using explicit conversions.`
+        'This may lose precision for large values. Consider using explicit conversions.'
       );
     }
   }

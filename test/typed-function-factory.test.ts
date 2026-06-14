@@ -7,7 +7,6 @@
 import { describe, it, expect } from 'vitest';
 import typed, {
   create,
-  isTypedFunction,
   createTypedFunction,
   isFastPathEligible,
   createFastPathDispatcher,
@@ -17,15 +16,14 @@ import typed, {
   makeReferTo,
   makeReferToSelf,
   clearResolutions,
-  resolveReferences,
   checkName,
   mergeSignatures,
 } from '../src/index.js';
-import { createTypeRegistry, BUILTIN_TYPES } from '../src/core/type-registry.js';
+import { createTypeRegistry } from '../src/core/type-registry.js';
 import { createConversionManager } from '../src/core/conversion-manager.js';
 import { parseSignature } from '../src/core/signature-parser.js';
 import { compileTests } from '../src/core/signature-compiler.js';
-import type { Signature, SignatureFunction, ReferTo, ReferToSelf, TypedFunction } from '../src/core/types.js';
+import type { Signature, SignatureFunction, TypedFunction } from '../src/core/types.js';
 
 describe('typed-function factory', () => {
   describe('create()', () => {
@@ -99,7 +97,7 @@ describe('Fast Path Dispatcher', () => {
   const registry = createTypeRegistry();
 
   function createMockSignature(paramTypes: string[][]): Signature {
-    const params = paramTypes.map((types, i) => {
+    const params = paramTypes.map((types, _i) => {
       const paramStr = types.join('|');
       const parsed = parseSignature(paramStr, registry);
       return parsed?.[0] || {
@@ -164,7 +162,7 @@ describe('Fast Path Dispatcher', () => {
 
 describe('Generic Dispatcher', () => {
   const registry = createTypeRegistry();
-  const conversions = createConversionManager(registry);
+  const _conversions = createConversionManager(registry);
 
   it('should create generic dispatcher', () => {
     const signatures: Signature[] = [];

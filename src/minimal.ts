@@ -17,6 +17,9 @@
  */
 
 // Re-export core types
+// Import the default typed instance
+import typedInstance from './factory.js';
+
 export type {
   TypeDef,
   ConversionDef,
@@ -238,9 +241,6 @@ export type {
   FixedDecimal,
   Rational,
 } from './core/export-types.js';
-
-// Import the default typed instance
-import typedInstance from './factory.js';
 
 /**
  * Check if an entity is a typed function created by any instance

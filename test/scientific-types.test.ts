@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import typed, { create } from '../src/index.js';
+import { create } from '../src/index.js';
 import {
   // Type definitions
   COMPLEX_TYPES,
@@ -20,7 +20,6 @@ import {
   // Type test functions
   isComplex,
   isFraction,
-  isBigDouble,
   isBigDecimal,
   isInt8,
   isInt16,
@@ -75,25 +74,10 @@ import {
   polynomial,
   // Types
   type Complex,
-  type Fraction,
-  type BigDecimal,
   type Vector,
   type Matrix,
-  type Tensor,
-  type SparseMatrix,
-  type Quaternion,
   type Unit,
   type Interval,
-  type Uncertainty,
-  type Range,
-  type Polynomial,
-  type Future,
-  type Stream,
-  type Channel,
-  type SharedArray,
-  type AtomicNumber,
-  type GPUBufferType,
-  type GPUTensor,
 } from '../src/index.js';
 
 describe('Scientific Types - Type Definitions', () => {

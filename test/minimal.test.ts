@@ -69,7 +69,7 @@ describe('minimal entry point', () => {
 
     it('should work without function name', () => {
       const double = typed({
-        'number': (n: number) => n * 2,
+        number: (n: number) => n * 2,
       });
 
       expect(double(5)).toBe(10);
@@ -78,7 +78,7 @@ describe('minimal entry point', () => {
 
   describe('isTypedFunction', () => {
     it('should return true for typed functions', () => {
-      const fn = typed('test', { 'number': (n: number) => n });
+      const fn = typed('test', { number: (n: number) => n });
       expect(isTypedFunction(fn)).toBe(true);
     });
 
@@ -117,7 +117,7 @@ describe('minimal entry point', () => {
       typed1.addType({ name: 'CustomType1', test: (x: unknown) => x === 'custom1' });
 
       // typed2 should not have the custom type
-      expect(() => typed2('test', { 'CustomType1': () => {} })).toThrow();
+      expect(() => typed2('test', { CustomType1: () => {} })).toThrow();
     });
   });
 
@@ -364,8 +364,8 @@ describe('minimal entry point', () => {
   describe('minimal typed function usage', () => {
     it('should support multiple signatures', () => {
       const fn = typed('fn', {
-        'number': (n: number) => `number: ${n}`,
-        'string': (s: string) => `string: ${s}`,
+        number: (n: number) => `number: ${n}`,
+        string: (s: string) => `string: ${s}`,
         'number, number': (a: number, b: number) => `sum: ${a + b}`,
       });
 
@@ -383,7 +383,7 @@ describe('minimal entry point', () => {
       });
 
       const double = myTyped('double', {
-        'number': (n: number) => n * 2,
+        number: (n: number) => n * 2,
       });
 
       expect(double(5)).toBe(10);
@@ -392,7 +392,7 @@ describe('minimal entry point', () => {
 
     it('should throw on type mismatch', () => {
       const fn = typed('fn', {
-        'number': (n: number) => n,
+        number: (n: number) => n,
       });
 
       expect(() => fn('string')).toThrow();

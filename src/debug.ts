@@ -469,7 +469,7 @@ export function createDebugSession(): {
   stop: () => DebugEvent[];
   events: DebugEvent[];
   isActive: boolean;
-} {
+  } {
   const events: DebugEvent[] = [];
   let unsubscribe: (() => void) | null = null;
   let isActive = false;

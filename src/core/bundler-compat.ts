@@ -331,6 +331,10 @@ export function createTypedClass<T extends new (...args: unknown[]) => object>(
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     constructor(...args: any[]) {
+      // false positive: ESLint cannot statically verify the dynamic
+      // `extends (BaseClass as ...)` base, but BaseClass is always a constructor
+      // (constrained by the `T extends new (...) => object` generic bound).
+      // eslint-disable-next-line constructor-super
       super(...args);
       // Also register the instance for WeakSet-based lookup
       registerInstance(this, typeName);

@@ -167,8 +167,6 @@ describe('merge (legacy)', () => {
       },
     });
 
-    let fn3: ReturnType<typeof typed>;
-
     const fn2 = typed({
       '...string': typed.referToSelf((self) => {
         return function (values: string[]) {
@@ -183,7 +181,7 @@ describe('merge (legacy)', () => {
       }),
     });
 
-    fn3 = typed(fn1, fn2);
+    const fn3 = typed(fn1, fn2);
 
     // Both return numbers since fn1's ...number signature returns sum (a number)
     expect(fn3('1', '2', '3')).toBe(6);

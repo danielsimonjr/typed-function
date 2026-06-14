@@ -7,6 +7,26 @@
 
 import type { TypeDef } from './types.js';
 
+// Import arrays for combining
+import { COMPLEX_TYPES } from './complex-types.js';
+import { FRACTION_TYPES } from './fraction-types.js';
+import { BIGDOUBLE_TYPES } from './bigdouble-types.js';
+import { NUMERIC_TYPES } from './numeric-types.js';
+import { VECTOR_TYPES } from './vector-types.js';
+import { MATRIX_TYPES } from './matrix-types.js';
+import { TENSOR_TYPES } from './tensor-types.js';
+import { SPARSE_MATRIX_TYPES } from './sparse-matrix-types.js';
+import { QUATERNION_TYPES } from './quaternion-types.js';
+import { UNIT_TYPES } from './unit-types.js';
+import { INTERVAL_TYPES } from './interval-types.js';
+import { UNCERTAINTY_TYPES } from './uncertainty-types.js';
+import { RANGE_TYPES } from './range-types.js';
+import { POLYNOMIAL_TYPES } from './polynomial-types.js';
+import { PARALLEL_TYPES } from './parallel-types.js';
+import { ARRAY_TYPES } from './array-types.js';
+import { GPU_TYPES } from './gpu-types.js';
+import { DECIMAL_TYPES } from './decimal-types.js';
+
 // Re-export complex types
 export {
   type Complex,
@@ -195,26 +215,6 @@ export {
   fixedDecimal,
   rational,
 } from './decimal-types.js';
-
-// Import arrays for combining
-import { COMPLEX_TYPES } from './complex-types.js';
-import { FRACTION_TYPES } from './fraction-types.js';
-import { BIGDOUBLE_TYPES } from './bigdouble-types.js';
-import { NUMERIC_TYPES } from './numeric-types.js';
-import { VECTOR_TYPES } from './vector-types.js';
-import { MATRIX_TYPES } from './matrix-types.js';
-import { TENSOR_TYPES } from './tensor-types.js';
-import { SPARSE_MATRIX_TYPES } from './sparse-matrix-types.js';
-import { QUATERNION_TYPES } from './quaternion-types.js';
-import { UNIT_TYPES } from './unit-types.js';
-import { INTERVAL_TYPES } from './interval-types.js';
-import { UNCERTAINTY_TYPES } from './uncertainty-types.js';
-import { RANGE_TYPES } from './range-types.js';
-import { POLYNOMIAL_TYPES } from './polynomial-types.js';
-import { PARALLEL_TYPES } from './parallel-types.js';
-import { ARRAY_TYPES } from './array-types.js';
-import { GPU_TYPES } from './gpu-types.js';
-import { DECIMAL_TYPES } from './decimal-types.js';
 
 /**
  * Combined linear algebra types for backwards compatibility

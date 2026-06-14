@@ -492,7 +492,7 @@ describe('Phase 2 Sprint 8: WASM & Utils Complete Coverage', () => {
       it('should return true for plain objects', () => {
         expect(isPlainObject({})).toBe(true);
         expect(isPlainObject({ a: 1 })).toBe(true);
-        expect(isPlainObject(new Object())).toBe(true);
+        expect(isPlainObject({})).toBe(true);
       });
 
       it('should return false for arrays', () => {

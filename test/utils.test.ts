@@ -160,7 +160,7 @@ describe('Object Helpers', () => {
     it('should return true for plain objects', () => {
       expect(isPlainObject({})).toBe(true);
       expect(isPlainObject({ a: 1 })).toBe(true);
-      expect(isPlainObject(new Object())).toBe(true);
+      expect(isPlainObject({})).toBe(true);
     });
 
     it('should return false for arrays', () => {

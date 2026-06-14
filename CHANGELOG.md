@@ -51,6 +51,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Test expectations for WASM error classes to match actual message prefixes
+- Resolved all ESLint errors across `src/` and `test/` to make `npm run lint` pass cleanly:
+  - Excluded AssemblyScript sources (`src/wasm/assembly/`) from the standard
+    ESLint scope via `.eslintignore`; they use AssemblyScript intrinsic types
+    (`u32`, `i32`, …) and are type-checked separately via `typecheck:wasm`.
+  - Removed unused imports/variables, normalized quotes, dot-notation, import
+    ordering, and brace style; converted `new RegExp('…')`/`new Object()` to
+    literals; added `varsIgnorePattern`/`caughtErrorsIgnorePattern` (`^_`) to the
+    `no-unused-vars` config to match the existing `argsIgnorePattern` convention.
+  - Removed a dead `void FAST_PATH_SLOT_COUNT` suppression (and its now-unused
+    import) from `dispatch/dispatcher.ts`.
 
 ## [5.0.0-alpha.2] - 2025-12-13
 

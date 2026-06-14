@@ -3,10 +3,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import typed from '../src/index.js';
 import {
   ErrorCode,
-  TypedFunctionError,
   TypeMismatchError,
   TooFewArgumentsError,
   TooManyArgumentsError,

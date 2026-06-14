@@ -688,7 +688,7 @@ describe('Signature Compiler Coverage (Sprint 4)', () => {
       });
 
       const fn = typed('multi', {
-        'number': (x: number) => x * 2,
+        number: (x: number) => x * 2,
       });
 
       expect(fn(21)).toBe(42);

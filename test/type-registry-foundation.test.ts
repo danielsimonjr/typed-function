@@ -11,7 +11,6 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import {
   TypeRegistry,
   createTypeRegistry,
-  BUILTIN_TYPES,
 } from '../src/core/type-registry.js';
 import {
   last,

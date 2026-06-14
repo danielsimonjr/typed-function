@@ -13,7 +13,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { create } from '../src/index.js';
-import type { TypedInstance, TypedFunction, SignatureFunction, Signature } from '../src/core/types.js';
+import type { TypedInstance, TypedFunction, SignatureFunction } from '../src/core/types.js';
 import {
   fallbackAddSignature,
   fallbackDispatchFind,
@@ -48,9 +48,9 @@ describe('Phase 2 Sprint 10: Integration & Edge Case Testing', () => {
     });
 
     it('should handle all builtin type combinations', () => {
-      const numberFn = (n: number) => 'number';
-      const stringFn = (s: string) => 'string';
-      const booleanFn = (b: boolean) => 'boolean';
+      const numberFn = (_n: number) => 'number';
+      const stringFn = (_s: string) => 'string';
+      const booleanFn = (_b: boolean) => 'boolean';
 
       addSignature(numberFn, [1 << TYPE_NUMBER]);
       addSignature(stringFn, [1 << TYPE_STRING]);
@@ -78,8 +78,8 @@ describe('Phase 2 Sprint 10: Integration & Edge Case Testing', () => {
 
     it('should integrate typed-function with WASM fallback', () => {
       const fn = typed({
-        'number': (n: number) => n * 2,
-        'string': (s: string) => s.length,
+        number: (n: number) => n * 2,
+        string: (s: string) => s.length,
       });
 
       expect(fn(5)).toBe(10);
@@ -92,7 +92,7 @@ describe('Phase 2 Sprint 10: Integration & Edge Case Testing', () => {
       typed.addConversion({ from: 'string', to: 'number', convert: (s) => parseInt(s as string, 10) });
 
       const fn = typed({
-        'number': (n: number) => n * 2,
+        number: (n: number) => n * 2,
       });
 
       expect(fn('5')).toBe(10);
@@ -103,7 +103,7 @@ describe('Phase 2 Sprint 10: Integration & Edge Case Testing', () => {
       typed.addConversion({ from: 'boolean', to: 'number', convert: (b) => (b ? 1 : 0) });
 
       const fn = typed({
-        'number': (n: number) => n * 2,
+        number: (n: number) => n * 2,
       });
 
       expect(fn('5')).toBe(10);
@@ -115,8 +115,8 @@ describe('Phase 2 Sprint 10: Integration & Edge Case Testing', () => {
       typed.addConversion({ from: 'string', to: 'number', convert: (s) => parseInt(s as string, 10) });
 
       const fn = typed({
-        'number': (n: number) => 'number',
-        'string': (s: string) => 'string',
+        number: (_n: number) => 'number',
+        string: (_s: string) => 'string',
       });
 
       expect(fn(42)).toBe('number');
@@ -139,7 +139,7 @@ describe('Phase 2 Sprint 10: Integration & Edge Case Testing', () => {
   describe('Reference Resolution Edge Cases', () => {
     it('should resolve simple referToSelf', () => {
       const fn = typed({
-        'number': typed.referToSelf((self: TypedFunction) => {
+        number: typed.referToSelf((self: TypedFunction) => {
           return (n: number): number => (n <= 1 ? 1 : n * (self(n - 1) as number));
         }),
       });
@@ -149,8 +149,8 @@ describe('Phase 2 Sprint 10: Integration & Edge Case Testing', () => {
 
     it('should resolve referTo with single reference', () => {
       const fn = typed({
-        'number': (n: number) => n,
-        'string': typed.referTo('number', (numFn: SignatureFunction) => {
+        number: (n: number) => n,
+        string: typed.referTo('number', (numFn: SignatureFunction) => {
           return (s: string) => numFn(parseInt(s, 10));
         }),
       });
@@ -161,9 +161,9 @@ describe('Phase 2 Sprint 10: Integration & Edge Case Testing', () => {
 
     it('should resolve referTo with multiple references', () => {
       const fn = typed({
-        'number': (n: number) => n * 2,
-        'string': (s: string) => s.length,
-        'boolean': typed.referTo('number', 'string', (numFn, strFn) => {
+        number: (n: number) => n * 2,
+        string: (s: string) => s.length,
+        boolean: typed.referTo('number', 'string', (numFn, strFn) => {
           return (b: boolean) => (b ? numFn(10) : strFn('hello'));
         }),
       });
@@ -174,15 +174,15 @@ describe('Phase 2 Sprint 10: Integration & Edge Case Testing', () => {
 
     it('should preserve referTo info for reuse', () => {
       const fn1 = typed({
-        'number': (n: number) => n,
-        'string': typed.referTo('number', (numFn: SignatureFunction) => {
+        number: (n: number) => n,
+        string: typed.referTo('number', (numFn: SignatureFunction) => {
           return (s: string) => numFn(parseInt(s, 10));
         }),
       });
 
       // Create a new typed function from the first one
       const fn2 = typed(fn1, {
-        'boolean': (b: boolean) => (b ? 1 : 0),
+        boolean: (b: boolean) => (b ? 1 : 0),
       });
 
       expect(fn2('42')).toBe(42);
@@ -207,16 +207,16 @@ describe('Phase 2 Sprint 10: Integration & Edge Case Testing', () => {
       typed.addType({ name: 'int3', test: (x) => typeof x === 'number' && x === 3 });
 
       const fn = typed({
-        'number': (n: number) => 'number',
-        'string': (s: string) => 'string',
-        'boolean': (b: boolean) => 'boolean',
-        'Array': (a: unknown[]) => 'array',
-        'Date': (d: Date) => 'date',
-        'RegExp': (r: RegExp) => 'regexp',
-        'Object': (o: object) => 'object',
-        'null': () => 'null',
-        'undefined': () => 'undefined',
-        'Function': (f: Function) => 'function',
+        number: (_n: number) => 'number',
+        string: (_s: string) => 'string',
+        boolean: (_b: boolean) => 'boolean',
+        Array: (_a: unknown[]) => 'array',
+        Date: (_d: Date) => 'date',
+        RegExp: (_r: RegExp) => 'regexp',
+        Object: (_o: object) => 'object',
+        null: () => 'null',
+        undefined: () => 'undefined',
+        Function: (_f: Function) => 'function',
       });
 
       expect(fn(42)).toBe('number');
@@ -242,7 +242,7 @@ describe('Phase 2 Sprint 10: Integration & Edge Case Testing', () => {
       typed.addConversion({ from: 'boolean', to: 'number', convert: (b) => (b ? 1 : 0) });
 
       const fn = typed({
-        'number': (n: number) => n * 2,
+        number: (n: number) => n * 2,
       });
 
       expect(fn('5')).toBe(10);
@@ -264,9 +264,9 @@ describe('Phase 2 Sprint 10: Integration & Edge Case Testing', () => {
 
   describe('Concurrent Typed Function Creation', () => {
     it('should create independent typed functions', () => {
-      const fn1 = typed({ 'number': (n: number) => n * 2 });
-      const fn2 = typed({ 'number': (n: number) => n * 3 });
-      const fn3 = typed({ 'number': (n: number) => n * 4 });
+      const fn1 = typed({ number: (n: number) => n * 2 });
+      const fn2 = typed({ number: (n: number) => n * 3 });
+      const fn3 = typed({ number: (n: number) => n * 4 });
 
       expect(fn1(5)).toBe(10);
       expect(fn2(5)).toBe(15);
@@ -279,8 +279,8 @@ describe('Phase 2 Sprint 10: Integration & Edge Case Testing', () => {
 
       typed1.addConversion({ from: 'string', to: 'number', convert: (s) => Number(s) });
 
-      const fn1 = typed1({ 'number': (n: number) => n * 2 });
-      const fn2 = typed2({ 'number': (n: number) => n * 2 });
+      const fn1 = typed1({ number: (n: number) => n * 2 });
+      const fn2 = typed2({ number: (n: number) => n * 2 });
 
       expect(fn1('5')).toBe(10);
       expect(() => fn2('5')).toThrow();
@@ -290,10 +290,10 @@ describe('Phase 2 Sprint 10: Integration & Edge Case Testing', () => {
       const typedInstance = create();
       expect(typedInstance.createCount).toBe(0);
 
-      typedInstance({ 'number': (n: number) => n });
+      typedInstance({ number: (n: number) => n });
       expect(typedInstance.createCount).toBe(1);
 
-      typedInstance({ 'string': (s: string) => s });
+      typedInstance({ string: (s: string) => s });
       expect(typedInstance.createCount).toBe(2);
     });
   });
@@ -301,7 +301,7 @@ describe('Phase 2 Sprint 10: Integration & Edge Case Testing', () => {
   describe('Error Message Completeness', () => {
     it('should include function name in mismatch error', () => {
       const fn = typed('myFunction', {
-        'number': (n: number) => n,
+        number: (n: number) => n,
       });
 
       try {
@@ -314,7 +314,7 @@ describe('Phase 2 Sprint 10: Integration & Edge Case Testing', () => {
 
     it('should include actual argument types in error', () => {
       const fn = typed({
-        'number': (n: number) => n,
+        number: (n: number) => n,
       });
 
       try {
@@ -327,7 +327,7 @@ describe('Phase 2 Sprint 10: Integration & Edge Case Testing', () => {
 
     it('should include error.data for type mismatch', () => {
       const fn = typed('testFn', {
-        'number': (n: number) => n,
+        number: (n: number) => n,
       });
 
       try {
@@ -341,8 +341,8 @@ describe('Phase 2 Sprint 10: Integration & Edge Case Testing', () => {
 
     it('should include error.data for conflicting signatures', () => {
       // Create a conflicting merge scenario
-      const fn1 = typed('test', { 'number': (n: number) => n });
-      const fn2 = typed('test', { 'number': (n: number) => n * 2 });
+      const fn1 = typed('test', { number: (n: number) => n });
+      const fn2 = typed('test', { number: (n: number) => n * 2 });
 
       try {
         typed(fn1, fn2);
@@ -354,8 +354,8 @@ describe('Phase 2 Sprint 10: Integration & Edge Case Testing', () => {
     });
 
     it('should include error.data for name mismatch', () => {
-      const fn1 = typed('name1', { 'number': (n: number) => n });
-      const fn2 = typed('name2', { 'string': (s: string) => s });
+      const fn1 = typed('name1', { number: (n: number) => n });
+      const fn2 = typed('name2', { string: (s: string) => s });
 
       try {
         typed(fn1, fn2);
@@ -369,7 +369,7 @@ describe('Phase 2 Sprint 10: Integration & Edge Case Testing', () => {
 
     it('should provide helpful error for unknown type', () => {
       try {
-        typed({ 'unknownType': () => 42 });
+        typed({ unknownType: () => 42 });
         expect.fail('Should have thrown');
       } catch (e) {
         expect((e as Error).message).toContain('Unknown type');
@@ -380,7 +380,7 @@ describe('Phase 2 Sprint 10: Integration & Edge Case Testing', () => {
     it('should suggest similar type name', () => {
       try {
         // Try 'Number' instead of 'number'
-        typed({ 'Number': () => 42 });
+        typed({ Number: () => 42 });
         expect.fail('Should have thrown');
       } catch (e) {
         expect((e as Error).message).toContain('Did you mean "number"');
@@ -392,10 +392,10 @@ describe('Phase 2 Sprint 10: Integration & Edge Case Testing', () => {
     it('should exercise all dispatch paths', () => {
       const fn = typed({
         '': () => 'no args',
-        'number': (n: number) => 'one number',
-        'number, number': (a: number, b: number) => 'two numbers',
-        'string': (s: string) => 'one string',
-        'boolean': (b: boolean) => 'one boolean',
+        number: (_n: number) => 'one number',
+        'number, number': (_a: number, _b: number) => 'two numbers',
+        string: (_s: string) => 'one string',
+        boolean: (_b: boolean) => 'one boolean',
         // Rest params - use ...any to avoid conflict with 'number'
         '...any': (args: unknown[]) => args.length,
       });
@@ -411,7 +411,7 @@ describe('Phase 2 Sprint 10: Integration & Edge Case Testing', () => {
 
     it('should exercise error factory with all error types', () => {
       // Wrong type error
-      const fn1 = typed({ 'number': (n: number) => n });
+      const fn1 = typed({ number: (n: number) => n });
       expect(() => fn1('wrong')).toThrow(TypeError);
 
       // Too few args
@@ -419,7 +419,7 @@ describe('Phase 2 Sprint 10: Integration & Edge Case Testing', () => {
       expect(() => fn2(1)).toThrow();
 
       // Too many args
-      const fn3 = typed({ 'number': (n: number) => n });
+      const fn3 = typed({ number: (n: number) => n });
       expect(() => fn3(1, 2)).toThrow();
     });
 
@@ -435,7 +435,7 @@ describe('Phase 2 Sprint 10: Integration & Edge Case Testing', () => {
       expect(typed.convert('42', 'number')).toBe(42);
 
       // Test conversion in typed function
-      const fn = typed({ 'number': (n: number) => n * 2 });
+      const fn = typed({ number: (n: number) => n * 2 });
       expect(fn('5')).toBe(10);
 
       // Remove conversion - need same reference
@@ -463,7 +463,7 @@ describe('Phase 2 Sprint 10: Integration & Edge Case Testing', () => {
 
       // Use custom type
       const fn = typed({
-        'number': (n: number) => 'number',
+        number: (_n: number) => 'number',
       });
       expect(fn(5)).toBe('number');
 
@@ -482,8 +482,8 @@ describe('Phase 2 Sprint 10: Integration & Edge Case Testing', () => {
     it('should exercise factory paths', () => {
       // find method
       const fn = typed({
-        'number': (n: number) => n * 2,
-        'string': (s: string) => s.length,
+        number: (n: number) => n * 2,
+        string: (s: string) => s.length,
       });
 
       const numImpl = typed.find(fn, 'number');
@@ -521,7 +521,7 @@ describe('Phase 2 Sprint 10: Integration & Edge Case Testing', () => {
   describe('Edge Cases and Corner Scenarios', () => {
     it('should handle function with no name', () => {
       const fn = typed({
-        'number': (n: number) => n,
+        number: (n: number) => n,
       });
       // Function might have empty or generated name
       expect(typeof fn.name).toBe('string');
@@ -529,15 +529,15 @@ describe('Phase 2 Sprint 10: Integration & Edge Case Testing', () => {
 
     it('should handle deeply nested object types', () => {
       const fn = typed({
-        'Object': (o: object) => Object.keys(o).length,
+        Object: (o: object) => Object.keys(o).length,
       });
       expect(fn({ a: { b: { c: 1 } } })).toBe(1);
     });
 
     it('should handle null and undefined explicitly', () => {
       const fn = typed({
-        'null': () => 'null',
-        'undefined': () => 'undefined',
+        null: () => 'null',
+        undefined: () => 'undefined',
       });
       expect(fn(null)).toBe('null');
       expect(fn(undefined)).toBe('undefined');
@@ -545,7 +545,7 @@ describe('Phase 2 Sprint 10: Integration & Edge Case Testing', () => {
 
     it('should handle empty array vs non-empty array', () => {
       const fn = typed({
-        'Array': (a: unknown[]) => a.length,
+        Array: (a: unknown[]) => a.length,
       });
       expect(fn([])).toBe(0);
       expect(fn([1, 2, 3])).toBe(3);
@@ -553,7 +553,7 @@ describe('Phase 2 Sprint 10: Integration & Edge Case Testing', () => {
 
     it('should handle Date objects', () => {
       const fn = typed({
-        'Date': (d: Date) => d.getTime(),
+        Date: (d: Date) => d.getTime(),
       });
       const now = new Date();
       expect(fn(now)).toBe(now.getTime());
@@ -561,14 +561,14 @@ describe('Phase 2 Sprint 10: Integration & Edge Case Testing', () => {
 
     it('should handle RegExp objects', () => {
       const fn = typed({
-        'RegExp': (r: RegExp) => r.source,
+        RegExp: (r: RegExp) => r.source,
       });
       expect(fn(/test/)).toBe('test');
     });
 
     it('should handle Function type', () => {
       const fn = typed({
-        'Function': (f: Function) => typeof f,
+        Function: (f: Function) => typeof f,
       });
       expect(fn(() => {})).toBe('function');
     });

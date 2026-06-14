@@ -15,7 +15,6 @@ import {
   WasmInitializationError,
   TypeNotFoundError,
   DuplicateTypeError,
-  isTypedFunctionError,
   isTypeMismatchError,
   isTooFewArgumentsError,
   isTooManyArgumentsError,

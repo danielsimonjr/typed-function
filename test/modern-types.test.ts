@@ -98,7 +98,7 @@ describe('Modern Types: Map', () => {
   it('should dispatch to Map signature', () => {
     const fn = typed({
       Map: (m: Map<unknown, unknown>) => `map:${m.size}`,
-      Object: (o: object) => `object`,
+      Object: (_o: object) => 'object',
     });
 
     const map = new Map([['a', 1], ['b', 2]]);
@@ -245,14 +245,14 @@ describe('Modern Types: Combined Usage', () => {
 
   it('should handle multiple modern types in one function', () => {
     const fn = typed({
-      BigInt: (x: bigint) => `bigint`,
-      Symbol: (x: symbol) => `symbol`,
-      Map: (x: Map<unknown, unknown>) => `map`,
-      Set: (x: Set<unknown>) => `set`,
-      WeakMap: (x: WeakMap<object, unknown>) => `weakmap`,
-      WeakSet: (x: WeakSet<object>) => `weakset`,
-      number: (x: number) => `number`,
-      string: (x: string) => `string`,
+      BigInt: (_x: bigint) => 'bigint',
+      Symbol: (_x: symbol) => 'symbol',
+      Map: (_x: Map<unknown, unknown>) => 'map',
+      Set: (_x: Set<unknown>) => 'set',
+      WeakMap: (_x: WeakMap<object, unknown>) => 'weakmap',
+      WeakSet: (_x: WeakSet<object>) => 'weakset',
+      number: (_x: number) => 'number',
+      string: (_x: string) => 'string',
     });
 
     expect(fn(BigInt(1))).toBe('bigint');
@@ -267,8 +267,8 @@ describe('Modern Types: Combined Usage', () => {
 
   it('should support union types with modern types', () => {
     const fn = typed({
-      'Map | Set': (x: Map<unknown, unknown> | Set<unknown>) => 'collection',
-      'WeakMap | WeakSet': (x: WeakMap<object, unknown> | WeakSet<object>) => 'weak-collection',
+      'Map | Set': (_x: Map<unknown, unknown> | Set<unknown>) => 'collection',
+      'WeakMap | WeakSet': (_x: WeakMap<object, unknown> | WeakSet<object>) => 'weak-collection',
     });
 
     expect(fn(new Map())).toBe('collection');

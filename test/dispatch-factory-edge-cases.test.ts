@@ -76,8 +76,8 @@ describe('Phase 2 Sprint 7: Dispatch & Factory Edge Cases', () => {
 
     it('should return undefined for object with plain functions', () => {
       const obj = {
-        'number': () => 42,
-        'string': () => 'hello',
+        number: () => 42,
+        string: () => 'hello',
       };
       const result = getObjectName(obj, typed.isTypedFunction);
       expect(result).toBeUndefined();
@@ -85,10 +85,10 @@ describe('Phase 2 Sprint 7: Dispatch & Factory Edge Cases', () => {
 
     it('should extract name from typed function', () => {
       const myTypedFn = typed('myFunction', {
-        'number': (n: number) => n,
+        number: (n: number) => n,
       });
       const obj = {
-        'number': myTypedFn,
+        number: myTypedFn,
       };
       const result = getObjectName(obj as Record<string, SignatureFunction>, typed.isTypedFunction);
       expect(result).toBe('myFunction');
@@ -101,19 +101,19 @@ describe('Phase 2 Sprint 7: Dispatch & Factory Edge Cases', () => {
       fnWithSig.signature = 'number';
 
       const obj = {
-        'number': fnWithSig,
+        number: fnWithSig,
       };
       const result = getObjectName(obj, typed.isTypedFunction);
       expect(result).toBe('myFn');
     });
 
     it('should throw for mismatched names', () => {
-      const fn1 = typed('name1', { 'number': (n: number) => n });
-      const fn2 = typed('name2', { 'string': (s: string) => s });
+      const fn1 = typed('name1', { number: (n: number) => n });
+      const fn2 = typed('name2', { string: (s: string) => s });
 
       const obj = {
-        'number': fn1,
-        'string': fn2,
+        number: fn1,
+        string: fn2,
       };
 
       expect(() =>
@@ -125,10 +125,10 @@ describe('Phase 2 Sprint 7: Dispatch & Factory Edge Cases', () => {
   describe('mergeSignatures', () => {
     it('should merge non-overlapping signatures', () => {
       const dest: Record<string, SignatureFunction> = {
-        'number': ((n: number) => n) as SignatureFunction,
+        number: ((n: number) => n) as SignatureFunction,
       };
       const source: Record<string, SignatureFunction> = {
-        'string': ((s: string) => s) as SignatureFunction,
+        string: ((s: string) => s) as SignatureFunction,
       };
 
       mergeSignatures(dest, source);
@@ -139,19 +139,19 @@ describe('Phase 2 Sprint 7: Dispatch & Factory Edge Cases', () => {
 
     it('should allow same signature with same function', () => {
       const sharedFn = ((n: number) => n) as SignatureFunction;
-      const dest: Record<string, SignatureFunction> = { 'number': sharedFn };
-      const source: Record<string, SignatureFunction> = { 'number': sharedFn };
+      const dest: Record<string, SignatureFunction> = { number: sharedFn };
+      const source: Record<string, SignatureFunction> = { number: sharedFn };
 
       // Should not throw
       mergeSignatures(dest, source);
-      expect(dest['number']).toBe(sharedFn);
+      expect(dest.number).toBe(sharedFn);
     });
 
     it('should throw for same signature with different functions', () => {
       const fn1 = ((n: number) => n) as SignatureFunction;
       const fn2 = ((n: number) => n * 2) as SignatureFunction;
-      const dest: Record<string, SignatureFunction> = { 'number': fn1 };
-      const source: Record<string, SignatureFunction> = { 'number': fn2 };
+      const dest: Record<string, SignatureFunction> = { number: fn1 };
+      const source: Record<string, SignatureFunction> = { number: fn2 };
 
       expect(() => mergeSignatures(dest, source)).toThrow('Signature "number" is defined twice');
     });
@@ -159,8 +159,8 @@ describe('Phase 2 Sprint 7: Dispatch & Factory Edge Cases', () => {
     it('should include data in error for conflicting signatures', () => {
       const fn1 = ((n: number) => n) as SignatureFunction;
       const fn2 = ((n: number) => n * 2) as SignatureFunction;
-      const dest: Record<string, SignatureFunction> = { 'number': fn1 };
-      const source: Record<string, SignatureFunction> = { 'number': fn2 };
+      const dest: Record<string, SignatureFunction> = { number: fn1 };
+      const source: Record<string, SignatureFunction> = { number: fn2 };
 
       try {
         mergeSignatures(dest, source);
@@ -176,21 +176,21 @@ describe('Phase 2 Sprint 7: Dispatch & Factory Edge Cases', () => {
     it('should handle undefined values in source', () => {
       const dest: Record<string, SignatureFunction | undefined> = {};
       const source: Record<string, SignatureFunction | undefined> = {
-        'number': undefined,
+        number: undefined,
       };
 
       mergeSignatures(
         dest as Record<string, SignatureFunction | ReferTo | ReferToSelf>,
         source as Record<string, SignatureFunction | ReferTo | ReferToSelf>
       );
-      expect(dest['number']).toBeUndefined();
+      expect(dest.number).toBeUndefined();
     });
   });
 
   describe('Factory typed detection', () => {
     it('should merge typed functions', () => {
-      const fn1 = typed('mathOps', { 'number': (n: number) => n + 1 });
-      const fn2 = typed('mathOps', { 'string': (s: string) => s.length });
+      const fn1 = typed('mathOps', { number: (n: number) => n + 1 });
+      const fn2 = typed('mathOps', { string: (s: string) => s.length });
 
       const merged = typed(fn1, fn2);
 
@@ -200,12 +200,12 @@ describe('Phase 2 Sprint 7: Dispatch & Factory Edge Cases', () => {
 
     it('should extract signatures from typed function', () => {
       const original = typed('myFn', {
-        'number': (n: number) => n * 2,
-        'string': (s: string) => s.toUpperCase(),
+        number: (n: number) => n * 2,
+        string: (s: string) => s.toUpperCase(),
       });
 
       const extended = typed(original, {
-        'boolean': (b: boolean) => !b,
+        boolean: (b: boolean) => !b,
       });
 
       expect(extended(5)).toBe(10);
@@ -214,7 +214,7 @@ describe('Phase 2 Sprint 7: Dispatch & Factory Edge Cases', () => {
     });
 
     it('should detect typed functions with isTypedFunction', () => {
-      const fn = typed('test', { 'number': (n: number) => n });
+      const fn = typed('test', { number: (n: number) => n });
       expect(typed.isTypedFunction(fn)).toBe(true);
       expect(typed.isTypedFunction(() => {})).toBe(false);
       expect(typed.isTypedFunction(null)).toBe(false);
@@ -263,8 +263,8 @@ describe('Phase 2 Sprint 7: Dispatch & Factory Edge Cases', () => {
   describe('Reference validation (referTo)', () => {
     it('should create valid referTo reference', () => {
       const fn = typed({
-        'number': (n: number) => n,
-        'string': typed.referTo('number', (numFn: SignatureFunction) => {
+        number: (n: number) => n,
+        string: typed.referTo('number', (numFn: SignatureFunction) => {
           return (s: string) => numFn(parseInt(s, 10));
         }),
       });
@@ -281,15 +281,15 @@ describe('Phase 2 Sprint 7: Dispatch & Factory Edge Cases', () => {
 
     it('should throw for referTo with non-string signature', () => {
       expect(() =>
-        typed.referTo(123 as unknown as string, () => ((x: unknown) => x))
+        typed.referTo(123 as unknown as string, () => (x: unknown) => x)
       ).toThrow('Signatures must be strings');
     });
 
     it('should handle multiple signature references', () => {
       const fn = typed({
-        'number': (n: number) => n * 2,
-        'string': (s: string) => s.length,
-        'boolean': typed.referTo('number', 'string', (numFn, strFn) => {
+        number: (n: number) => n * 2,
+        string: (s: string) => s.length,
+        boolean: typed.referTo('number', 'string', (numFn, strFn) => {
           return (b: boolean) => (b ? numFn(1) : strFn('hi'));
         }),
       });
@@ -302,8 +302,8 @@ describe('Phase 2 Sprint 7: Dispatch & Factory Edge Cases', () => {
   describe('Reference validation (referToSelf)', () => {
     it('should create valid referToSelf reference', () => {
       const fn = typed({
-        'number': (n: number) => n,
-        'string': typed.referToSelf((self: TypedFunction) => {
+        number: (n: number) => n,
+        string: typed.referToSelf((self: TypedFunction) => {
           return (s: string) => self(parseInt(s, 10));
         }),
       });
@@ -320,7 +320,7 @@ describe('Phase 2 Sprint 7: Dispatch & Factory Edge Cases', () => {
 
     it('should allow recursive calls via referToSelf', () => {
       const factorial = typed('factorial', {
-        'number': typed.referToSelf((self) => {
+        number: typed.referToSelf((self) => {
           return (n: number): number => (n <= 1 ? 1 : n * (self(n - 1) as number));
         }),
       });
@@ -338,10 +338,10 @@ describe('Phase 2 Sprint 7: Dispatch & Factory Edge Cases', () => {
       typed1.addType({ name: 'positive', test: (x) => typeof x === 'number' && (x as number) > 0 });
 
       // typed2 should not have the 'positive' type
-      expect(() => typed2('test', { 'positive': (n: number) => n })).toThrow();
+      expect(() => typed2('test', { positive: (n: number) => n })).toThrow();
 
       // typed1 should have it
-      const fn = typed1('test', { 'positive': (n: number) => n * 2 });
+      const fn = typed1('test', { positive: (n: number) => n * 2 });
       expect(fn(5)).toBe(10);
     });
 
@@ -351,11 +351,11 @@ describe('Phase 2 Sprint 7: Dispatch & Factory Edge Cases', () => {
 
       typed1.addConversion({ from: 'string', to: 'number', convert: (s) => parseInt(s as string, 10) });
 
-      const fn1 = typed1({ 'number': (n: number) => n * 2 });
+      const fn1 = typed1({ number: (n: number) => n * 2 });
       expect(fn1('5')).toBe(10);
 
       // typed2 should not have this conversion
-      const fn2 = typed2({ 'number': (n: number) => n * 2 });
+      const fn2 = typed2({ number: (n: number) => n * 2 });
       expect(() => fn2('5')).toThrow();
     });
 
@@ -363,10 +363,10 @@ describe('Phase 2 Sprint 7: Dispatch & Factory Edge Cases', () => {
       const typed1 = create();
       const typed2 = create();
 
-      typed1({ 'number': (n: number) => n });
-      typed1({ 'string': (s: string) => s });
+      typed1({ number: (n: number) => n });
+      typed1({ string: (s: string) => s });
 
-      typed2({ 'boolean': (b: boolean) => b });
+      typed2({ boolean: (b: boolean) => b });
 
       expect(typed1.createCount).toBe(2);
       expect(typed2.createCount).toBe(1);
@@ -399,8 +399,8 @@ describe('Phase 2 Sprint 7: Dispatch & Factory Edge Cases', () => {
     });
 
     it('should throw for conflicting signatures when merging', () => {
-      const fn1 = typed({ 'number': (n: number) => n });
-      const fn2 = typed({ 'number': (n: number) => n * 2 });
+      const fn1 = typed({ number: (n: number) => n });
+      const fn2 = typed({ number: (n: number) => n * 2 });
 
       // Merging two typed functions with same signature should throw
       expect(() => typed(fn1, fn2)).toThrow();
@@ -425,8 +425,8 @@ describe('Phase 2 Sprint 7: Dispatch & Factory Edge Cases', () => {
 
     it('should provide resolve method', () => {
       const fn = typed({
-        'number': (n: number) => n * 2,
-        'string': (s: string) => s.length,
+        number: (n: number) => n * 2,
+        string: (s: string) => s.length,
       });
 
       const numSig = typed.resolve(fn, [42]);
@@ -442,8 +442,8 @@ describe('Phase 2 Sprint 7: Dispatch & Factory Edge Cases', () => {
 
     it('should provide findSignature method', () => {
       const fn = typed({
-        'number': (n: number) => n,
-        'string': (s: string) => s,
+        number: (n: number) => n,
+        string: (s: string) => s,
       });
 
       const sig = typed.findSignature(fn, 'number');
@@ -453,7 +453,7 @@ describe('Phase 2 Sprint 7: Dispatch & Factory Edge Cases', () => {
 
     it('should throw for invalid signature in findSignature', () => {
       const fn = typed({
-        'number': (n: number) => n,
+        number: (n: number) => n,
       });
 
       expect(() => typed.findSignature(fn, 'unknownType')).toThrow();
@@ -461,7 +461,7 @@ describe('Phase 2 Sprint 7: Dispatch & Factory Edge Cases', () => {
 
     it('should provide createError method', () => {
       const fn = typed({
-        'number': (n: number) => n,
+        number: (n: number) => n,
       });
 
       const error = typed.createError('testFn', ['hello'], fn._typedFunctionData.signatures);
@@ -489,12 +489,12 @@ describe('Phase 2 Sprint 7: Dispatch & Factory Edge Cases', () => {
       const conv = { from: 'string', to: 'number', convert: (s: unknown) => Number(s) };
       typed.addConversion(conv);
 
-      const fn = typed({ 'number': (n: number) => n * 2 });
+      const fn = typed({ number: (n: number) => n * 2 });
       expect(fn('5')).toBe(10);
 
       typed.removeConversion(conv);
 
-      const fn2 = typed({ 'number': (n: number) => n * 2 });
+      const fn2 = typed({ number: (n: number) => n * 2 });
       expect(() => fn2('5')).toThrow();
     });
   });
@@ -504,12 +504,12 @@ describe('Phase 2 Sprint 7: Dispatch & Factory Edge Cases', () => {
       typed.addConversion({ from: 'string', to: 'number', convert: (s) => Number(s) });
       typed.addConversion({ from: 'boolean', to: 'number', convert: (b) => (b ? 1 : 0) });
 
-      const fn = typed({ 'number': (n: number) => n });
+      const fn = typed({ number: (n: number) => n });
       expect(fn('42')).toBe(42);
 
       typed.clearConversions();
 
-      const fn2 = typed({ 'number': (n: number) => n });
+      const fn2 = typed({ number: (n: number) => n });
       expect(() => fn2('42')).toThrow();
     });
   });
@@ -517,7 +517,7 @@ describe('Phase 2 Sprint 7: Dispatch & Factory Edge Cases', () => {
   describe('Protected prototype properties', () => {
     it('should skip prototype-polluted properties', () => {
       // This tests that Object.prototype.hasOwnProperty.call is used
-      const sigs = { 'number': (n: number) => n };
+      const sigs = { number: (n: number) => n };
       const fn = typed(sigs);
       expect(fn(5)).toBe(5);
     });

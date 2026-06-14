@@ -24,7 +24,6 @@ import {
   compileSignatureTests,
   createFastPathDispatcher,
   createInactiveSlot,
-  FAST_PATH_SLOT_COUNT,
 } from './fast-path.js';
 import { createGenericDispatcher } from './generic-path.js';
 import { isWasmAvailable, wasmAddSignature } from '../wasm/bindings.js';
@@ -165,7 +164,7 @@ export function createTypedFunction(
   // The dispatch logic will be set up via closure after reference resolution
   let genericDispatch: ((args: IArguments, context: unknown) => unknown) | null = null;
   let fastPathReady = false;
-  let wasmDispatchEnabled = useWasm && isWasmAvailable();
+  const wasmDispatchEnabled = useWasm && isWasmAvailable();
 
   // Fast-path slot variables for 10 slots with 3 params each
   // These are assigned once after theTypedFn is defined, then used via closure
@@ -381,9 +380,6 @@ export function createTypedFunction(
       (typedFn as TypedFunction & { _wasmEnabled?: boolean })._wasmEnabled = false;
     }
   }
-
-  // Suppress unused variable warning - FAST_PATH_SLOT_COUNT used for documentation
-  void FAST_PATH_SLOT_COUNT;
 
   return typedFn;
 }

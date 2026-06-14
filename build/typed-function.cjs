@@ -23,6 +23,589 @@ var _documentCurrentScript = typeof document !== 'undefined' ? document.currentS
 const NOT_TYPED_FUNCTION = 'Argument is not a typed-function.';
 
 /**
+ * Bundler Compatibility Module for typed-function
+ *
+ * This module provides robust type identification mechanisms that survive
+ * bundler transformations (esbuild, webpack, rollup, etc.) including:
+ *
+ * - Symbol-based type identification
+ * - Constructor registry using WeakMap
+ * - Brand checking patterns
+ *
+ * These mechanisms address issues where class instances are not recognized
+ * after compilation due to prototype chain breakage or constructor renaming.
+ *
+ * @see docs/TYPED_FUNCTION_IMPROVEMENTS.md
+ */
+/**
+ * Well-known symbol for typed-function type identification.
+ *
+ * Classes can implement this to ensure type recognition survives bundling:
+ *
+ * @example
+ * ```typescript
+ * import { TYPE_SYMBOL } from 'typed-function';
+ *
+ * class DenseMatrix {
+ *   [TYPE_SYMBOL] = 'DenseMatrix';
+ * }
+ *
+ * // Type test becomes bundler-safe:
+ * typed.addType({
+ *   name: 'DenseMatrix',
+ *   test: (x) => x && x[TYPE_SYMBOL] === 'DenseMatrix'
+ * });
+ * ```
+ */
+const TYPE_SYMBOL$1 = Symbol.for('typed-function:type');
+/**
+ * Symbol for brand-based type checking (TypeScript branded types pattern).
+ *
+ * This provides an alternative to TYPE_SYMBOL for cases where you want
+ * TypeScript-style branded types.
+ *
+ * @example
+ * ```typescript
+ * import { BRAND_SYMBOL } from 'typed-function';
+ *
+ * interface Branded<T extends string> {
+ *   readonly [BRAND_SYMBOL]: T;
+ * }
+ *
+ * class Complex implements Branded<'Complex'> {
+ *   readonly [BRAND_SYMBOL] = 'Complex' as const;
+ * }
+ * ```
+ */
+const BRAND_SYMBOL = Symbol.for('typed-function:brand');
+/**
+ * Constructor registry - maps constructors to type names.
+ *
+ * This WeakMap allows type identification even when:
+ * - Classes are compiled/transpiled
+ * - Constructor names are minified
+ * - Multiple bundle versions exist
+ */
+const constructorRegistry = new WeakMap();
+/**
+ * Instance registry - for WeakSet-based instance tracking.
+ *
+ * Maps type names to WeakSets of instances.
+ */
+const instanceRegistry = new Map();
+/**
+ * Register a constructor with a type name.
+ *
+ * This allows type identification by constructor reference rather than name.
+ *
+ * @example
+ * ```typescript
+ * import { registerConstructor, getTypeByConstructor } from 'typed-function';
+ *
+ * class DenseMatrix { }
+ * registerConstructor(DenseMatrix, 'DenseMatrix');
+ *
+ * // Later, in type test:
+ * test: (x) => getTypeByConstructor(x?.constructor) === 'DenseMatrix'
+ * ```
+ *
+ * @param constructor - The constructor function to register
+ * @param typeName - The type name to associate with this constructor
+ */
+function registerConstructor(constructor, typeName) {
+    constructorRegistry.set(constructor, typeName);
+}
+/**
+ * Unregister a constructor from the registry.
+ *
+ * @param constructor - The constructor to unregister
+ * @returns true if the constructor was registered and removed, false otherwise
+ */
+function unregisterConstructor(constructor) {
+    return constructorRegistry.delete(constructor);
+}
+/**
+ * Get the type name for a registered constructor.
+ *
+ * @param constructor - The constructor to look up
+ * @returns The type name, or undefined if not registered
+ */
+function getTypeByConstructor(constructor) {
+    if (!constructor)
+        return undefined;
+    return constructorRegistry.get(constructor);
+}
+/**
+ * Check if a value is an instance of a registered type by constructor lookup.
+ *
+ * @param value - The value to check
+ * @param typeName - The expected type name
+ * @returns true if the value's constructor is registered with the given type name
+ */
+function isRegisteredType(value, typeName) {
+    if (value === null || value === undefined)
+        return false;
+    if (typeof value !== 'object' && typeof value !== 'function')
+        return false;
+    const constructor = value.constructor;
+    return constructorRegistry.get(constructor) === typeName;
+}
+/**
+ * Register an instance with a type name using WeakSet tracking.
+ *
+ * This is useful for cases where constructor-based identification doesn't work,
+ * such as objects created with Object.create() or cross-realm objects.
+ *
+ * @example
+ * ```typescript
+ * import { registerInstance, isRegisteredInstance } from 'typed-function';
+ *
+ * class Matrix {
+ *   constructor() {
+ *     registerInstance(this, 'Matrix');
+ *   }
+ * }
+ *
+ * // Type test:
+ * test: (x) => isRegisteredInstance(x, 'Matrix')
+ * ```
+ *
+ * @param instance - The instance to register
+ * @param typeName - The type name to associate with this instance
+ */
+function registerInstance(instance, typeName) {
+    let weakSet = instanceRegistry.get(typeName);
+    if (!weakSet) {
+        weakSet = new WeakSet();
+        instanceRegistry.set(typeName, weakSet);
+    }
+    weakSet.add(instance);
+}
+/**
+ * Check if an instance is registered with a specific type name.
+ *
+ * @param instance - The instance to check
+ * @param typeName - The expected type name
+ * @returns true if the instance is registered with the given type name
+ */
+function isRegisteredInstance(instance, typeName) {
+    if (instance === null || instance === undefined)
+        return false;
+    if (typeof instance !== 'object')
+        return false;
+    const weakSet = instanceRegistry.get(typeName);
+    return weakSet ? weakSet.has(instance) : false;
+}
+/**
+ * Clear all registered instances for a type name.
+ *
+ * Note: This creates a new WeakSet, existing instances will no longer be tracked.
+ *
+ * @param typeName - The type name to clear instances for
+ */
+function clearInstanceRegistry(typeName) {
+    instanceRegistry.delete(typeName);
+}
+/**
+ * Clear all instance registries.
+ */
+function clearAllInstanceRegistries() {
+    instanceRegistry.clear();
+}
+/**
+ * Check if a value has a typed-function type symbol.
+ *
+ * @param value - The value to check
+ * @returns The type name from the symbol, or undefined if not present
+ */
+function getTypeFromSymbol(value) {
+    if (value === null || value === undefined)
+        return undefined;
+    if (typeof value !== 'object' && typeof value !== 'function')
+        return undefined;
+    const typeValue = value[TYPE_SYMBOL$1];
+    return typeof typeValue === 'string' ? typeValue : undefined;
+}
+/**
+ * Check if a value has a brand symbol.
+ *
+ * @param value - The value to check
+ * @returns The brand name from the symbol, or undefined if not present
+ */
+function getBrandFromSymbol(value) {
+    if (value === null || value === undefined)
+        return undefined;
+    if (typeof value !== 'object' && typeof value !== 'function')
+        return undefined;
+    const brandValue = value[BRAND_SYMBOL];
+    return typeof brandValue === 'string' ? brandValue : undefined;
+}
+/**
+ * Create a bundler-safe type test function.
+ *
+ * This function creates a type test that uses multiple identification strategies
+ * in order of reliability:
+ * 1. Symbol-based identification (TYPE_SYMBOL)
+ * 2. Brand-based identification (BRAND_SYMBOL)
+ * 3. Constructor registry lookup
+ * 4. Instance registry lookup
+ * 5. Fallback custom test function
+ *
+ * @example
+ * ```typescript
+ * import { createBundlerSafeTest } from 'typed-function';
+ *
+ * typed.addType({
+ *   name: 'DenseMatrix',
+ *   test: createBundlerSafeTest('DenseMatrix', {
+ *     fallback: (x) => x && typeof x.get === 'function' && Array.isArray(x._size)
+ *   })
+ * });
+ * ```
+ *
+ * @param typeName - The type name to check for
+ * @param options - Optional configuration
+ * @returns A type test function
+ */
+function createBundlerSafeTest(typeName, options) {
+    const { fallback, checkConstructor = true, checkInstance = true, checkSymbols = true, } = options || {};
+    return function bundlerSafeTest(value) {
+        if (value === null || value === undefined)
+            return false;
+        // Check symbol-based identification first (most reliable)
+        if (checkSymbols) {
+            if (getTypeFromSymbol(value) === typeName)
+                return true;
+            if (getBrandFromSymbol(value) === typeName)
+                return true;
+        }
+        // Check constructor registry
+        if (checkConstructor && typeof value === 'object') {
+            if (isRegisteredType(value, typeName))
+                return true;
+        }
+        // Check instance registry
+        if (checkInstance) {
+            if (isRegisteredInstance(value, typeName))
+                return true;
+        }
+        // Fall back to custom test
+        if (fallback) {
+            return fallback(value);
+        }
+        return false;
+    };
+}
+/**
+ * Helper to create a class that is automatically registered with typed-function.
+ *
+ * @example
+ * ```typescript
+ * import { createTypedClass, TYPE_SYMBOL } from 'typed-function';
+ *
+ * const DenseMatrix = createTypedClass('DenseMatrix', class {
+ *   constructor(public data: number[][]) {}
+ * });
+ *
+ * const m = new DenseMatrix([[1, 2], [3, 4]]);
+ * m[TYPE_SYMBOL] // 'DenseMatrix'
+ * ```
+ *
+ * @param typeName - The type name for this class
+ * @param BaseClass - The base class to extend
+ * @returns A new class with type identification built in
+ */
+function createTypedClass(typeName, BaseClass) {
+    var _a, _b;
+    // Create a new class that extends the base and adds type identification
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const TypedClass = (_b = class extends BaseClass {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            constructor(...args) {
+                // false positive: ESLint cannot statically verify the dynamic
+                // `extends (BaseClass as ...)` base, but BaseClass is always a constructor
+                // (constrained by the `T extends new (...) => object` generic bound).
+                // eslint-disable-next-line constructor-super
+                super(...args);
+                this[_a] = typeName;
+                // Also register the instance for WeakSet-based lookup
+                registerInstance(this, typeName);
+            }
+        },
+        _a = TYPE_SYMBOL$1,
+        _b);
+    // Register the constructor
+    registerConstructor(TypedClass, typeName);
+    // Try to preserve the class name
+    try {
+        Object.defineProperty(TypedClass, 'name', {
+            value: typeName,
+            configurable: true,
+        });
+    }
+    catch {
+        // Some environments don't allow setting Function.name
+    }
+    return TypedClass;
+}
+/**
+ * Decorator-style function to add type identification to an existing class.
+ *
+ * @example
+ * ```typescript
+ * import { addTypeIdentification, TYPE_SYMBOL } from 'typed-function';
+ *
+ * class MyMatrix {
+ *   constructor(public data: number[][]) {}
+ * }
+ *
+ * // Add type identification
+ * addTypeIdentification(MyMatrix, 'Matrix');
+ *
+ * // Now instances have TYPE_SYMBOL
+ * const m = new MyMatrix([[1, 2]]);
+ * m[TYPE_SYMBOL] // 'Matrix'
+ * ```
+ *
+ * @param Class - The class to modify
+ * @param typeName - The type name to assign
+ */
+function addTypeIdentification(Class, typeName) {
+    // Register the constructor
+    registerConstructor(Class, typeName);
+    // Add TYPE_SYMBOL to the prototype
+    Object.defineProperty(Class.prototype, TYPE_SYMBOL$1, {
+        value: typeName,
+        writable: false,
+        enumerable: false,
+        configurable: false,
+    });
+}
+/**
+ * Identify a value's type using all available methods, returning details.
+ *
+ * This is useful for debugging type identification issues.
+ *
+ * @param value - The value to identify
+ * @param expectedType - Optional expected type name to check
+ * @returns Details about type identification
+ */
+function identifyType(value, expectedType) {
+    if (value === null || value === undefined) {
+        return { typeName: null, method: 'none' };
+    }
+    // Check TYPE_SYMBOL
+    const symbolType = getTypeFromSymbol(value);
+    if (symbolType) {
+        if (!expectedType || symbolType === expectedType) {
+            return { typeName: symbolType, method: 'symbol' };
+        }
+    }
+    // Check BRAND_SYMBOL
+    const brandType = getBrandFromSymbol(value);
+    if (brandType) {
+        if (!expectedType || brandType === expectedType) {
+            return { typeName: brandType, method: 'brand' };
+        }
+    }
+    // Check constructor registry
+    if (typeof value === 'object' || typeof value === 'function') {
+        const constructorType = getTypeByConstructor(value.constructor);
+        if (constructorType) {
+            if (!expectedType || constructorType === expectedType) {
+                return { typeName: constructorType, method: 'constructor' };
+            }
+        }
+        // Check instance registry (only if we have an expected type)
+        if (expectedType && isRegisteredInstance(value, expectedType)) {
+            return { typeName: expectedType, method: 'instance' };
+        }
+    }
+    return { typeName: null, method: 'none' };
+}
+
+/**
+ * Type Cache Module for typed-function
+ *
+ * Provides caching for type resolution results to improve performance
+ * when repeatedly checking the same objects.
+ *
+ * Uses WeakMap to allow garbage collection of cached objects.
+ *
+ * @see docs/TYPED_FUNCTION_IMPROVEMENTS.md - Issue 6
+ */
+/**
+ * Type cache using WeakMap for object-based caching.
+ *
+ * This allows type resolution results to be cached for repeated calls
+ * with the same object, while still allowing garbage collection when
+ * objects are no longer referenced.
+ */
+class TypeCache {
+    constructor() {
+        /** WeakMap storing type names by object reference */
+        this.cache = new WeakMap();
+        /** Counter for cache hits (for debugging/metrics) */
+        this.hits = 0;
+        /** Counter for cache misses (for debugging/metrics) */
+        this.misses = 0;
+        /** Whether caching is enabled */
+        this.enabled = true;
+    }
+    /**
+     * Get a cached type name for an object.
+     *
+     * @param value - The value to look up
+     * @returns The cached type name, or undefined if not cached
+     */
+    get(value) {
+        if (!this.enabled)
+            return undefined;
+        if (value === null || value === undefined)
+            return undefined;
+        if (typeof value !== 'object' && typeof value !== 'function')
+            return undefined;
+        const result = this.cache.get(value);
+        if (result !== undefined) {
+            this.hits++;
+        }
+        else {
+            this.misses++;
+        }
+        return result;
+    }
+    /**
+     * Cache a type name for an object.
+     *
+     * @param value - The value to cache
+     * @param typeName - The type name to associate
+     */
+    set(value, typeName) {
+        if (!this.enabled)
+            return;
+        if (value === null || value === undefined)
+            return;
+        if (typeof value !== 'object' && typeof value !== 'function')
+            return;
+        this.cache.set(value, typeName);
+    }
+    /**
+     * Check if a value is cached.
+     *
+     * @param value - The value to check
+     * @returns true if the value is cached
+     */
+    has(value) {
+        if (!this.enabled)
+            return false;
+        if (value === null || value === undefined)
+            return false;
+        if (typeof value !== 'object' && typeof value !== 'function')
+            return false;
+        return this.cache.has(value);
+    }
+    /**
+     * Remove a value from the cache.
+     *
+     * @param value - The value to remove
+     * @returns true if the value was cached and removed
+     */
+    delete(value) {
+        if (value === null || value === undefined)
+            return false;
+        if (typeof value !== 'object' && typeof value !== 'function')
+            return false;
+        return this.cache.delete(value);
+    }
+    /**
+     * Clear all cached entries.
+     *
+     * Note: This creates a new WeakMap. Existing entries will be
+     * garbage collected when their keys are no longer referenced.
+     */
+    clear() {
+        this.cache = new WeakMap();
+        this.hits = 0;
+        this.misses = 0;
+    }
+    /**
+     * Enable caching.
+     */
+    enable() {
+        this.enabled = true;
+    }
+    /**
+     * Disable caching.
+     */
+    disable() {
+        this.enabled = false;
+    }
+    /**
+     * Check if caching is enabled.
+     */
+    isEnabled() {
+        return this.enabled;
+    }
+    /**
+     * Get cache statistics.
+     *
+     * @returns Object with hit and miss counts
+     */
+    getStats() {
+        const total = this.hits + this.misses;
+        return {
+            hits: this.hits,
+            misses: this.misses,
+            hitRate: total > 0 ? this.hits / total : 0,
+        };
+    }
+    /**
+     * Reset cache statistics.
+     */
+    resetStats() {
+        this.hits = 0;
+        this.misses = 0;
+    }
+}
+/**
+ * Global type cache instance.
+ *
+ * This is shared across all typed-function instances for maximum efficiency,
+ * since type identification is global (same object = same type).
+ */
+const globalTypeCache = new TypeCache();
+/**
+ * Create a new isolated type cache.
+ *
+ * Use this if you need separate caching for different typed-function instances.
+ *
+ * @returns A new TypeCache instance
+ */
+function createTypeCache() {
+    return new TypeCache();
+}
+/**
+ * Helper function to get or compute a type name with caching.
+ *
+ * @param value - The value to resolve
+ * @param compute - Function to compute the type name if not cached
+ * @param cache - Optional cache to use (defaults to global cache)
+ * @returns The type name
+ */
+function cachedTypeResolve(value, compute, cache = globalTypeCache) {
+    // Check cache first
+    const cached = cache.get(value);
+    if (cached !== undefined) {
+        return cached;
+    }
+    // Compute the type
+    const typeName = compute(value);
+    // Cache the result
+    cache.set(value, typeName);
+    return typeName;
+}
+
+/**
  * Type Registry - Manages type storage and lookup for typed-function
  *
  * This module provides a Map-based registry for storing type definitions,
@@ -477,6 +1060,221 @@ function arraysEqual(a, b) {
 }
 
 /**
+ * Conversion Manager Module for typed-function
+ *
+ * This module handles registration, removal, and lookup of type conversions.
+ */
+/**
+ * Conversion Manager class for managing type conversions
+ */
+class ConversionManager {
+    /**
+     * Create a new ConversionManager
+     *
+     * @param registry - The type registry to use
+     */
+    constructor(registry) {
+        /** Counter for conversion indices */
+        this.nConversions = 0;
+        this.registry = registry;
+    }
+    /**
+     * Get the current number of registered conversions
+     */
+    get conversionCount() {
+        return this.nConversions;
+    }
+    /**
+     * Validate a conversion definition
+     *
+     * @param conversion - The conversion to validate
+     * @throws TypeError if the conversion is invalid
+     * @throws SyntaxError if converting to self
+     */
+    validateConversion(conversion) {
+        if (!conversion ||
+            typeof conversion.from !== 'string' ||
+            typeof conversion.to !== 'string' ||
+            typeof conversion.convert !== 'function') {
+            throw new TypeError('Object with properties {from: string, to: string, convert: function} expected');
+        }
+        if (conversion.to === conversion.from) {
+            throw new SyntaxError(`Illegal to define conversion from "${conversion.from}" to itself.`);
+        }
+    }
+    /**
+     * Add a type conversion
+     *
+     * @param conversion - The conversion to add
+     * @param options - Options (override: boolean)
+     * @throws TypeError if the conversion is invalid
+     * @throws Error if a conversion already exists (unless override is true)
+     */
+    addConversion(conversion, options = { override: false }) {
+        this.validateConversion(conversion);
+        // Verify types exist
+        this.registry.findType(conversion.from);
+        const toType = this.registry.findType(conversion.to);
+        // Check for existing conversion
+        const existing = toType.conversionsTo.find((other) => other.from === conversion.from);
+        if (existing) {
+            if (options.override) {
+                this.removeConversion({
+                    from: existing.from,
+                    to: conversion.to,
+                    convert: existing.convert,
+                });
+            }
+            else {
+                throw new Error(`There is already a conversion from "${conversion.from}" to "${toType.name}"`);
+            }
+        }
+        // Add the conversion
+        toType.conversionsTo.push({
+            from: conversion.from,
+            to: toType.name,
+            convert: conversion.convert,
+            index: this.nConversions++,
+        });
+    }
+    /**
+     * Add multiple conversions
+     *
+     * @param conversions - Array of conversions to add
+     * @param options - Options (override: boolean)
+     */
+    addConversions(conversions, options) {
+        for (const conversion of conversions) {
+            this.addConversion(conversion, options);
+        }
+    }
+    /**
+     * Remove a conversion
+     *
+     * The convert function must match the existing conversion.
+     *
+     * @param conversion - The conversion to remove
+     * @throws Error if the conversion doesn't exist or doesn't match
+     */
+    removeConversion(conversion) {
+        this.validateConversion(conversion);
+        const toType = this.registry.findType(conversion.to);
+        const existingConversion = findInArray(toType.conversionsTo, (c) => c.from === conversion.from);
+        if (!existingConversion) {
+            throw new Error(`Attempt to remove nonexistent conversion from ${conversion.from} to ${conversion.to}`);
+        }
+        if (existingConversion.convert !== conversion.convert) {
+            throw new Error('Conversion to remove does not match existing conversion');
+        }
+        const index = toType.conversionsTo.indexOf(existingConversion);
+        toType.conversionsTo.splice(index, 1);
+    }
+    /**
+     * Clear all conversions
+     */
+    clearConversions() {
+        this.registry.clearConversions();
+        this.nConversions = 0;
+    }
+    /**
+     * Get all conversions to a specific type
+     *
+     * @param typeName - The target type name
+     * @returns Array of conversions to this type
+     */
+    getConversionsTo(typeName) {
+        const type = this.registry.findType(typeName);
+        return [...type.conversionsTo];
+    }
+    /**
+     * Get conversions available to convert to any of the given types
+     *
+     * Returns the lowest-index conversion for each source type.
+     *
+     * @param typeNames - Target type names
+     * @returns Array of available conversions
+     */
+    availableConversions(typeNames) {
+        if (typeNames.length === 0) {
+            return [];
+        }
+        const types = typeNames.map((name) => this.registry.findType(name));
+        if (typeNames.length === 1) {
+            const type = types[0];
+            return type ? [...type.conversionsTo] : [];
+        }
+        // For multiple types, find the lowest-index conversion for each source type
+        const knownTypes = new Set(typeNames);
+        const convertibleTypes = new Set();
+        for (const type of types) {
+            if (!type)
+                continue;
+            for (const match of type.conversionsTo) {
+                if (!knownTypes.has(match.from)) {
+                    convertibleTypes.add(match.from);
+                }
+            }
+        }
+        // Get the lowest-index conversion for each convertible type
+        const matches = [];
+        for (const typeName of convertibleTypes) {
+            let bestIndex = this.nConversions + 1;
+            let bestConversion = null;
+            for (const type of types) {
+                if (!type)
+                    continue;
+                for (const match of type.conversionsTo) {
+                    if (match.from === typeName && match.index !== undefined && match.index < bestIndex) {
+                        bestIndex = match.index;
+                        bestConversion = match;
+                    }
+                }
+            }
+            if (bestConversion) {
+                matches.push(bestConversion);
+            }
+        }
+        return matches;
+    }
+    /**
+     * Convert a value to a specified type
+     *
+     * @param value - The value to convert
+     * @param typeName - The target type name
+     * @returns The converted value
+     * @throws Error if no conversion is available
+     */
+    convert(value, typeName) {
+        const type = this.registry.findType(typeName);
+        // Check if value already matches
+        if (type.test(value)) {
+            return value;
+        }
+        const conversions = type.conversionsTo;
+        if (conversions.length === 0) {
+            throw new Error(`There are no conversions to ${typeName} defined.`);
+        }
+        // Find a matching conversion
+        for (const conversion of conversions) {
+            const fromType = this.registry.findType(conversion.from);
+            if (fromType.test(value)) {
+                return conversion.convert(value);
+            }
+        }
+        throw new Error(`Cannot convert ${value} to ${typeName}`);
+    }
+}
+/**
+ * Create a new ConversionManager
+ *
+ * @param registry - The type registry to use
+ * @returns A new ConversionManager instance
+ */
+function createConversionManager(registry) {
+    return new ConversionManager(registry);
+}
+
+/**
  * Error Factory Module for typed-function
  *
  * This module provides functions for creating detailed error messages
@@ -699,271 +1497,6 @@ function defaultOnMismatch(name, args, signatures, registry) {
  */
 function stringifyParams$1(params, separator = ',') {
     return params.map((p) => p.name).join(separator);
-}
-
-/**
- * Specific Error Classes for typed-function
- *
- * This module provides specific error types for better error handling
- * and type-safe error catching in TypeScript.
- */
-/**
- * Error codes for typed-function errors
- *
- * Use these codes for programmatic error handling:
- * - TF1xx: Type definition errors
- * - TF2xx: Signature errors
- * - TF3xx: Dispatch/argument errors
- * - TF4xx: Conversion errors
- * - TF5xx: Reference errors
- * - TF6xx: WASM errors
- * - TF9xx: General errors
- */
-var ErrorCode;
-(function (ErrorCode) {
-    // Type errors (1xx)
-    /** Unknown type name */
-    ErrorCode["UNKNOWN_TYPE"] = "TF101";
-    /** Duplicate type name */
-    ErrorCode["DUPLICATE_TYPE"] = "TF102";
-    /** Invalid type definition */
-    ErrorCode["INVALID_TYPE_DEFINITION"] = "TF103";
-    // Signature errors (2xx)
-    /** No signatures provided */
-    ErrorCode["NO_SIGNATURES"] = "TF201";
-    /** Conflicting signatures */
-    ErrorCode["CONFLICTING_SIGNATURES"] = "TF202";
-    /** Invalid signature syntax */
-    ErrorCode["INVALID_SIGNATURE"] = "TF203";
-    /** Duplicate signature */
-    ErrorCode["DUPLICATE_SIGNATURE"] = "TF204";
-    /** Signature not found */
-    ErrorCode["SIGNATURE_NOT_FOUND"] = "TF205";
-    // Dispatch errors (3xx)
-    /** Type mismatch */
-    ErrorCode["TYPE_MISMATCH"] = "TF301";
-    /** Too few arguments */
-    ErrorCode["TOO_FEW_ARGUMENTS"] = "TF302";
-    /** Too many arguments */
-    ErrorCode["TOO_MANY_ARGUMENTS"] = "TF303";
-    /** No matching signature */
-    ErrorCode["NO_MATCHING_SIGNATURE"] = "TF304";
-    // Conversion errors (4xx)
-    /** Conversion not found */
-    ErrorCode["CONVERSION_NOT_FOUND"] = "TF401";
-    /** Duplicate conversion */
-    ErrorCode["DUPLICATE_CONVERSION"] = "TF402";
-    /** Conversion failed */
-    ErrorCode["CONVERSION_FAILED"] = "TF403";
-    /** Invalid conversion definition */
-    ErrorCode["INVALID_CONVERSION"] = "TF404";
-    // Reference errors (5xx)
-    /** Circular reference in referTo */
-    ErrorCode["CIRCULAR_REFERENCE"] = "TF501";
-    /** Unresolved reference */
-    ErrorCode["UNRESOLVED_REFERENCE"] = "TF502";
-    // WASM errors (6xx)
-    /** WASM not initialized */
-    ErrorCode["WASM_NOT_INITIALIZED"] = "TF601";
-    /** WASM load failed */
-    ErrorCode["WASM_LOAD_FAILED"] = "TF602";
-    /** WASM not supported */
-    ErrorCode["WASM_NOT_SUPPORTED"] = "TF603";
-    // General errors (9xx)
-    /** Not a typed function */
-    ErrorCode["NOT_A_TYPED_FUNCTION"] = "TF901";
-    /** Internal error */
-    ErrorCode["INTERNAL_ERROR"] = "TF999";
-})(ErrorCode || (ErrorCode = {}));
-/**
- * Base class for all typed-function errors
- */
-class TypedFunctionError extends TypeError {
-    constructor(message, data, code = ErrorCode.INTERNAL_ERROR) {
-        super(message);
-        this.name = 'TypedFunctionError';
-        this.data = data;
-        this.code = code;
-        // Maintain proper stack trace in V8 environments
-        if (Error.captureStackTrace) {
-            Error.captureStackTrace(this, this.constructor);
-        }
-    }
-}
-/**
- * Error thrown when an argument has an unexpected type
- */
-class TypeMismatchError extends TypedFunctionError {
-    constructor(fnName, index, actualTypes, expectedTypes) {
-        const message = `Unexpected type of argument in function ${fnName || 'unnamed'} ` +
-            `(expected: ${expectedTypes.join(' or ')}, ` +
-            `actual: ${actualTypes.join(' | ')}, index: ${index})`;
-        super(message, {
-            category: 'wrongType',
-            fn: fnName,
-            index,
-            actual: actualTypes,
-            expected: expectedTypes,
-        }, ErrorCode.TYPE_MISMATCH);
-        this.name = 'TypeMismatchError';
-        this.index = index;
-        this.actualTypes = actualTypes;
-        this.expectedTypes = expectedTypes;
-    }
-}
-/**
- * Error thrown when too few arguments are provided
- */
-class TooFewArgumentsError extends TypedFunctionError {
-    constructor(fnName, providedCount, expectedTypes) {
-        const message = `Too few arguments in function ${fnName || 'unnamed'} ` +
-            `(expected: ${expectedTypes.join(' or ')}, index: ${providedCount})`;
-        super(message, {
-            category: 'tooFewArgs',
-            fn: fnName,
-            index: providedCount,
-            expected: expectedTypes,
-        }, ErrorCode.TOO_FEW_ARGUMENTS);
-        this.name = 'TooFewArgumentsError';
-        this.providedCount = providedCount;
-        this.expectedTypes = expectedTypes;
-    }
-}
-/**
- * Error thrown when too many arguments are provided
- */
-class TooManyArgumentsError extends TypedFunctionError {
-    constructor(fnName, providedCount, expectedCount) {
-        const message = `Too many arguments in function ${fnName || 'unnamed'} ` +
-            `(expected: ${expectedCount}, actual: ${providedCount})`;
-        super(message, {
-            category: 'tooManyArgs',
-            fn: fnName,
-            index: providedCount,
-            expectedLength: expectedCount,
-        }, ErrorCode.TOO_MANY_ARGUMENTS);
-        this.name = 'TooManyArgumentsError';
-        this.providedCount = providedCount;
-        this.expectedCount = expectedCount;
-    }
-}
-/**
- * Error thrown when arguments don't match any signature
- */
-class SignatureMismatchError extends TypedFunctionError {
-    constructor(fnName, argumentTypes, signatures) {
-        const message = `Arguments of type "${argumentTypes.join(', ')}" do not match any of the ` +
-            `defined signatures of function ${fnName || 'unnamed'}.`;
-        super(message, {
-            category: 'mismatch',
-            fn: fnName,
-            actual: argumentTypes,
-        }, ErrorCode.NO_MATCHING_SIGNATURE);
-        this.name = 'SignatureMismatchError';
-        this.argumentTypes = argumentTypes;
-        this.signatures = signatures;
-    }
-}
-/**
- * Error thrown when a signature is not found
- */
-class SignatureNotFoundError extends TypedFunctionError {
-    constructor(fnName, signature) {
-        const message = `Signature not found (signature: ${fnName || 'unnamed'}(${signature}))`;
-        super(message, {
-            category: 'mismatch',
-            fn: fnName,
-        }, ErrorCode.SIGNATURE_NOT_FOUND);
-        this.name = 'SignatureNotFoundError';
-        this.signature = signature;
-    }
-}
-/**
- * Error thrown when WASM is not available but required
- */
-class WasmNotAvailableError extends Error {
-    constructor(reason = 'WebAssembly is not available in this environment') {
-        super(`WASM dispatch unavailable: ${reason}`);
-        this.name = 'WasmNotAvailableError';
-        this.reason = reason;
-        if (Error.captureStackTrace) {
-            Error.captureStackTrace(this, this.constructor);
-        }
-    }
-}
-/**
- * Error thrown when WASM initialization fails
- */
-class WasmInitializationError extends Error {
-    constructor(message, cause) {
-        super(`WASM initialization failed: ${message}`);
-        this.name = 'WasmInitializationError';
-        this.cause = cause ?? undefined;
-        if (Error.captureStackTrace) {
-            Error.captureStackTrace(this, this.constructor);
-        }
-    }
-}
-/**
- * Error thrown when a type is not found in the registry
- */
-class TypeNotFoundError extends TypeError {
-    constructor(typeName, suggestion) {
-        let message = `Unknown type "${typeName}"`;
-        if (suggestion) {
-            message += `. Did you mean "${suggestion}"?`;
-        }
-        super(message);
-        this.name = 'TypeNotFoundError';
-        this.typeName = typeName;
-        this.suggestion = suggestion ?? undefined;
-        if (Error.captureStackTrace) {
-            Error.captureStackTrace(this, this.constructor);
-        }
-    }
-}
-/**
- * Error thrown when a duplicate type is registered
- */
-class DuplicateTypeError extends TypeError {
-    constructor(typeName) {
-        super(`Duplicate type name "${typeName}"`);
-        this.name = 'DuplicateTypeError';
-        this.typeName = typeName;
-        if (Error.captureStackTrace) {
-            Error.captureStackTrace(this, this.constructor);
-        }
-    }
-}
-/**
- * Type guard to check if an error is a TypedFunctionError
- */
-function isTypedFunctionError(error) {
-    return error instanceof TypedFunctionError;
-}
-/**
- * Type guard to check if an error is a TypeMismatchError
- */
-function isTypeMismatchError(error) {
-    return error instanceof TypeMismatchError;
-}
-/**
- * Type guard to check if an error is a TooFewArgumentsError
- */
-function isTooFewArgumentsError(error) {
-    return error instanceof TooFewArgumentsError;
-}
-/**
- * Type guard to check if an error is a TooManyArgumentsError
- */
-function isTooManyArgumentsError(error) {
-    return error instanceof TooManyArgumentsError;
-}
-/**
- * Type guard to check if an error is a WasmNotAvailableError
- */
-function isWasmNotAvailableError(error) {
-    return error instanceof WasmNotAvailableError;
 }
 
 /**
@@ -1225,6 +1758,302 @@ function stringifyParams(params, separator = ',') {
 }
 
 /**
+ * Signature Comparator Module for typed-function
+ *
+ * This module handles comparing and ordering signatures for dispatch priority,
+ * and detecting conflicts between signatures.
+ */
+/**
+ * Test whether a set of params contains a rest param
+ */
+function hasRestParam$1(params) {
+    const param = last(params);
+    return param ? param.restParam : false;
+}
+/**
+ * Check if a type is an exact type (not a conversion)
+ */
+function isExactType(type) {
+    return type.conversion === null || type.conversion === undefined;
+}
+/**
+ * Find the lowest type index among all types in a parameter
+ *
+ * @param param - The parameter to check
+ * @param maxTypeIndex - The maximum possible type index (from registry)
+ * @returns The lowest type index
+ */
+function getLowestTypeIndex(param, maxTypeIndex) {
+    let min = maxTypeIndex + 1;
+    for (const type of param.types) {
+        if (type.typeIndex < min) {
+            min = type.typeIndex;
+        }
+    }
+    return min;
+}
+/**
+ * Find the lowest conversion index among conversions in a parameter
+ *
+ * @param param - The parameter to check
+ * @param maxConversionIndex - The maximum possible conversion index
+ * @returns The lowest conversion index
+ */
+function getLowestConversionIndex(param, maxConversionIndex) {
+    let min = maxConversionIndex + 1;
+    for (const type of param.types) {
+        if (!isExactType(type) && type.conversionIndex >= 0 && type.conversionIndex < min) {
+            min = type.conversionIndex;
+        }
+    }
+    return min;
+}
+/**
+ * Compare two parameters for ordering priority
+ *
+ * Returns:
+ * - Negative if param1 should come first
+ * - Positive if param2 should come first
+ * - Zero if equivalent
+ *
+ * The absolute value indicates importance (smaller = less important difference)
+ *
+ * @param param1 - First parameter
+ * @param param2 - Second parameter
+ * @param maxTypeIndex - Maximum type index in registry
+ * @param maxConversionIndex - Maximum conversion index
+ * @returns A comparison value
+ */
+function compareParams(param1, param2, maxTypeIndex, maxConversionIndex) {
+    // 1) 'any' parameters are the least preferred
+    if (param1.hasAny) {
+        if (!param2.hasAny) {
+            return 0.1;
+        }
+    }
+    else if (param2.hasAny) {
+        return -0.1;
+    }
+    // 2) Prefer non-rest to rest parameters
+    if (param1.restParam) {
+        if (!param2.restParam) {
+            return 0.01;
+        }
+    }
+    else if (param2.restParam) {
+        return -0.01;
+    }
+    // 3) Prefer lower type index (types defined earlier)
+    const typeDiff = getLowestTypeIndex(param1, maxTypeIndex) - getLowestTypeIndex(param2, maxTypeIndex);
+    if (typeDiff < 0) {
+        return -1e-3;
+    }
+    if (typeDiff > 0) {
+        return 0.001;
+    }
+    // 4) Prefer exact type match over conversions
+    const conv1 = getLowestConversionIndex(param1, maxConversionIndex);
+    const conv2 = getLowestConversionIndex(param2, maxConversionIndex);
+    if (param1.hasConversion) {
+        if (!param2.hasConversion) {
+            return (1 + conv1) * 0.000001;
+        }
+    }
+    else if (param2.hasConversion) {
+        return -(1 + conv2) * 0.000001;
+    }
+    // 5) Prefer lower conversion index
+    const convDiff = conv1 - conv2;
+    if (convDiff < 0) {
+        return -1e-7;
+    }
+    if (convDiff > 0) {
+        return 0.0000001;
+    }
+    // No basis for preference
+    return 0;
+}
+/**
+ * Compare two signatures for ordering priority
+ *
+ * Returns:
+ * - Negative if signature1 should come first
+ * - Positive if signature2 should come first
+ * - Zero if equivalent
+ *
+ * @param signature1 - First signature
+ * @param signature2 - Second signature
+ * @param maxTypeIndex - Maximum type index in registry
+ * @param maxConversionIndex - Maximum conversion index
+ * @returns A comparison value
+ */
+function compareSignatures(signature1, signature2, maxTypeIndex, maxConversionIndex) {
+    const pars1 = signature1.params;
+    const pars2 = signature2.params;
+    const last1 = last(pars1);
+    const last2 = last(pars2);
+    const hasRest1 = hasRestParam$1(pars1);
+    const hasRest2 = hasRestParam$1(pars2);
+    // 1) An "any rest param" is least preferred
+    if (hasRest1 && last1 && last1.hasAny) {
+        if (!hasRest2 || !last2 || !last2.hasAny) {
+            return 10000000;
+        }
+    }
+    else if (hasRest2 && last2 && last2.hasAny) {
+        return -1e7;
+    }
+    // 2) Minimize the number of 'any' parameters
+    let any1 = 0;
+    let conv1 = 0;
+    for (const par of pars1) {
+        if (par.hasAny)
+            any1++;
+        if (par.hasConversion)
+            conv1++;
+    }
+    let any2 = 0;
+    let conv2 = 0;
+    for (const par of pars2) {
+        if (par.hasAny)
+            any2++;
+        if (par.hasConversion)
+            conv2++;
+    }
+    if (any1 !== any2) {
+        return (any1 - any2) * 1000000;
+    }
+    // 3) A conversion rest param is less preferred
+    if (hasRest1 && last1 && last1.hasConversion) {
+        if (!hasRest2 || !last2 || !last2.hasConversion) {
+            return 100000;
+        }
+    }
+    else if (hasRest2 && last2 && last2.hasConversion) {
+        return -1e5;
+    }
+    // 4) Minimize the number of conversions
+    if (conv1 !== conv2) {
+        return (conv1 - conv2) * 10000;
+    }
+    // 5) Prefer no rest param
+    if (hasRest1) {
+        if (!hasRest2) {
+            return 1000;
+        }
+    }
+    else if (hasRest2) {
+        return -1e3;
+    }
+    // 6) Prefer shorter with rest param, longer without
+    const lengthCriterion = (pars1.length - pars2.length) * (hasRest1 ? -100 : 100);
+    if (lengthCriterion !== 0) {
+        return lengthCriterion;
+    }
+    // Signatures are identical in the above metrics and same length
+    // Compare parameters one by one
+    const comparisons = [];
+    let tc = 0;
+    for (let i = 0; i < pars1.length; i++) {
+        const p1 = pars1[i];
+        const p2 = pars2[i];
+        if (p1 && p2) {
+            const thisComparison = compareParams(p1, p2, maxTypeIndex, maxConversionIndex);
+            comparisons.push(thisComparison);
+            tc += thisComparison;
+        }
+    }
+    if (tc !== 0) {
+        return (tc < 0 ? -10 : 10) + tc;
+    }
+    // Same number of preferred params, go by earliest difference
+    let bonus = 9;
+    const decrement = bonus / (comparisons.length + 1);
+    for (const c of comparisons) {
+        if (c !== 0) {
+            return (c < 0 ? -bonus : bonus) + c;
+        }
+        bonus -= decrement;
+    }
+    // It's a tossup
+    return 0;
+}
+/**
+ * Get the set of type names at a specific index in a params array
+ */
+function getTypeSetAtIndex(params, index) {
+    let param;
+    if (index < params.length) {
+        param = params[index];
+    }
+    else if (hasRestParam$1(params)) {
+        param = last(params);
+    }
+    if (!param) {
+        return new Set();
+    }
+    // Use cached typeSet if available
+    if (param.typeSet) {
+        return param.typeSet;
+    }
+    const typeSet = new Set();
+    for (const type of param.types) {
+        typeSet.add(type.name);
+    }
+    param.typeSet = typeSet;
+    return typeSet;
+}
+/**
+ * Test whether two param lists represent conflicting signatures
+ *
+ * Signatures conflict if they could both match the same argument list.
+ *
+ * @param params1 - First parameter list
+ * @param params2 - Second parameter list
+ * @returns true if the signatures conflict
+ */
+function conflicting(params1, params2) {
+    const maxLen = Math.max(params1.length, params2.length);
+    // Check each position for type overlap
+    for (let i = 0; i < maxLen; i++) {
+        const typeSet1 = getTypeSetAtIndex(params1, i);
+        const typeSet2 = getTypeSetAtIndex(params2, i);
+        // Check if there's any overlap between the type sets
+        let overlap = false;
+        for (const name of typeSet2) {
+            if (typeSet1.has(name)) {
+                overlap = true;
+                break;
+            }
+        }
+        if (!overlap) {
+            return false; // No conflict at this position
+        }
+    }
+    // All positions have overlapping types, check length compatibility
+    const len1 = params1.length;
+    const len2 = params2.length;
+    const restParam1 = hasRestParam$1(params1);
+    const restParam2 = hasRestParam$1(params2);
+    if (restParam1) {
+        return restParam2 ? len1 === len2 : len2 >= len1;
+    }
+    else {
+        return restParam2 ? len1 >= len2 : len1 === len2;
+    }
+}
+/**
+ * Create a signature comparator function for sorting
+ *
+ * @param maxTypeIndex - Maximum type index in registry
+ * @param maxConversionIndex - Maximum conversion index
+ * @returns A comparator function for Array.sort
+ */
+function createSignatureComparator(maxTypeIndex, maxConversionIndex) {
+    return (a, b) => compareSignatures(a, b, maxTypeIndex, maxConversionIndex);
+}
+
+/**
  * Signature Compiler Module for typed-function
  *
  * This module compiles signature parameters into optimized test functions
@@ -1233,7 +2062,7 @@ function stringifyParams(params, separator = ',') {
 /**
  * Test whether a set of params contains a rest param
  */
-function hasRestParam$1(params) {
+function hasRestParam(params) {
     const param = last(params);
     return param ? param.restParam : false;
 }
@@ -1294,7 +2123,7 @@ function compileTest(param, registry) {
  * @returns A function that tests if an argument list matches the signature
  */
 function compileTests(params, registry) {
-    if (hasRestParam$1(params)) {
+    if (hasRestParam(params)) {
         // Variable arguments like '...number'
         const tests = initial(params).map((p) => compileTest(p, registry));
         const varIndex = tests.length;
@@ -1459,7 +2288,7 @@ function compileArgsPreprocessing(params, fn, registry) {
     let name = '';
     // Check if any conversions are needed
     if (params.some((p) => p.hasConversion)) {
-        const restParam = hasRestParam$1(params);
+        const restParam = hasRestParam(params);
         const compiledConversions = params.map((p) => compileArgConversion(p, registry));
         name = compiledConversions.map((conv) => conv.name).join(';');
         fnConvert = function convertArgs() {
@@ -1479,7 +2308,7 @@ function compileArgsPreprocessing(params, fn, registry) {
     }
     // Handle rest parameters
     let fnPreprocess = fnConvert;
-    if (hasRestParam$1(params)) {
+    if (hasRestParam(params)) {
         const offset = params.length - 1;
         fnPreprocess = function preprocessRestParams() {
             const args = slice(arguments, 0, offset);
@@ -1491,517 +2320,6 @@ function compileArgsPreprocessing(params, fn, registry) {
         Object.defineProperty(fnPreprocess, 'name', { value: name });
     }
     return fnPreprocess;
-}
-
-/**
- * Signature Comparator Module for typed-function
- *
- * This module handles comparing and ordering signatures for dispatch priority,
- * and detecting conflicts between signatures.
- */
-/**
- * Test whether a set of params contains a rest param
- */
-function hasRestParam(params) {
-    const param = last(params);
-    return param ? param.restParam : false;
-}
-/**
- * Check if a type is an exact type (not a conversion)
- */
-function isExactType(type) {
-    return type.conversion === null || type.conversion === undefined;
-}
-/**
- * Find the lowest type index among all types in a parameter
- *
- * @param param - The parameter to check
- * @param maxTypeIndex - The maximum possible type index (from registry)
- * @returns The lowest type index
- */
-function getLowestTypeIndex(param, maxTypeIndex) {
-    let min = maxTypeIndex + 1;
-    for (const type of param.types) {
-        if (type.typeIndex < min) {
-            min = type.typeIndex;
-        }
-    }
-    return min;
-}
-/**
- * Find the lowest conversion index among conversions in a parameter
- *
- * @param param - The parameter to check
- * @param maxConversionIndex - The maximum possible conversion index
- * @returns The lowest conversion index
- */
-function getLowestConversionIndex(param, maxConversionIndex) {
-    let min = maxConversionIndex + 1;
-    for (const type of param.types) {
-        if (!isExactType(type) && type.conversionIndex >= 0 && type.conversionIndex < min) {
-            min = type.conversionIndex;
-        }
-    }
-    return min;
-}
-/**
- * Compare two parameters for ordering priority
- *
- * Returns:
- * - Negative if param1 should come first
- * - Positive if param2 should come first
- * - Zero if equivalent
- *
- * The absolute value indicates importance (smaller = less important difference)
- *
- * @param param1 - First parameter
- * @param param2 - Second parameter
- * @param maxTypeIndex - Maximum type index in registry
- * @param maxConversionIndex - Maximum conversion index
- * @returns A comparison value
- */
-function compareParams(param1, param2, maxTypeIndex, maxConversionIndex) {
-    // 1) 'any' parameters are the least preferred
-    if (param1.hasAny) {
-        if (!param2.hasAny) {
-            return 0.1;
-        }
-    }
-    else if (param2.hasAny) {
-        return -0.1;
-    }
-    // 2) Prefer non-rest to rest parameters
-    if (param1.restParam) {
-        if (!param2.restParam) {
-            return 0.01;
-        }
-    }
-    else if (param2.restParam) {
-        return -0.01;
-    }
-    // 3) Prefer lower type index (types defined earlier)
-    const typeDiff = getLowestTypeIndex(param1, maxTypeIndex) - getLowestTypeIndex(param2, maxTypeIndex);
-    if (typeDiff < 0) {
-        return -1e-3;
-    }
-    if (typeDiff > 0) {
-        return 0.001;
-    }
-    // 4) Prefer exact type match over conversions
-    const conv1 = getLowestConversionIndex(param1, maxConversionIndex);
-    const conv2 = getLowestConversionIndex(param2, maxConversionIndex);
-    if (param1.hasConversion) {
-        if (!param2.hasConversion) {
-            return (1 + conv1) * 0.000001;
-        }
-    }
-    else if (param2.hasConversion) {
-        return -(1 + conv2) * 0.000001;
-    }
-    // 5) Prefer lower conversion index
-    const convDiff = conv1 - conv2;
-    if (convDiff < 0) {
-        return -1e-7;
-    }
-    if (convDiff > 0) {
-        return 0.0000001;
-    }
-    // No basis for preference
-    return 0;
-}
-/**
- * Compare two signatures for ordering priority
- *
- * Returns:
- * - Negative if signature1 should come first
- * - Positive if signature2 should come first
- * - Zero if equivalent
- *
- * @param signature1 - First signature
- * @param signature2 - Second signature
- * @param maxTypeIndex - Maximum type index in registry
- * @param maxConversionIndex - Maximum conversion index
- * @returns A comparison value
- */
-function compareSignatures(signature1, signature2, maxTypeIndex, maxConversionIndex) {
-    const pars1 = signature1.params;
-    const pars2 = signature2.params;
-    const last1 = last(pars1);
-    const last2 = last(pars2);
-    const hasRest1 = hasRestParam(pars1);
-    const hasRest2 = hasRestParam(pars2);
-    // 1) An "any rest param" is least preferred
-    if (hasRest1 && last1 && last1.hasAny) {
-        if (!hasRest2 || !last2 || !last2.hasAny) {
-            return 10000000;
-        }
-    }
-    else if (hasRest2 && last2 && last2.hasAny) {
-        return -1e7;
-    }
-    // 2) Minimize the number of 'any' parameters
-    let any1 = 0;
-    let conv1 = 0;
-    for (const par of pars1) {
-        if (par.hasAny)
-            any1++;
-        if (par.hasConversion)
-            conv1++;
-    }
-    let any2 = 0;
-    let conv2 = 0;
-    for (const par of pars2) {
-        if (par.hasAny)
-            any2++;
-        if (par.hasConversion)
-            conv2++;
-    }
-    if (any1 !== any2) {
-        return (any1 - any2) * 1000000;
-    }
-    // 3) A conversion rest param is less preferred
-    if (hasRest1 && last1 && last1.hasConversion) {
-        if (!hasRest2 || !last2 || !last2.hasConversion) {
-            return 100000;
-        }
-    }
-    else if (hasRest2 && last2 && last2.hasConversion) {
-        return -1e5;
-    }
-    // 4) Minimize the number of conversions
-    if (conv1 !== conv2) {
-        return (conv1 - conv2) * 10000;
-    }
-    // 5) Prefer no rest param
-    if (hasRest1) {
-        if (!hasRest2) {
-            return 1000;
-        }
-    }
-    else if (hasRest2) {
-        return -1e3;
-    }
-    // 6) Prefer shorter with rest param, longer without
-    const lengthCriterion = (pars1.length - pars2.length) * (hasRest1 ? -100 : 100);
-    if (lengthCriterion !== 0) {
-        return lengthCriterion;
-    }
-    // Signatures are identical in the above metrics and same length
-    // Compare parameters one by one
-    const comparisons = [];
-    let tc = 0;
-    for (let i = 0; i < pars1.length; i++) {
-        const p1 = pars1[i];
-        const p2 = pars2[i];
-        if (p1 && p2) {
-            const thisComparison = compareParams(p1, p2, maxTypeIndex, maxConversionIndex);
-            comparisons.push(thisComparison);
-            tc += thisComparison;
-        }
-    }
-    if (tc !== 0) {
-        return (tc < 0 ? -10 : 10) + tc;
-    }
-    // Same number of preferred params, go by earliest difference
-    let bonus = 9;
-    const decrement = bonus / (comparisons.length + 1);
-    for (const c of comparisons) {
-        if (c !== 0) {
-            return (c < 0 ? -bonus : bonus) + c;
-        }
-        bonus -= decrement;
-    }
-    // It's a tossup
-    return 0;
-}
-/**
- * Get the set of type names at a specific index in a params array
- */
-function getTypeSetAtIndex(params, index) {
-    let param;
-    if (index < params.length) {
-        param = params[index];
-    }
-    else if (hasRestParam(params)) {
-        param = last(params);
-    }
-    if (!param) {
-        return new Set();
-    }
-    // Use cached typeSet if available
-    if (param.typeSet) {
-        return param.typeSet;
-    }
-    const typeSet = new Set();
-    for (const type of param.types) {
-        typeSet.add(type.name);
-    }
-    param.typeSet = typeSet;
-    return typeSet;
-}
-/**
- * Test whether two param lists represent conflicting signatures
- *
- * Signatures conflict if they could both match the same argument list.
- *
- * @param params1 - First parameter list
- * @param params2 - Second parameter list
- * @returns true if the signatures conflict
- */
-function conflicting(params1, params2) {
-    const maxLen = Math.max(params1.length, params2.length);
-    // Check each position for type overlap
-    for (let i = 0; i < maxLen; i++) {
-        const typeSet1 = getTypeSetAtIndex(params1, i);
-        const typeSet2 = getTypeSetAtIndex(params2, i);
-        // Check if there's any overlap between the type sets
-        let overlap = false;
-        for (const name of typeSet2) {
-            if (typeSet1.has(name)) {
-                overlap = true;
-                break;
-            }
-        }
-        if (!overlap) {
-            return false; // No conflict at this position
-        }
-    }
-    // All positions have overlapping types, check length compatibility
-    const len1 = params1.length;
-    const len2 = params2.length;
-    const restParam1 = hasRestParam(params1);
-    const restParam2 = hasRestParam(params2);
-    if (restParam1) {
-        return restParam2 ? len1 === len2 : len2 >= len1;
-    }
-    else {
-        return restParam2 ? len1 >= len2 : len1 === len2;
-    }
-}
-/**
- * Create a signature comparator function for sorting
- *
- * @param maxTypeIndex - Maximum type index in registry
- * @param maxConversionIndex - Maximum conversion index
- * @returns A comparator function for Array.sort
- */
-function createSignatureComparator(maxTypeIndex, maxConversionIndex) {
-    return (a, b) => compareSignatures(a, b, maxTypeIndex, maxConversionIndex);
-}
-
-/**
- * Conversion Manager Module for typed-function
- *
- * This module handles registration, removal, and lookup of type conversions.
- */
-/**
- * Conversion Manager class for managing type conversions
- */
-class ConversionManager {
-    /**
-     * Create a new ConversionManager
-     *
-     * @param registry - The type registry to use
-     */
-    constructor(registry) {
-        /** Counter for conversion indices */
-        this.nConversions = 0;
-        this.registry = registry;
-    }
-    /**
-     * Get the current number of registered conversions
-     */
-    get conversionCount() {
-        return this.nConversions;
-    }
-    /**
-     * Validate a conversion definition
-     *
-     * @param conversion - The conversion to validate
-     * @throws TypeError if the conversion is invalid
-     * @throws SyntaxError if converting to self
-     */
-    validateConversion(conversion) {
-        if (!conversion ||
-            typeof conversion.from !== 'string' ||
-            typeof conversion.to !== 'string' ||
-            typeof conversion.convert !== 'function') {
-            throw new TypeError('Object with properties {from: string, to: string, convert: function} expected');
-        }
-        if (conversion.to === conversion.from) {
-            throw new SyntaxError(`Illegal to define conversion from "${conversion.from}" to itself.`);
-        }
-    }
-    /**
-     * Add a type conversion
-     *
-     * @param conversion - The conversion to add
-     * @param options - Options (override: boolean)
-     * @throws TypeError if the conversion is invalid
-     * @throws Error if a conversion already exists (unless override is true)
-     */
-    addConversion(conversion, options = { override: false }) {
-        this.validateConversion(conversion);
-        // Verify types exist
-        this.registry.findType(conversion.from);
-        const toType = this.registry.findType(conversion.to);
-        // Check for existing conversion
-        const existing = toType.conversionsTo.find((other) => other.from === conversion.from);
-        if (existing) {
-            if (options.override) {
-                this.removeConversion({
-                    from: existing.from,
-                    to: conversion.to,
-                    convert: existing.convert,
-                });
-            }
-            else {
-                throw new Error(`There is already a conversion from "${conversion.from}" to "${toType.name}"`);
-            }
-        }
-        // Add the conversion
-        toType.conversionsTo.push({
-            from: conversion.from,
-            to: toType.name,
-            convert: conversion.convert,
-            index: this.nConversions++,
-        });
-    }
-    /**
-     * Add multiple conversions
-     *
-     * @param conversions - Array of conversions to add
-     * @param options - Options (override: boolean)
-     */
-    addConversions(conversions, options) {
-        for (const conversion of conversions) {
-            this.addConversion(conversion, options);
-        }
-    }
-    /**
-     * Remove a conversion
-     *
-     * The convert function must match the existing conversion.
-     *
-     * @param conversion - The conversion to remove
-     * @throws Error if the conversion doesn't exist or doesn't match
-     */
-    removeConversion(conversion) {
-        this.validateConversion(conversion);
-        const toType = this.registry.findType(conversion.to);
-        const existingConversion = findInArray(toType.conversionsTo, (c) => c.from === conversion.from);
-        if (!existingConversion) {
-            throw new Error(`Attempt to remove nonexistent conversion from ${conversion.from} to ${conversion.to}`);
-        }
-        if (existingConversion.convert !== conversion.convert) {
-            throw new Error('Conversion to remove does not match existing conversion');
-        }
-        const index = toType.conversionsTo.indexOf(existingConversion);
-        toType.conversionsTo.splice(index, 1);
-    }
-    /**
-     * Clear all conversions
-     */
-    clearConversions() {
-        this.registry.clearConversions();
-        this.nConversions = 0;
-    }
-    /**
-     * Get all conversions to a specific type
-     *
-     * @param typeName - The target type name
-     * @returns Array of conversions to this type
-     */
-    getConversionsTo(typeName) {
-        const type = this.registry.findType(typeName);
-        return [...type.conversionsTo];
-    }
-    /**
-     * Get conversions available to convert to any of the given types
-     *
-     * Returns the lowest-index conversion for each source type.
-     *
-     * @param typeNames - Target type names
-     * @returns Array of available conversions
-     */
-    availableConversions(typeNames) {
-        if (typeNames.length === 0) {
-            return [];
-        }
-        const types = typeNames.map((name) => this.registry.findType(name));
-        if (typeNames.length === 1) {
-            const type = types[0];
-            return type ? [...type.conversionsTo] : [];
-        }
-        // For multiple types, find the lowest-index conversion for each source type
-        const knownTypes = new Set(typeNames);
-        const convertibleTypes = new Set();
-        for (const type of types) {
-            if (!type)
-                continue;
-            for (const match of type.conversionsTo) {
-                if (!knownTypes.has(match.from)) {
-                    convertibleTypes.add(match.from);
-                }
-            }
-        }
-        // Get the lowest-index conversion for each convertible type
-        const matches = [];
-        for (const typeName of convertibleTypes) {
-            let bestIndex = this.nConversions + 1;
-            let bestConversion = null;
-            for (const type of types) {
-                if (!type)
-                    continue;
-                for (const match of type.conversionsTo) {
-                    if (match.from === typeName && match.index !== undefined && match.index < bestIndex) {
-                        bestIndex = match.index;
-                        bestConversion = match;
-                    }
-                }
-            }
-            if (bestConversion) {
-                matches.push(bestConversion);
-            }
-        }
-        return matches;
-    }
-    /**
-     * Convert a value to a specified type
-     *
-     * @param value - The value to convert
-     * @param typeName - The target type name
-     * @returns The converted value
-     * @throws Error if no conversion is available
-     */
-    convert(value, typeName) {
-        const type = this.registry.findType(typeName);
-        // Check if value already matches
-        if (type.test(value)) {
-            return value;
-        }
-        const conversions = type.conversionsTo;
-        if (conversions.length === 0) {
-            throw new Error(`There are no conversions to ${typeName} defined.`);
-        }
-        // Find a matching conversion
-        for (const conversion of conversions) {
-            const fromType = this.registry.findType(conversion.from);
-            if (fromType.test(value)) {
-                return conversion.convert(value);
-            }
-        }
-        throw new Error(`Cannot convert ${value} to ${typeName}`);
-    }
-}
-/**
- * Create a new ConversionManager
- *
- * @param registry - The type registry to use
- * @returns A new ConversionManager instance
- */
-function createConversionManager(registry) {
-    return new ConversionManager(registry);
 }
 
 /**
@@ -2207,7 +2525,7 @@ function undef() {
  * (max 3 parameters, no rest param)
  */
 function isFastPathEligible(signature) {
-    return signature.params.length <= FAST_PATH_MAX_PARAMS && !hasRestParam(signature.params);
+    return signature.params.length <= FAST_PATH_MAX_PARAMS && !hasRestParam$1(signature.params);
 }
 /**
  * Create a simple test function for a parameter (without registry)
@@ -2527,6 +2845,271 @@ function hasImplementations(signatures) {
 }
 
 /**
+ * Specific Error Classes for typed-function
+ *
+ * This module provides specific error types for better error handling
+ * and type-safe error catching in TypeScript.
+ */
+/**
+ * Error codes for typed-function errors
+ *
+ * Use these codes for programmatic error handling:
+ * - TF1xx: Type definition errors
+ * - TF2xx: Signature errors
+ * - TF3xx: Dispatch/argument errors
+ * - TF4xx: Conversion errors
+ * - TF5xx: Reference errors
+ * - TF6xx: WASM errors
+ * - TF9xx: General errors
+ */
+var ErrorCode;
+(function (ErrorCode) {
+    // Type errors (1xx)
+    /** Unknown type name */
+    ErrorCode["UNKNOWN_TYPE"] = "TF101";
+    /** Duplicate type name */
+    ErrorCode["DUPLICATE_TYPE"] = "TF102";
+    /** Invalid type definition */
+    ErrorCode["INVALID_TYPE_DEFINITION"] = "TF103";
+    // Signature errors (2xx)
+    /** No signatures provided */
+    ErrorCode["NO_SIGNATURES"] = "TF201";
+    /** Conflicting signatures */
+    ErrorCode["CONFLICTING_SIGNATURES"] = "TF202";
+    /** Invalid signature syntax */
+    ErrorCode["INVALID_SIGNATURE"] = "TF203";
+    /** Duplicate signature */
+    ErrorCode["DUPLICATE_SIGNATURE"] = "TF204";
+    /** Signature not found */
+    ErrorCode["SIGNATURE_NOT_FOUND"] = "TF205";
+    // Dispatch errors (3xx)
+    /** Type mismatch */
+    ErrorCode["TYPE_MISMATCH"] = "TF301";
+    /** Too few arguments */
+    ErrorCode["TOO_FEW_ARGUMENTS"] = "TF302";
+    /** Too many arguments */
+    ErrorCode["TOO_MANY_ARGUMENTS"] = "TF303";
+    /** No matching signature */
+    ErrorCode["NO_MATCHING_SIGNATURE"] = "TF304";
+    // Conversion errors (4xx)
+    /** Conversion not found */
+    ErrorCode["CONVERSION_NOT_FOUND"] = "TF401";
+    /** Duplicate conversion */
+    ErrorCode["DUPLICATE_CONVERSION"] = "TF402";
+    /** Conversion failed */
+    ErrorCode["CONVERSION_FAILED"] = "TF403";
+    /** Invalid conversion definition */
+    ErrorCode["INVALID_CONVERSION"] = "TF404";
+    // Reference errors (5xx)
+    /** Circular reference in referTo */
+    ErrorCode["CIRCULAR_REFERENCE"] = "TF501";
+    /** Unresolved reference */
+    ErrorCode["UNRESOLVED_REFERENCE"] = "TF502";
+    // WASM errors (6xx)
+    /** WASM not initialized */
+    ErrorCode["WASM_NOT_INITIALIZED"] = "TF601";
+    /** WASM load failed */
+    ErrorCode["WASM_LOAD_FAILED"] = "TF602";
+    /** WASM not supported */
+    ErrorCode["WASM_NOT_SUPPORTED"] = "TF603";
+    // General errors (9xx)
+    /** Not a typed function */
+    ErrorCode["NOT_A_TYPED_FUNCTION"] = "TF901";
+    /** Internal error */
+    ErrorCode["INTERNAL_ERROR"] = "TF999";
+})(ErrorCode || (ErrorCode = {}));
+/**
+ * Base class for all typed-function errors
+ */
+class TypedFunctionError extends TypeError {
+    constructor(message, data, code = ErrorCode.INTERNAL_ERROR) {
+        super(message);
+        this.name = 'TypedFunctionError';
+        this.data = data;
+        this.code = code;
+        // Maintain proper stack trace in V8 environments
+        if (Error.captureStackTrace) {
+            Error.captureStackTrace(this, this.constructor);
+        }
+    }
+}
+/**
+ * Error thrown when an argument has an unexpected type
+ */
+class TypeMismatchError extends TypedFunctionError {
+    constructor(fnName, index, actualTypes, expectedTypes) {
+        const message = `Unexpected type of argument in function ${fnName || 'unnamed'} ` +
+            `(expected: ${expectedTypes.join(' or ')}, ` +
+            `actual: ${actualTypes.join(' | ')}, index: ${index})`;
+        super(message, {
+            category: 'wrongType',
+            fn: fnName,
+            index,
+            actual: actualTypes,
+            expected: expectedTypes,
+        }, ErrorCode.TYPE_MISMATCH);
+        this.name = 'TypeMismatchError';
+        this.index = index;
+        this.actualTypes = actualTypes;
+        this.expectedTypes = expectedTypes;
+    }
+}
+/**
+ * Error thrown when too few arguments are provided
+ */
+class TooFewArgumentsError extends TypedFunctionError {
+    constructor(fnName, providedCount, expectedTypes) {
+        const message = `Too few arguments in function ${fnName || 'unnamed'} ` +
+            `(expected: ${expectedTypes.join(' or ')}, index: ${providedCount})`;
+        super(message, {
+            category: 'tooFewArgs',
+            fn: fnName,
+            index: providedCount,
+            expected: expectedTypes,
+        }, ErrorCode.TOO_FEW_ARGUMENTS);
+        this.name = 'TooFewArgumentsError';
+        this.providedCount = providedCount;
+        this.expectedTypes = expectedTypes;
+    }
+}
+/**
+ * Error thrown when too many arguments are provided
+ */
+class TooManyArgumentsError extends TypedFunctionError {
+    constructor(fnName, providedCount, expectedCount) {
+        const message = `Too many arguments in function ${fnName || 'unnamed'} ` +
+            `(expected: ${expectedCount}, actual: ${providedCount})`;
+        super(message, {
+            category: 'tooManyArgs',
+            fn: fnName,
+            index: providedCount,
+            expectedLength: expectedCount,
+        }, ErrorCode.TOO_MANY_ARGUMENTS);
+        this.name = 'TooManyArgumentsError';
+        this.providedCount = providedCount;
+        this.expectedCount = expectedCount;
+    }
+}
+/**
+ * Error thrown when arguments don't match any signature
+ */
+class SignatureMismatchError extends TypedFunctionError {
+    constructor(fnName, argumentTypes, signatures) {
+        const message = `Arguments of type "${argumentTypes.join(', ')}" do not match any of the ` +
+            `defined signatures of function ${fnName || 'unnamed'}.`;
+        super(message, {
+            category: 'mismatch',
+            fn: fnName,
+            actual: argumentTypes,
+        }, ErrorCode.NO_MATCHING_SIGNATURE);
+        this.name = 'SignatureMismatchError';
+        this.argumentTypes = argumentTypes;
+        this.signatures = signatures;
+    }
+}
+/**
+ * Error thrown when a signature is not found
+ */
+class SignatureNotFoundError extends TypedFunctionError {
+    constructor(fnName, signature) {
+        const message = `Signature not found (signature: ${fnName || 'unnamed'}(${signature}))`;
+        super(message, {
+            category: 'mismatch',
+            fn: fnName,
+        }, ErrorCode.SIGNATURE_NOT_FOUND);
+        this.name = 'SignatureNotFoundError';
+        this.signature = signature;
+    }
+}
+/**
+ * Error thrown when WASM is not available but required
+ */
+class WasmNotAvailableError extends Error {
+    constructor(reason = 'WebAssembly is not available in this environment') {
+        super(`WASM dispatch unavailable: ${reason}`);
+        this.name = 'WasmNotAvailableError';
+        this.reason = reason;
+        if (Error.captureStackTrace) {
+            Error.captureStackTrace(this, this.constructor);
+        }
+    }
+}
+/**
+ * Error thrown when WASM initialization fails
+ */
+class WasmInitializationError extends Error {
+    constructor(message, cause) {
+        super(`WASM initialization failed: ${message}`);
+        this.name = 'WasmInitializationError';
+        this.cause = cause ?? undefined;
+        if (Error.captureStackTrace) {
+            Error.captureStackTrace(this, this.constructor);
+        }
+    }
+}
+/**
+ * Error thrown when a type is not found in the registry
+ */
+class TypeNotFoundError extends TypeError {
+    constructor(typeName, suggestion) {
+        let message = `Unknown type "${typeName}"`;
+        if (suggestion) {
+            message += `. Did you mean "${suggestion}"?`;
+        }
+        super(message);
+        this.name = 'TypeNotFoundError';
+        this.typeName = typeName;
+        this.suggestion = suggestion ?? undefined;
+        if (Error.captureStackTrace) {
+            Error.captureStackTrace(this, this.constructor);
+        }
+    }
+}
+/**
+ * Error thrown when a duplicate type is registered
+ */
+class DuplicateTypeError extends TypeError {
+    constructor(typeName) {
+        super(`Duplicate type name "${typeName}"`);
+        this.name = 'DuplicateTypeError';
+        this.typeName = typeName;
+        if (Error.captureStackTrace) {
+            Error.captureStackTrace(this, this.constructor);
+        }
+    }
+}
+/**
+ * Type guard to check if an error is a TypedFunctionError
+ */
+function isTypedFunctionError(error) {
+    return error instanceof TypedFunctionError;
+}
+/**
+ * Type guard to check if an error is a TypeMismatchError
+ */
+function isTypeMismatchError(error) {
+    return error instanceof TypeMismatchError;
+}
+/**
+ * Type guard to check if an error is a TooFewArgumentsError
+ */
+function isTooFewArgumentsError(error) {
+    return error instanceof TooFewArgumentsError;
+}
+/**
+ * Type guard to check if an error is a TooManyArgumentsError
+ */
+function isTooManyArgumentsError(error) {
+    return error instanceof TooManyArgumentsError;
+}
+/**
+ * Type guard to check if an error is a WasmNotAvailableError
+ */
+function isWasmNotAvailableError(error) {
+    return error instanceof WasmNotAvailableError;
+}
+
+/**
  * JS-WASM Bridge for typed-function dispatch
  *
  * TypeScript bindings for the WASM dispatch module.
@@ -2636,7 +3219,7 @@ const TYPE_UNDEFINED = 9;
 /** Type ID for BigInt */
 const TYPE_BIGINT = 10;
 /** Type ID for Symbol */
-const TYPE_SYMBOL$1 = 11;
+const TYPE_SYMBOL = 11;
 /** Type ID for Map */
 const TYPE_MAP = 12;
 /** Type ID for Set */
@@ -2663,7 +3246,7 @@ const typeNameToBit = new Map([
     ['undefined', TYPE_UNDEFINED],
     // Modern types (ES6+)
     ['BigInt', TYPE_BIGINT],
-    ['Symbol', TYPE_SYMBOL$1],
+    ['Symbol', TYPE_SYMBOL],
     ['Map', TYPE_MAP],
     ['Set', TYPE_SET],
     ['WeakMap', TYPE_WEAKMAP],
@@ -2799,7 +3382,7 @@ const TypeMasks = {
     /** Matches BigInt only */
     BIGINT: 1 << TYPE_BIGINT,
     /** Matches Symbol only */
-    SYMBOL: 1 << TYPE_SYMBOL$1,
+    SYMBOL: 1 << TYPE_SYMBOL,
     /** Matches Map only */
     MAP: 1 << TYPE_MAP,
     /** Matches Set only */
@@ -2963,7 +3546,7 @@ function createTypedFunction(name, rawSignaturesMap, options) {
     // The dispatch logic will be set up via closure after reference resolution
     let genericDispatch = null;
     let fastPathReady = false;
-    let wasmDispatchEnabled = useWasm && isWasmAvailable();
+    const wasmDispatchEnabled = useWasm && isWasmAvailable();
     // Fast-path slot variables for 10 slots with 3 params each
     // These are assigned once after theTypedFn is defined, then used via closure
     /* eslint-disable prefer-const */
@@ -3386,585 +3969,6 @@ function omit(obj, keys) {
 }
 
 /**
- * Bundler Compatibility Module for typed-function
- *
- * This module provides robust type identification mechanisms that survive
- * bundler transformations (esbuild, webpack, rollup, etc.) including:
- *
- * - Symbol-based type identification
- * - Constructor registry using WeakMap
- * - Brand checking patterns
- *
- * These mechanisms address issues where class instances are not recognized
- * after compilation due to prototype chain breakage or constructor renaming.
- *
- * @see docs/TYPED_FUNCTION_IMPROVEMENTS.md
- */
-/**
- * Well-known symbol for typed-function type identification.
- *
- * Classes can implement this to ensure type recognition survives bundling:
- *
- * @example
- * ```typescript
- * import { TYPE_SYMBOL } from 'typed-function';
- *
- * class DenseMatrix {
- *   [TYPE_SYMBOL] = 'DenseMatrix';
- * }
- *
- * // Type test becomes bundler-safe:
- * typed.addType({
- *   name: 'DenseMatrix',
- *   test: (x) => x && x[TYPE_SYMBOL] === 'DenseMatrix'
- * });
- * ```
- */
-const TYPE_SYMBOL = Symbol.for('typed-function:type');
-/**
- * Symbol for brand-based type checking (TypeScript branded types pattern).
- *
- * This provides an alternative to TYPE_SYMBOL for cases where you want
- * TypeScript-style branded types.
- *
- * @example
- * ```typescript
- * import { BRAND_SYMBOL } from 'typed-function';
- *
- * interface Branded<T extends string> {
- *   readonly [BRAND_SYMBOL]: T;
- * }
- *
- * class Complex implements Branded<'Complex'> {
- *   readonly [BRAND_SYMBOL] = 'Complex' as const;
- * }
- * ```
- */
-const BRAND_SYMBOL = Symbol.for('typed-function:brand');
-/**
- * Constructor registry - maps constructors to type names.
- *
- * This WeakMap allows type identification even when:
- * - Classes are compiled/transpiled
- * - Constructor names are minified
- * - Multiple bundle versions exist
- */
-const constructorRegistry = new WeakMap();
-/**
- * Instance registry - for WeakSet-based instance tracking.
- *
- * Maps type names to WeakSets of instances.
- */
-const instanceRegistry = new Map();
-/**
- * Register a constructor with a type name.
- *
- * This allows type identification by constructor reference rather than name.
- *
- * @example
- * ```typescript
- * import { registerConstructor, getTypeByConstructor } from 'typed-function';
- *
- * class DenseMatrix { }
- * registerConstructor(DenseMatrix, 'DenseMatrix');
- *
- * // Later, in type test:
- * test: (x) => getTypeByConstructor(x?.constructor) === 'DenseMatrix'
- * ```
- *
- * @param constructor - The constructor function to register
- * @param typeName - The type name to associate with this constructor
- */
-function registerConstructor(constructor, typeName) {
-    constructorRegistry.set(constructor, typeName);
-}
-/**
- * Unregister a constructor from the registry.
- *
- * @param constructor - The constructor to unregister
- * @returns true if the constructor was registered and removed, false otherwise
- */
-function unregisterConstructor(constructor) {
-    return constructorRegistry.delete(constructor);
-}
-/**
- * Get the type name for a registered constructor.
- *
- * @param constructor - The constructor to look up
- * @returns The type name, or undefined if not registered
- */
-function getTypeByConstructor(constructor) {
-    if (!constructor)
-        return undefined;
-    return constructorRegistry.get(constructor);
-}
-/**
- * Check if a value is an instance of a registered type by constructor lookup.
- *
- * @param value - The value to check
- * @param typeName - The expected type name
- * @returns true if the value's constructor is registered with the given type name
- */
-function isRegisteredType(value, typeName) {
-    if (value === null || value === undefined)
-        return false;
-    if (typeof value !== 'object' && typeof value !== 'function')
-        return false;
-    const constructor = value.constructor;
-    return constructorRegistry.get(constructor) === typeName;
-}
-/**
- * Register an instance with a type name using WeakSet tracking.
- *
- * This is useful for cases where constructor-based identification doesn't work,
- * such as objects created with Object.create() or cross-realm objects.
- *
- * @example
- * ```typescript
- * import { registerInstance, isRegisteredInstance } from 'typed-function';
- *
- * class Matrix {
- *   constructor() {
- *     registerInstance(this, 'Matrix');
- *   }
- * }
- *
- * // Type test:
- * test: (x) => isRegisteredInstance(x, 'Matrix')
- * ```
- *
- * @param instance - The instance to register
- * @param typeName - The type name to associate with this instance
- */
-function registerInstance(instance, typeName) {
-    let weakSet = instanceRegistry.get(typeName);
-    if (!weakSet) {
-        weakSet = new WeakSet();
-        instanceRegistry.set(typeName, weakSet);
-    }
-    weakSet.add(instance);
-}
-/**
- * Check if an instance is registered with a specific type name.
- *
- * @param instance - The instance to check
- * @param typeName - The expected type name
- * @returns true if the instance is registered with the given type name
- */
-function isRegisteredInstance(instance, typeName) {
-    if (instance === null || instance === undefined)
-        return false;
-    if (typeof instance !== 'object')
-        return false;
-    const weakSet = instanceRegistry.get(typeName);
-    return weakSet ? weakSet.has(instance) : false;
-}
-/**
- * Clear all registered instances for a type name.
- *
- * Note: This creates a new WeakSet, existing instances will no longer be tracked.
- *
- * @param typeName - The type name to clear instances for
- */
-function clearInstanceRegistry(typeName) {
-    instanceRegistry.delete(typeName);
-}
-/**
- * Clear all instance registries.
- */
-function clearAllInstanceRegistries() {
-    instanceRegistry.clear();
-}
-/**
- * Check if a value has a typed-function type symbol.
- *
- * @param value - The value to check
- * @returns The type name from the symbol, or undefined if not present
- */
-function getTypeFromSymbol(value) {
-    if (value === null || value === undefined)
-        return undefined;
-    if (typeof value !== 'object' && typeof value !== 'function')
-        return undefined;
-    const typeValue = value[TYPE_SYMBOL];
-    return typeof typeValue === 'string' ? typeValue : undefined;
-}
-/**
- * Check if a value has a brand symbol.
- *
- * @param value - The value to check
- * @returns The brand name from the symbol, or undefined if not present
- */
-function getBrandFromSymbol(value) {
-    if (value === null || value === undefined)
-        return undefined;
-    if (typeof value !== 'object' && typeof value !== 'function')
-        return undefined;
-    const brandValue = value[BRAND_SYMBOL];
-    return typeof brandValue === 'string' ? brandValue : undefined;
-}
-/**
- * Create a bundler-safe type test function.
- *
- * This function creates a type test that uses multiple identification strategies
- * in order of reliability:
- * 1. Symbol-based identification (TYPE_SYMBOL)
- * 2. Brand-based identification (BRAND_SYMBOL)
- * 3. Constructor registry lookup
- * 4. Instance registry lookup
- * 5. Fallback custom test function
- *
- * @example
- * ```typescript
- * import { createBundlerSafeTest } from 'typed-function';
- *
- * typed.addType({
- *   name: 'DenseMatrix',
- *   test: createBundlerSafeTest('DenseMatrix', {
- *     fallback: (x) => x && typeof x.get === 'function' && Array.isArray(x._size)
- *   })
- * });
- * ```
- *
- * @param typeName - The type name to check for
- * @param options - Optional configuration
- * @returns A type test function
- */
-function createBundlerSafeTest(typeName, options) {
-    const { fallback, checkConstructor = true, checkInstance = true, checkSymbols = true, } = options || {};
-    return function bundlerSafeTest(value) {
-        if (value === null || value === undefined)
-            return false;
-        // Check symbol-based identification first (most reliable)
-        if (checkSymbols) {
-            if (getTypeFromSymbol(value) === typeName)
-                return true;
-            if (getBrandFromSymbol(value) === typeName)
-                return true;
-        }
-        // Check constructor registry
-        if (checkConstructor && typeof value === 'object') {
-            if (isRegisteredType(value, typeName))
-                return true;
-        }
-        // Check instance registry
-        if (checkInstance) {
-            if (isRegisteredInstance(value, typeName))
-                return true;
-        }
-        // Fall back to custom test
-        if (fallback) {
-            return fallback(value);
-        }
-        return false;
-    };
-}
-/**
- * Helper to create a class that is automatically registered with typed-function.
- *
- * @example
- * ```typescript
- * import { createTypedClass, TYPE_SYMBOL } from 'typed-function';
- *
- * const DenseMatrix = createTypedClass('DenseMatrix', class {
- *   constructor(public data: number[][]) {}
- * });
- *
- * const m = new DenseMatrix([[1, 2], [3, 4]]);
- * m[TYPE_SYMBOL] // 'DenseMatrix'
- * ```
- *
- * @param typeName - The type name for this class
- * @param BaseClass - The base class to extend
- * @returns A new class with type identification built in
- */
-function createTypedClass(typeName, BaseClass) {
-    var _a, _b;
-    // Create a new class that extends the base and adds type identification
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const TypedClass = (_b = class extends BaseClass {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            constructor(...args) {
-                super(...args);
-                this[_a] = typeName;
-                // Also register the instance for WeakSet-based lookup
-                registerInstance(this, typeName);
-            }
-        },
-        _a = TYPE_SYMBOL,
-        _b);
-    // Register the constructor
-    registerConstructor(TypedClass, typeName);
-    // Try to preserve the class name
-    try {
-        Object.defineProperty(TypedClass, 'name', {
-            value: typeName,
-            configurable: true,
-        });
-    }
-    catch {
-        // Some environments don't allow setting Function.name
-    }
-    return TypedClass;
-}
-/**
- * Decorator-style function to add type identification to an existing class.
- *
- * @example
- * ```typescript
- * import { addTypeIdentification, TYPE_SYMBOL } from 'typed-function';
- *
- * class MyMatrix {
- *   constructor(public data: number[][]) {}
- * }
- *
- * // Add type identification
- * addTypeIdentification(MyMatrix, 'Matrix');
- *
- * // Now instances have TYPE_SYMBOL
- * const m = new MyMatrix([[1, 2]]);
- * m[TYPE_SYMBOL] // 'Matrix'
- * ```
- *
- * @param Class - The class to modify
- * @param typeName - The type name to assign
- */
-function addTypeIdentification(Class, typeName) {
-    // Register the constructor
-    registerConstructor(Class, typeName);
-    // Add TYPE_SYMBOL to the prototype
-    Object.defineProperty(Class.prototype, TYPE_SYMBOL, {
-        value: typeName,
-        writable: false,
-        enumerable: false,
-        configurable: false,
-    });
-}
-/**
- * Identify a value's type using all available methods, returning details.
- *
- * This is useful for debugging type identification issues.
- *
- * @param value - The value to identify
- * @param expectedType - Optional expected type name to check
- * @returns Details about type identification
- */
-function identifyType(value, expectedType) {
-    if (value === null || value === undefined) {
-        return { typeName: null, method: 'none' };
-    }
-    // Check TYPE_SYMBOL
-    const symbolType = getTypeFromSymbol(value);
-    if (symbolType) {
-        if (!expectedType || symbolType === expectedType) {
-            return { typeName: symbolType, method: 'symbol' };
-        }
-    }
-    // Check BRAND_SYMBOL
-    const brandType = getBrandFromSymbol(value);
-    if (brandType) {
-        if (!expectedType || brandType === expectedType) {
-            return { typeName: brandType, method: 'brand' };
-        }
-    }
-    // Check constructor registry
-    if (typeof value === 'object' || typeof value === 'function') {
-        const constructorType = getTypeByConstructor(value.constructor);
-        if (constructorType) {
-            if (!expectedType || constructorType === expectedType) {
-                return { typeName: constructorType, method: 'constructor' };
-            }
-        }
-        // Check instance registry (only if we have an expected type)
-        if (expectedType && isRegisteredInstance(value, expectedType)) {
-            return { typeName: expectedType, method: 'instance' };
-        }
-    }
-    return { typeName: null, method: 'none' };
-}
-
-/**
- * Type Cache Module for typed-function
- *
- * Provides caching for type resolution results to improve performance
- * when repeatedly checking the same objects.
- *
- * Uses WeakMap to allow garbage collection of cached objects.
- *
- * @see docs/TYPED_FUNCTION_IMPROVEMENTS.md - Issue 6
- */
-/**
- * Type cache using WeakMap for object-based caching.
- *
- * This allows type resolution results to be cached for repeated calls
- * with the same object, while still allowing garbage collection when
- * objects are no longer referenced.
- */
-class TypeCache {
-    constructor() {
-        /** WeakMap storing type names by object reference */
-        this.cache = new WeakMap();
-        /** Counter for cache hits (for debugging/metrics) */
-        this.hits = 0;
-        /** Counter for cache misses (for debugging/metrics) */
-        this.misses = 0;
-        /** Whether caching is enabled */
-        this.enabled = true;
-    }
-    /**
-     * Get a cached type name for an object.
-     *
-     * @param value - The value to look up
-     * @returns The cached type name, or undefined if not cached
-     */
-    get(value) {
-        if (!this.enabled)
-            return undefined;
-        if (value === null || value === undefined)
-            return undefined;
-        if (typeof value !== 'object' && typeof value !== 'function')
-            return undefined;
-        const result = this.cache.get(value);
-        if (result !== undefined) {
-            this.hits++;
-        }
-        else {
-            this.misses++;
-        }
-        return result;
-    }
-    /**
-     * Cache a type name for an object.
-     *
-     * @param value - The value to cache
-     * @param typeName - The type name to associate
-     */
-    set(value, typeName) {
-        if (!this.enabled)
-            return;
-        if (value === null || value === undefined)
-            return;
-        if (typeof value !== 'object' && typeof value !== 'function')
-            return;
-        this.cache.set(value, typeName);
-    }
-    /**
-     * Check if a value is cached.
-     *
-     * @param value - The value to check
-     * @returns true if the value is cached
-     */
-    has(value) {
-        if (!this.enabled)
-            return false;
-        if (value === null || value === undefined)
-            return false;
-        if (typeof value !== 'object' && typeof value !== 'function')
-            return false;
-        return this.cache.has(value);
-    }
-    /**
-     * Remove a value from the cache.
-     *
-     * @param value - The value to remove
-     * @returns true if the value was cached and removed
-     */
-    delete(value) {
-        if (value === null || value === undefined)
-            return false;
-        if (typeof value !== 'object' && typeof value !== 'function')
-            return false;
-        return this.cache.delete(value);
-    }
-    /**
-     * Clear all cached entries.
-     *
-     * Note: This creates a new WeakMap. Existing entries will be
-     * garbage collected when their keys are no longer referenced.
-     */
-    clear() {
-        this.cache = new WeakMap();
-        this.hits = 0;
-        this.misses = 0;
-    }
-    /**
-     * Enable caching.
-     */
-    enable() {
-        this.enabled = true;
-    }
-    /**
-     * Disable caching.
-     */
-    disable() {
-        this.enabled = false;
-    }
-    /**
-     * Check if caching is enabled.
-     */
-    isEnabled() {
-        return this.enabled;
-    }
-    /**
-     * Get cache statistics.
-     *
-     * @returns Object with hit and miss counts
-     */
-    getStats() {
-        const total = this.hits + this.misses;
-        return {
-            hits: this.hits,
-            misses: this.misses,
-            hitRate: total > 0 ? this.hits / total : 0,
-        };
-    }
-    /**
-     * Reset cache statistics.
-     */
-    resetStats() {
-        this.hits = 0;
-        this.misses = 0;
-    }
-}
-/**
- * Global type cache instance.
- *
- * This is shared across all typed-function instances for maximum efficiency,
- * since type identification is global (same object = same type).
- */
-const globalTypeCache = new TypeCache();
-/**
- * Create a new isolated type cache.
- *
- * Use this if you need separate caching for different typed-function instances.
- *
- * @returns A new TypeCache instance
- */
-function createTypeCache() {
-    return new TypeCache();
-}
-/**
- * Helper function to get or compute a type name with caching.
- *
- * @param value - The value to resolve
- * @param compute - Function to compute the type name if not cached
- * @param cache - Optional cache to use (defaults to global cache)
- * @returns The type name
- */
-function cachedTypeResolve(value, compute, cache = globalTypeCache) {
-    // Check cache first
-    const cached = cache.get(value);
-    if (cached !== undefined) {
-        return cached;
-    }
-    // Compute the type
-    const typeName = compute(value);
-    // Cache the result
-    cache.set(value, typeName);
-    return typeName;
-}
-
-/**
  * WASM Loader for typed-function dispatch
  *
  * Handles sync/async loading of WASM module with graceful fallback.
@@ -4057,16 +4061,16 @@ function extractSignaturesWithReferences(signatures) {
         if (Object.prototype.hasOwnProperty.call(signatures, key)) {
             const fn = signatures[key];
             if (fn) {
-                // Check if the function has preserved referTo info
                 if (fn.referTo) {
+                    // The function has preserved referTo info
                     result[key] = makeReferTo(fn.referTo.references, fn.referTo.callback);
                 }
-                // Check if the function has preserved referToSelf info
                 else if (fn.referToSelf) {
+                    // The function has preserved referToSelf info
                     result[key] = makeReferToSelf(fn.referToSelf.callback);
                 }
-                // Otherwise, use the function directly
                 else {
+                    // Otherwise, use the function directly
                     result[key] = fn;
                 }
             }
@@ -4140,7 +4144,7 @@ function create() {
         const isNumberTarget = to === 'number';
         if (isBigIntSource && isNumberTarget) {
             emitWarning(`[typed-function] BigInt coercion warning: Converting from '${from}' to '${to}'. ` +
-                `This may lose precision for large values. Consider using explicit conversions.`);
+                'This may lose precision for large values. Consider using explicit conversions.');
         }
     }
     // Make checkBigIntCoercion available on the conversion manager for external use
@@ -5803,7 +5807,7 @@ function rational(num, den) {
  * This module re-exports all type definitions from their
  * respective modules for convenience.
  */
-// Re-export complex types
+// Import arrays for combining
 /**
  * Combined linear algebra types for backwards compatibility
  */
@@ -5855,6 +5859,8 @@ const ADVANCED_TYPES = [
  *
  * This is the main entry point for the typed-function library.
  */
+// Re-export core types
+// Import the default typed instance
 /**
  * Check if an entity is a typed function created by any instance
  */
@@ -5882,7 +5888,7 @@ exports.SCIENTIFIC_TYPES = SCIENTIFIC_TYPES;
 exports.SignatureMismatchError = SignatureMismatchError;
 exports.SignatureNotFoundError = SignatureNotFoundError;
 exports.TYPED_ARRAY_TYPES = TYPED_ARRAY_TYPES;
-exports.TYPE_SYMBOL = TYPE_SYMBOL;
+exports.TYPE_SYMBOL = TYPE_SYMBOL$1;
 exports.TooFewArgumentsError = TooFewArgumentsError;
 exports.TooManyArgumentsError = TooManyArgumentsError;
 exports.TypeCache = TypeCache;
@@ -5966,7 +5972,7 @@ exports.hasCompiledTests = hasCompiledTests;
 exports.hasImplementations = hasImplementations;
 exports.hasItem = hasItem;
 exports.hasOwnProperty = hasOwnProperty;
-exports.hasRestParam = hasRestParam;
+exports.hasRestParam = hasRestParam$1;
 exports.hasRestParamError = hasRestParam$2;
 exports.identifyType = identifyType;
 exports.initial = initial;

@@ -13,7 +13,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { create } from '../src/index.js';
-import type { TypedInstance, Signature, Param, SignatureFunction } from '../src/core/types.js';
+import type { TypedInstance, Signature, SignatureFunction } from '../src/core/types.js';
 import {
   isFastPathEligible,
   createFastPathSlot,
@@ -39,7 +39,6 @@ import {
   validateDeprecatedThis,
 } from '../src/core/reference-resolver.js';
 import { createTypeRegistry } from '../src/core/type-registry.js';
-import { createConversionManager } from '../src/core/conversion-manager.js';
 import { parseSignature } from '../src/core/signature-parser.js';
 
 describe('Phase 2 Sprint 9: Branch Coverage Completion', () => {
@@ -299,7 +298,7 @@ describe('Phase 2 Sprint 9: Branch Coverage Completion', () => {
           test: null,
           implementation: () => 42,
         }];
-        const genericDispatch = (args: IArguments) => 'generic';
+        const genericDispatch = (_args: IArguments) => 'generic';
         const onMismatch = () => { throw new Error('mismatch'); };
 
         const dispatcher = createDispatcher('test', sigs, genericDispatch, onMismatch);
@@ -533,7 +532,7 @@ describe('Phase 2 Sprint 9: Branch Coverage Completion', () => {
     describe('collectResolutions', () => {
       it('should collect resolved references', () => {
         const fn = (x: number) => x;
-        const result = collectResolutions(['number'], [fn], { 'number': 0 });
+        const result = collectResolutions(['number'], [fn], { number: 0 });
         expect(result).toEqual([fn]);
       });
 
@@ -545,38 +544,38 @@ describe('Phase 2 Sprint 9: Branch Coverage Completion', () => {
 
       it('should return null for unresolved reference', () => {
         const ref = makeReferTo(['number'], () => (x: number) => x);
-        const result = collectResolutions(['number'], [ref], { 'number': 0 });
+        const result = collectResolutions(['number'], [ref], { number: 0 });
         expect(result).toBeNull();
       });
     });
 
     describe('resolveReferences', () => {
       it('should resolve referToSelf', () => {
-        const self = typed({ 'number': (n: number) => n });
+        const self = typed({ number: (n: number) => n });
         const ref = makeReferToSelf(() => (n: number) => n * 2);
         const result = resolveReferences([ref], {}, self);
         expect(typeof result[0]).toBe('function');
       });
 
       it('should resolve referTo', () => {
-        const self = typed({ 'number': (n: number) => n });
+        const self = typed({ number: (n: number) => n });
         const fn = (n: number) => n;
         const ref = makeReferTo(['number'], (numFn: SignatureFunction) => (n: number) => numFn(n) * 2);
-        const result = resolveReferences([fn, ref], { 'number': 0 }, self);
+        const result = resolveReferences([fn, ref], { number: 0 }, self);
         expect(typeof result[1]).toBe('function');
       });
 
       it('should throw for circular reference', () => {
-        const self = typed({ 'number': (n: number) => n });
+        const self = typed({ number: (n: number) => n });
         const ref1 = makeReferTo(['string'], () => (n: number) => n);
         const ref2 = makeReferTo(['number'], () => (s: string) => s);
         expect(() =>
-          resolveReferences([ref1, ref2], { 'number': 0, 'string': 1 }, self)
+          resolveReferences([ref1, ref2], { number: 0, string: 1 }, self)
         ).toThrow('Circular reference detected');
       });
 
       it('should preserve plain functions', () => {
-        const self = typed({ 'number': (n: number) => n });
+        const self = typed({ number: (n: number) => n });
         const fn = (n: number) => n;
         const result = resolveReferences([fn], {}, self);
         expect(result[0]).toBe(fn);
@@ -586,7 +585,7 @@ describe('Phase 2 Sprint 9: Branch Coverage Completion', () => {
     describe('validateDeprecatedThis', () => {
       it('should not throw for regular functions', () => {
         expect(() =>
-          validateDeprecatedThis({ 'number': (n: number) => n })
+          validateDeprecatedThis({ number: (n: number) => n })
         ).not.toThrow();
       });
 
@@ -595,7 +594,7 @@ describe('Phase 2 Sprint 9: Branch Coverage Completion', () => {
           return (this as Function)(n);
         };
         expect(() =>
-          validateDeprecatedThis({ 'number': fnWithThis })
+          validateDeprecatedThis({ number: fnWithThis })
         ).toThrow('Using `this` to self-reference');
       });
 
@@ -604,12 +603,12 @@ describe('Phase 2 Sprint 9: Branch Coverage Completion', () => {
           return this.signatures;
         };
         expect(() =>
-          validateDeprecatedThis({ 'number': fnWithSigs })
+          validateDeprecatedThis({ number: fnWithSigs })
         ).toThrow('Using `this` to self-reference');
       });
 
       it('should skip undefined functions', () => {
-        const sigs = { 'number': undefined } as unknown as Record<string, SignatureFunction>;
+        const sigs = { number: undefined } as unknown as Record<string, SignatureFunction>;
         expect(() => validateDeprecatedThis(sigs)).not.toThrow();
       });
     });
@@ -653,8 +652,8 @@ describe('Phase 2 Sprint 9: Branch Coverage Completion', () => {
       // Add type before Object to give it higher priority
       typed.addType({ name: 'positive', test: (x) => typeof x === 'number' && (x as number) > 0 }, false);
       const fn = typed({
-        'positive': (n: number) => n * 2,
-        'number': (n: number) => n,
+        positive: (n: number) => n * 2,
+        number: (n: number) => n,
       });
       // Note: 'number' is a builtin type that comes before 'positive',
       // so 5 matches 'number' first, unless we order signatures carefully
@@ -666,7 +665,7 @@ describe('Phase 2 Sprint 9: Branch Coverage Completion', () => {
   describe('Factory Branch Coverage', () => {
     it('should handle typed function with exact option', () => {
       const fn = typed({
-        'number': (n: number) => n,
+        number: (n: number) => n,
         'number, number': (a: number, b: number) => a + b,
       });
 
@@ -680,14 +679,14 @@ describe('Phase 2 Sprint 9: Branch Coverage Completion', () => {
         { from: 'boolean', to: 'number', convert: (b) => (b ? 1 : 0) },
       ], { override: true });
 
-      const fn = typed({ 'number': (n: number) => n * 2 });
+      const fn = typed({ number: (n: number) => n * 2 });
       expect(fn('5')).toBe(10);
       expect(fn(true)).toBe(2);
     });
 
     it('should handle signature not found in findSignature', () => {
       const fn = typed({
-        'number': (n: number) => n,
+        number: (n: number) => n,
       });
 
       expect(() => typed.findSignature(fn, 'unknownType')).toThrow();
@@ -695,8 +694,8 @@ describe('Phase 2 Sprint 9: Branch Coverage Completion', () => {
 
     it('should handle exact signature matching', () => {
       const fn = typed({
-        'number': (n: number) => n,
-        'any': (x: unknown) => x,
+        number: (n: number) => n,
+        any: (x: unknown) => x,
       });
 
       const sig = typed.findSignature(fn, 'number', { exact: true });
@@ -707,16 +706,16 @@ describe('Phase 2 Sprint 9: Branch Coverage Completion', () => {
   describe('Integration Branch Coverage', () => {
     it('should handle all 10 fast-path slots', () => {
       const fn = typed({
-        'number': (n: number) => 1,
-        'string': (s: string) => 2,
-        'boolean': (b: boolean) => 3,
-        'Array': (a: unknown[]) => 4,
-        'Date': (d: Date) => 5,
-        'RegExp': (r: RegExp) => 6,
-        'Function': (f: Function) => 7,
-        'null': () => 8,
-        'undefined': () => 9,
-        'Object': (o: object) => 10,
+        number: (_n: number) => 1,
+        string: (_s: string) => 2,
+        boolean: (_b: boolean) => 3,
+        Array: (_a: unknown[]) => 4,
+        Date: (_d: Date) => 5,
+        RegExp: (_r: RegExp) => 6,
+        Function: (_f: Function) => 7,
+        null: () => 8,
+        undefined: () => 9,
+        Object: (_o: object) => 10,
       });
 
       expect(fn(1)).toBe(1);
@@ -734,17 +733,17 @@ describe('Phase 2 Sprint 9: Branch Coverage Completion', () => {
     it('should fall back to generic path for 11+ signatures', () => {
       typed.addType({ name: 'custom1', test: (x) => typeof x === 'symbol' });
       const fn = typed({
-        'number': (n: number) => 1,
-        'string': (s: string) => 2,
-        'boolean': (b: boolean) => 3,
-        'Array': (a: unknown[]) => 4,
-        'Date': (d: Date) => 5,
-        'RegExp': (r: RegExp) => 6,
-        'Function': (f: Function) => 7,
-        'null': () => 8,
-        'undefined': () => 9,
-        'Object': (o: object) => 10,
-        'custom1': () => 11,
+        number: (_n: number) => 1,
+        string: (_s: string) => 2,
+        boolean: (_b: boolean) => 3,
+        Array: (_a: unknown[]) => 4,
+        Date: (_d: Date) => 5,
+        RegExp: (_r: RegExp) => 6,
+        Function: (_f: Function) => 7,
+        null: () => 8,
+        undefined: () => 9,
+        Object: (_o: object) => 10,
+        custom1: () => 11,
       });
 
       expect(fn(Symbol('test'))).toBe(11);
@@ -753,7 +752,7 @@ describe('Phase 2 Sprint 9: Branch Coverage Completion', () => {
     it('should handle conversions in typed functions', () => {
       typed.addConversion({ from: 'string', to: 'number', convert: (s) => Number(s) });
       const fn = typed({
-        'number': (n: number) => n * 2,
+        number: (n: number) => n * 2,
       });
       expect(fn('5')).toBe(10);
     });

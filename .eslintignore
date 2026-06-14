@@ -1,0 +1,9 @@
+# AssemblyScript sources use AS-specific intrinsic types (u32, i32, store/load,
+# etc.) and a dedicated compiler/tsconfig (assembly/tsconfig.json). They are
+# type-checked separately via `npm run typecheck:wasm` in CI and must not be
+# linted with the standard TypeScript/ESLint config.
+src/wasm/assembly/
+
+# Generated build artifacts and coverage.
+build/
+coverage/

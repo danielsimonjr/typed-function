@@ -16,17 +16,14 @@ import {
   expandParam,
   splitParams,
   stringifyParams,
-  isExactType,
 } from '../src/core/signature-parser.js';
 import {
   compileTest,
   compileTests,
-  compileArgConversion,
   compileArgsPreprocessing,
 } from '../src/core/signature-compiler.js';
 import {
   hasRestParam,
-  compareParams,
   compareSignatures,
   conflicting,
 } from '../src/core/signature-comparator.js';
@@ -34,7 +31,6 @@ import {
   ConversionManager,
   createConversionManager,
 } from '../src/core/conversion-manager.js';
-import type { Param, Type } from '../src/core/types.js';
 
 describe('Signature Parser', () => {
   let registry: TypeRegistry;

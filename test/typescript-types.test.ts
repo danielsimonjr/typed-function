@@ -433,8 +433,8 @@ describe('TypeScript Types: Inference', () => {
     const sigs = fn.signatures;
 
     expect(typeof sigs).toBe('object');
-    expect(typeof sigs['number']).toBe('function');
-    expect(typeof sigs['string']).toBe('function');
+    expect(typeof sigs.number).toBe('function');
+    expect(typeof sigs.string).toBe('function');
   });
 
   it('should infer _typedFunctionData type', () => {

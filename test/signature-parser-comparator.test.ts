@@ -500,8 +500,8 @@ describe('Phase 2 Sprint 5: Signature Parser & Comparator', () => {
       manager.addConversion({ from: 'string', to: 'number', convert: (s) => Number(s) });
       const convParam = expandParam(parseParam('number', registry), registry);
       const exactParam = parseParam('number', registry);
-      const sig1 = { params: [convParam, convParam] };
-      const sig2 = { params: [exactParam, exactParam] };
+      const _sig1 = { params: [convParam, convParam] };
+      const _sig2 = { params: [exactParam, exactParam] };
       // sig1 has conversion params, sig2 doesn't
       // Note: hasConversion is set based on whether types array has conversions
     });

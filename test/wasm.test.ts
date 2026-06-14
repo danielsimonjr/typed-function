@@ -156,7 +156,7 @@ describe('Type Masks', () => {
 
     it('should return correct mask for RegExp', () => {
       expect(getTypeMaskForValue(/test/)).toBe(1 << TYPE_REGEXP);
-      expect(getTypeMaskForValue(new RegExp('test'))).toBe(1 << TYPE_REGEXP);
+      expect(getTypeMaskForValue(/test/)).toBe(1 << TYPE_REGEXP);
     });
 
     it('should return correct mask for plain object', () => {
@@ -342,7 +342,7 @@ describe('Fallback Dispatch', () => {
 
     it('should respect argument count', () => {
       const fn1 = () => 'zero';
-      const fn2 = (a: number) => 'one';
+      const fn2 = (_a: number) => 'one';
 
       fallbackAddSignature(fn1, []);
       fallbackAddSignature(fn2, [1 << TYPE_NUMBER]);
@@ -475,7 +475,7 @@ describe('WASM/Fallback Integration', () => {
   });
 
   it('should handle multiple parameters with different types', () => {
-    const fn = (a: number, b: string, c: boolean) => 'ok';
+    const fn = (_a: number, _b: string, _c: boolean) => 'ok';
     fallbackAddSignature(fn, [
       getTypeMaskForName('number'),
       getTypeMaskForName('string'),

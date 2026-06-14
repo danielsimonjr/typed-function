@@ -194,7 +194,7 @@ describe('WASM Integration with typed-function', () => {
   });
 
   it('should work without WASM enabled', async () => {
-    const { default: typed, create } = await import('../src/index.js');
+    const { create } = await import('../src/index.js');
 
     const typed2 = create();
     typed2.resetWasm();

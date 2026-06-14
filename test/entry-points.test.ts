@@ -7,11 +7,11 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 
-// Task 1.1: Test isTypedFunction from index.ts
-import { isTypedFunction } from '../src/index.js';
-
 // Task 1.4 & 1.5: Test all re-exports from index.ts
 import typedInstance, {
+  // Task 1.1: Test isTypedFunction from index.ts
+  isTypedFunction,
+
   // Core types are tested via TypeScript compilation (Task 1.6)
   NOT_TYPED_FUNCTION,
 
@@ -116,19 +116,17 @@ import typedInstance, {
 import {
   addSignature,
   dispatchFind,
-  isWasmAvailable,
   fallbackClear,
   resetTypeMasks,
   TYPE_NUMBER,
   TYPE_STRING,
-  getTypeMaskForName,
 } from '../src/wasm/index.js';
 
 describe('Entry Points Coverage (Sprint 1)', () => {
   describe('Task 1.1: isTypedFunction from index.ts', () => {
     it('should return true for typed functions', () => {
       const typed = create();
-      const fn = typed('test', { 'number': (x: number) => x });
+      const fn = typed('test', { number: (x: number) => x });
 
       expect(isTypedFunction(fn)).toBe(true);
     });
@@ -175,8 +173,8 @@ describe('Entry Points Coverage (Sprint 1)', () => {
       const typed1 = create();
       const typed2 = create();
 
-      const fn1 = typed1('fn1', { 'number': (x: number) => x });
-      const fn2 = typed2('fn2', { 'string': (s: string) => s });
+      const fn1 = typed1('fn1', { number: (x: number) => x });
+      const fn2 = typed2('fn2', { string: (s: string) => s });
 
       expect(isTypedFunction(fn1)).toBe(true);
       expect(isTypedFunction(fn2)).toBe(true);
@@ -184,8 +182,8 @@ describe('Entry Points Coverage (Sprint 1)', () => {
 
     it('should return true for merged typed functions', () => {
       const typed = create();
-      const fn1 = typed({ 'number': (x: number) => x });
-      const fn2 = typed({ 'string': (s: string) => s });
+      const fn1 = typed({ number: (x: number) => x });
+      const fn2 = typed({ string: (s: string) => s });
       const merged = typed(fn1, fn2);
 
       expect(isTypedFunction(merged)).toBe(true);
@@ -310,7 +308,7 @@ describe('Entry Points Coverage (Sprint 1)', () => {
         expect(typeof typedInstance).toBe('function');
 
         const fn = typedInstance('testFn', {
-          'number': (x: number) => x * 2,
+          number: (x: number) => x * 2,
         });
 
         expect(fn(21)).toBe(42);
@@ -661,7 +659,7 @@ describe('Entry Points Coverage (Sprint 1)', () => {
       });
 
       const double = typed('double', {
-        'number': (x: number) => x * 2,
+        number: (x: number) => x * 2,
       });
 
       expect(double(21)).toBe(42);
@@ -671,7 +669,7 @@ describe('Entry Points Coverage (Sprint 1)', () => {
     it('should expose typed function data', () => {
       const typed = create();
       const fn = typed('myFunc', {
-        'number': (x: number) => x,
+        number: (x: number) => x,
       });
 
       // _typedFunctionData contains signatures and signatureMap
@@ -684,8 +682,8 @@ describe('Entry Points Coverage (Sprint 1)', () => {
 
     it('should support function merging through main entry', () => {
       const typed = create();
-      const numFn = typed({ 'number': (x: number) => x * 2 });
-      const strFn = typed({ 'string': (s: string) => s.length });
+      const numFn = typed({ number: (x: number) => x * 2 });
+      const strFn = typed({ string: (s: string) => s.length });
 
       const merged = typed(numFn, strFn);
 
@@ -696,8 +694,8 @@ describe('Entry Points Coverage (Sprint 1)', () => {
     it('should support find operation through main entry', () => {
       const typed = create();
       const fn = typed('findTest', {
-        'number': (x: number) => x,
-        'string': (s: string) => s,
+        number: (x: number) => x,
+        string: (s: string) => s,
       });
 
       // typed.find takes signature strings, not values
@@ -713,8 +711,8 @@ describe('Entry Points Coverage (Sprint 1)', () => {
     it('should support referTo through main entry', () => {
       const typed = create();
       const fn = typed('refTest', {
-        'number': (x: number) => x,
-        'string': typed.referTo('number', (numFn) => {
+        number: (x: number) => x,
+        string: typed.referTo('number', (numFn) => {
           return (s: string) => numFn(parseFloat(s));
         }),
       });
@@ -726,7 +724,7 @@ describe('Entry Points Coverage (Sprint 1)', () => {
     it('should support referToSelf through main entry', () => {
       const typed = create();
       const factorial = typed('factorial', {
-        'number': typed.referToSelf((self) => {
+        number: typed.referToSelf((self) => {
           return (n: number): number => (n <= 1 ? 1 : n * self(n - 1));
         }),
       });
@@ -745,7 +743,7 @@ describe('Entry Points Coverage (Sprint 1)', () => {
       });
 
       const fn = typed({
-        'TestType': (x: object) => x,
+        TestType: (x: object) => x,
       });
 
       expect(fn({})).toEqual({});
@@ -760,7 +758,7 @@ describe('Entry Points Coverage (Sprint 1)', () => {
       });
 
       const fn = typed({
-        'number': (x: number) => x,
+        number: (x: number) => x,
       });
 
       expect(fn(true)).toBe(1);
@@ -770,7 +768,7 @@ describe('Entry Points Coverage (Sprint 1)', () => {
     it('should support TypedFunction interface', () => {
       const typed = create();
       const fn = typed('typedFnTest', {
-        'number': (x: number) => x,
+        number: (x: number) => x,
       });
 
       // Access TypedFunction properties
@@ -781,7 +779,7 @@ describe('Entry Points Coverage (Sprint 1)', () => {
     it('should support TypedError interface', () => {
       const typed = create();
       const fn = typed('errorTest', {
-        'number': (x: number) => x,
+        number: (x: number) => x,
       });
 
       try {

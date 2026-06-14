@@ -555,7 +555,7 @@ describe('Conversion Manager Coverage (Sprint 2)', () => {
       });
 
       const fn = typed('test', {
-        'number': (x: number) => x * 2,
+        number: (x: number) => x * 2,
       });
 
       // Test conversions work
@@ -580,7 +580,7 @@ describe('Conversion Manager Coverage (Sprint 2)', () => {
       });
 
       const fn = typed('double', {
-        'number': (x: number) => x * 2,
+        number: (x: number) => x * 2,
       });
 
       expect(fn(10)).toBe(20);

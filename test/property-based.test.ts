@@ -42,7 +42,7 @@ function generateTestValues(): unknown[] {
     // Dates
     new Date(), new Date(0), new Date('2024-01-01'),
     // RegExp
-    /test/, /^hello$/i, new RegExp('pattern'),
+    /test/, /^hello$/i, /pattern/,
     // Functions
     () => {}, function named() {}, function(x: unknown) { return x; },
   ];
@@ -54,30 +54,6 @@ function generateTypeNames(): string[] {
     'number', 'string', 'boolean', 'null', 'undefined',
     'Array', 'Object', 'Date', 'RegExp', 'Function', 'any',
   ];
-}
-
-/** Generate signature strings */
-function generateSignatures(): string[] {
-  const types = ['number', 'string', 'boolean', 'Array', 'Object', 'any'];
-  const signatures: string[] = [''];  // Empty signature
-
-  // Single type signatures
-  for (const t of types) {
-    signatures.push(t);
-  }
-
-  // Union type signatures
-  signatures.push('number|string');
-  signatures.push('number|string|boolean');
-
-  // Multi-param signatures
-  for (const t1 of ['number', 'string']) {
-    for (const t2 of ['number', 'string']) {
-      signatures.push(`${t1}, ${t2}`);
-    }
-  }
-
-  return signatures;
 }
 
 // ============ Property Tests ============
@@ -172,14 +148,14 @@ describe('Property: Param Mask Union Laws', () => {
   });
 
   it('union is associative', () => {
-    const a = getParamMask(['number', 'string']);
-    const b = getParamMask(['boolean']);
-    const c = getParamMask(['Array']);
+    const _a = getParamMask(['number', 'string']);
+    const _b = getParamMask(['boolean']);
+    const _c = getParamMask(['Array']);
 
-    const ab_c = getParamMask(['number', 'string', 'boolean', 'Array']);
-    const a_bc = getParamMask(['number', 'string', 'boolean', 'Array']);
+    const abThenC = getParamMask(['number', 'string', 'boolean', 'Array']);
+    const aThenBc = getParamMask(['number', 'string', 'boolean', 'Array']);
 
-    expect(ab_c).toBe(a_bc);
+    expect(abThenC).toBe(aThenBc);
   });
 });
 
@@ -338,7 +314,7 @@ describe('Property: Error Handling Consistency', () => {
       expect(() => {
         typed({
           [t]: () => 'first',
-          [t]: () => 'second',  // Same key, different function - actually this won't throw
+          [t]: () => 'second', // Same key, different function - actually this won't throw
         });
       }).toBeDefined(); // Object literal deduplicates keys, so no conflict
     }
@@ -469,11 +445,11 @@ describe('Property: Signature Stability', () => {
 
     // Get reference to signatures
     const sigs = fn.signatures;
-    const originalFn = sigs['number'];
+    const originalFn = sigs.number;
 
     // Modifying signatures object shouldn't affect function behavior
     // (Note: this tests that we're not sharing mutable state)
     expect(fn(5)).toBe(10);
-    expect(sigs['number']).toBe(originalFn);
+    expect(sigs.number).toBe(originalFn);
   });
 });
