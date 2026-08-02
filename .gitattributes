@@ -1,0 +1,15 @@
+# Normalize line endings.
+#
+# Without this file, a Windows checkout with core.autocrlf=true materializes the
+# tree as CRLF while the index stores LF, leaving ~55 files permanently reported
+# as modified with zero content difference. That standing false-dirty state hides
+# real uncommitted work, and `git diff` shows nothing to explain it.
+#
+# Text files are stored LF in the index and checked out LF on every platform.
+* text=auto eol=lf
+
+# Binary assets: never convert.
+*.wasm binary
+*.png binary
+*.jpg binary
+*.ico binary
