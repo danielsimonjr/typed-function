@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.0-alpha.4] - 2026-08-12
+
+### Added
+
+- **Bundler compatibility — robust type identification across bundling/minification
+  boundaries.** Implements all directives from `docs/TYPED_FUNCTION_IMPROVEMENTS.md`:
+  - **Symbol-based type identification** (`TYPE_SYMBOL`, `BRAND_SYMBOL`) — classes can
+    use `Symbol.for('typed-function:type')` to survive bundling, working across module
+    boundaries and iframe/realm boundaries.
+  - **Factory function pattern for type conversions** — `TypeDef` now supports a
+    `factory` property for proper `new` instantiation, preventing "Class constructor
+    cannot be invoked without 'new'" errors under some bundlers.
+  - **Constructor registry** (`typed.registerConstructor()`, WeakMap-based) — bundler-safe
+    type identification that still works when constructor names are minified.
+  - **BigInt coercion warnings** — `typed.config({ warnOnBigIntCoercion: true })` warns
+    on BigInt→number narrowing; `ConversionDef` supports `involvesBigInt` /
+    `suppressBigIntWarning`.
+  - **Instance property checks** via WeakSet registration (`registerInstance()`,
+    `isRegisteredInstance()`) for cross-realm support.
+  - **Type resolution caching** — WeakMap-based `globalTypeCache`, toggled via
+    `typed.config({ enableTypeCache: true })`.
+  - **New public API surface:** `TYPE_SYMBOL`, `BRAND_SYMBOL`,
+    `typed.registerConstructor()`/`unregisterConstructor()`,
+    `typed.getTypeByConstructor()`, `typed.createBundlerSafeTest()`, `typed.config()`,
+    `typed.getConfig()`, `createTypedClass()`, `addTypeIdentification()`,
+    `identifyType()`, `TypeCache`, `globalTypeCache`, `createTypeCache()`,
+    `cachedTypeResolve()`.
+  - 1684 tests passing.
+
+### Security
+
+- `nanoid` -> 3.3.18, `shell-quote` 1.8.4 -> 1.10.0, `postcss` 8.5.15 -> 8.5.23 (dev
+  dependencies), lockfile refresh clearing 3 Dependabot alerts.
+
 ## [5.0.0-alpha.3] - 2025-12-13
 
 ### Added
